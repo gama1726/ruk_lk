@@ -40,10 +40,6 @@
   color: var(--color-text-secondary);
 }
 
-.picker {
-  margin-top: 0.75rem;
-}
-
 .menu {
   flex: 1;
   min-height: 0;

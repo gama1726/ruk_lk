@@ -4,7 +4,6 @@ import { SocialIcon } from '@/icons/social'
 import { socialLinks } from '@/mocks/public-nav'
 import { paths } from '@/paths'
 import { sidebarTop, sidebarGroups } from '@/nav'
-import { ProgramPicker } from './program-picker'
 import { MenuLink } from './nav-link'
 import { NavGroupBlock } from './nav-group'
 import styles from './sidebar.module.css'
@@ -17,9 +16,6 @@ export function Sidebar() {
           <img src={logo} alt="Российский университет кооперации" className={styles.logoImg} />
           <span className={styles.org}>Личный кабинет обучающегося</span>
         </NavLink>
-        <div className={styles.picker}>
-          <ProgramPicker compact />
-        </div>
       </div>
 
       <div className={styles.menu}>

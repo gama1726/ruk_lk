@@ -29,12 +29,6 @@
   max-width: 120px;
 }
 
-.user {
-  flex-shrink: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
 @media (min-width: 1024px) {
   .topbar {
     display: none;

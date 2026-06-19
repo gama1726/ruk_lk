@@ -80,7 +80,7 @@ export function Settings() {
         }
       />
 
-      <section className={styles.section}>
+      <section className={styles.section} id="email">
         <h2 className={styles.sectionTitle}>Контакты</h2>
         <Card>
           <form className={styles.form} onSubmit={handleEmail}>
@@ -98,7 +98,7 @@ export function Settings() {
             {emailSaved ? <p className={styles.success}>Почта обновлена в сессии</p> : null}
           </form>
 
-          <form className={styles.form} onSubmit={handlePhone} style={{ marginTop: '1.25rem' }}>
+          <form className={styles.form} onSubmit={handlePhone} id="phone" style={{ marginTop: '1.25rem' }}>
             <Input
               label="Телефон"
               type="tel"
@@ -112,7 +112,7 @@ export function Settings() {
         </Card>
       </section>
 
-      <section className={styles.section}>
+      <section className={styles.section} id="password">
         <h2 className={styles.sectionTitle}>Безопасность</h2>
         <Card>
           <form className={styles.form} onSubmit={handlePassword}>

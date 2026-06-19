@@ -3,7 +3,6 @@ import { Sidebar } from './sidebar'
 import { CabinetHeader } from './cabinet-header'
 import { Topbar } from './topbar'
 import { MobileNav } from './mobile-nav'
-import { ProgramPicker } from './program-picker'
 import styles from './cabinet.module.css'
 
 export function CabinetShell() {
@@ -13,9 +12,6 @@ export function CabinetShell() {
       <div className={styles.main}>
         <CabinetHeader />
         <Topbar />
-        <div className={styles.programBar}>
-          <ProgramPicker />
-        </div>
         <div className={styles.content}>
           <Outlet />
         </div>
