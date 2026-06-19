@@ -1,20 +1,54 @@
 .wrap {
   min-height: 100dvh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
+  flex-direction: column;
   background: linear-gradient(160deg, var(--color-bg) 0%, var(--color-secondary-muted) 100%);
 }
 
-.box {
-  width: 100%;
-  max-width: 420px;
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.topBrand {
+  font-weight: 700;
+  font-size: var(--font-size-md);
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.topNav {
+  display: flex;
+  gap: 1rem;
+}
+
+.topLink {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.topLink:hover {
+  color: var(--color-primary);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1.25rem;
 }
 
 .brand {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .logo {
@@ -36,4 +70,22 @@
   margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+}
+
+.content {
+  width: 100%;
+  max-width: 420px;
+}
+
+.footer {
+  padding: 1rem 1.25rem;
+  text-align: center;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.copy {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
