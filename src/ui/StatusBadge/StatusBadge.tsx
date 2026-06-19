@@ -14,6 +14,7 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   warning: 'warning',
   pending: 'warning',
   processing: 'info',
+  moderation: 'warning',
   draft: 'default',
   sent: 'info',
   scheduled: 'default',
