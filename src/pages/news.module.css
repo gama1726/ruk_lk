@@ -1,0 +1,84 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.filterBtn {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.filterBtnActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-muted);
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.item {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.itemUnread {
+  border-left: 3px solid var(--color-primary);
+}
+
+.itemHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.meta {
+  margin: 0.375rem 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.preview {
+  margin: 0.5rem 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.actions {
+  margin-top: 0.75rem;
+}
+
+.markBtn {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.markBtn:hover {
+  text-decoration: underline;
+}
