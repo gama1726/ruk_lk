@@ -15,7 +15,6 @@ import { TargetLogin } from '@/pages/login-target'
 import { TeacherLogin } from '@/pages/login-teacher'
 import { Resources } from '@/pages/resources'
 import { Support } from '@/pages/support'
-import { Home } from '@/pages/home'
 import { Profile } from '@/pages/profile'
 import { News } from '@/pages/news'
 import { Schedule } from '@/pages/schedule'
@@ -74,7 +73,7 @@ export const router = createBrowserRouter([
       {
         element: <CabinetShell />,
         children: [
-          { path: paths.home, element: <Home /> },
+          { path: paths.home, element: <Navigate to={paths.profile} replace /> },
           { path: paths.profile, element: <Profile /> },
           { path: paths.news, element: <News /> },
           { path: paths.schedule, element: <Schedule /> },

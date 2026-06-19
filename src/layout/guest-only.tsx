@@ -10,7 +10,7 @@ export function GuestOnly() {
   const session = useAuth((s) => s.session)
 
   if (session) {
-    return <Navigate to={paths.home} replace />
+    return <Navigate to={paths.profile} replace />
   }
 
   return <Outlet />

@@ -25,7 +25,7 @@ export function MobileNav() {
             key={tab.to}
             to={tab.to}
             className={({ isActive }) => [styles.tab, isActive ? styles.tabActive : ''].filter(Boolean).join(' ')}
-            end={tab.to === paths.home}
+            end={tab.to === paths.profile}
           >
             {tab.label}
           </NavLink>

@@ -15,7 +15,7 @@ export function Topbar() {
 
   return (
     <header className={styles.topbar}>
-      <NavLink to={paths.home} className={styles.brand} end>
+      <NavLink to={paths.profile} className={styles.brand} end>
         <img src={logo} alt="Российский университет кооперации" className={styles.brandLogo} />
       </NavLink>
       {name ? <span className={styles.user}>{shortName(name)}</span> : null}

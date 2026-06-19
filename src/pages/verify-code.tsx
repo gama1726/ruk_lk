@@ -32,7 +32,7 @@ export function Verify() {
     }
 
     setBusy(true)
-    navigate(paths.home)
+    navigate(paths.profile)
   }
 
   return (
