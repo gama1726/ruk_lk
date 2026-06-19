@@ -1,71 +1,77 @@
 /**
- * @file Структура меню кабинета.
- * @see {@link menu} — сайдбар и drawer
- * @see {@link mobileTabs} — нижняя панель на узком экране
+ * @file Структура меню кабинета (сайдбар в стиле портала).
+ * @see {@link sidebarTop}, {@link sidebarGroups}
  */
 
 import { paths } from '@/paths'
 
 /** Пункт навигации */
 export type NavItem = {
-  /** path из {@link paths} */
   to: string
   label: string
 }
 
-/** Группа пунктов с заголовком */
-export type NavSection = {
-  title: string
+/** Раскрывающаяся группа в сайдбаре */
+export type NavGroup = {
+  id: string
+  label: string
   items: NavItem[]
 }
 
-/**
- * Полное меню для desktop-сайдбара и мобильного drawer.
- * Сервисы перечислены по отдельности; хаб `/services` — только в {@link mobileTabs}.
- */
-export const menu: NavSection[] = [
+/** Верхние пункты без группы — как у МИРЭА */
+export const sidebarTop: NavItem[] = [
+  { to: paths.profile, label: 'Профиль' },
+  { to: paths.news, label: 'Новости и уведомления' },
+  { to: paths.schedule, label: 'Расписание' },
+]
+
+/** Раскрывающиеся разделы */
+export const sidebarGroups: NavGroup[] = [
   {
-    title: 'Главное',
-    items: [
-      { to: paths.profile, label: 'Профиль' },
-      { to: paths.news, label: 'Новости и уведомления' },
-      { to: paths.schedule, label: 'Расписание' },
-    ],
-  },
-  {
-    title: 'Обучение',
+    id: 'study',
+    label: 'Обучение',
     items: [
       { to: paths.attendance, label: 'Посещаемость' },
-      { to: paths.recordBook, label: 'Зачётная книжка' },
+      { to: paths.recordBook, label: 'Электронная зачётная книжка' },
       { to: paths.grades, label: 'Успеваемость' },
-      { to: paths.debts, label: 'Задолженности' },
+      { to: paths.debts, label: 'Академические задолженности' },
+      { to: paths.library, label: 'Читательский билет' },
+      { to: paths.teachers, label: 'Преподаватели' },
+      { to: paths.orders, label: 'Приказы' },
+    ],
+  },
+  {
+    id: 'program',
+    label: 'Образовательная программа',
+    items: [
       { to: paths.studyPlan, label: 'Учебный план' },
       { to: paths.roadmap, label: 'Траектория' },
-      { to: paths.teachers, label: 'Преподаватели' },
-      { to: paths.orders, label: 'Приказы и документы' },
     ],
   },
   {
-    title: 'Сервисы',
+    id: 'services',
+    label: 'Сервисы',
     items: [
-      { to: paths.requests, label: 'Заявления и справки' },
-      { to: paths.payments, label: 'Оплата и договоры' },
-      { to: paths.dormitory, label: 'Общежитие' },
+      { to: paths.requests, label: 'Заявления' },
+      { to: paths.payments, label: 'Оплата услуг' },
+      { to: paths.dormitory, label: 'Заявки по общежитиям' },
       { to: paths.bypassList, label: 'Обходной лист' },
-      { to: paths.psychologist, label: 'Психолог' },
+      { to: paths.psychologist, label: 'Приём психолога' },
       { to: paths.portfolio, label: 'Портфолио' },
-      { to: paths.library, label: 'Библиотека' },
+      { to: paths.settings, label: 'Настройки' },
     ],
   },
-  {
-    title: 'Аккаунт',
-    items: [{ to: paths.settings, label: 'Настройки' }],
-  },
+]
+
+/** Полное меню для drawer на mobile */
+export const menu = [
+  { title: 'Разделы', items: sidebarTop },
+  ...sidebarGroups.map((g) => ({ title: g.label, items: g.items })),
 ]
 
 /** Короткий набор вкладок внизу экрана на mobile */
 export const mobileTabs: NavItem[] = [
-  { to: paths.home, label: 'Главная' },
+  { to: paths.profile, label: 'Профиль' },
   { to: paths.schedule, label: 'Расписание' },
   { to: paths.news, label: 'Уведомления' },
   { to: paths.services, label: 'Сервисы' },

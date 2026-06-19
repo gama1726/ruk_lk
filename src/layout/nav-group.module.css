@@ -1,0 +1,46 @@
+.group {
+  margin-top: 0.125rem;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--transition-fast);
+}
+
+.toggle:hover {
+  background-color: var(--color-surface-muted);
+}
+
+.toggleOpen {
+  color: var(--color-primary);
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.toggleOpen .chevron {
+  transform: rotate(180deg);
+  color: var(--color-primary);
+}
+
+.list {
+  margin: 0.125rem 0 0;
+  padding: 0 0 0 0.5rem;
+  list-style: none;
+}
