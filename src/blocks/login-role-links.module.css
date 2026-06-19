@@ -10,10 +10,10 @@
 
 .roleLink {
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  color: var(--color-primary);
   text-decoration: none;
 }
 
 .roleLink:hover {
-  color: var(--color-primary);
+  text-decoration: underline;
 }

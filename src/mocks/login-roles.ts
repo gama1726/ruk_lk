@@ -14,7 +14,7 @@ export const loginRoleLinks: LoginRoleLink[] = [
   { to: paths.loginParent, label: 'Вход для родителя' },
   { to: paths.loginContract, label: 'Вход для владельца договора' },
   { to: paths.loginTarget, label: 'Вход для заказчиков целевого обучения' },
-  { to: paths.loginTeacher, label: 'Вход для преподавателя' },
+  { to: paths.sso, label: 'Вход для преподавателя' },
 ]
 
 /**

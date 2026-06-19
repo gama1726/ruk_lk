@@ -11,6 +11,7 @@ export const paths = {
   loginContract: '/login/contract',
   loginTarget: '/login/target',
   loginTeacher: '/login/teacher',
+  sso: '/login/sso',
   verify: '/verify-code',
   forgot: '/forgot-password',
   resources: '/resources',

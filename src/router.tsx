@@ -1,10 +1,12 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { paths } from '@/paths'
 import { LoginShell } from '@/layout/login'
+import { SsoLayout } from '@/layout/sso'
 import { CabinetShell } from '@/layout/cabinet'
 import { GuestOnly } from '@/layout/guest-only'
 import { RequireSession } from '@/layout/require-session'
 import { Login } from '@/pages/login'
+import { SsoLogin } from '@/pages/login-sso'
 import { Verify } from '@/pages/verify-code'
 import { ForgotPassword } from '@/pages/forgot-password'
 import { ParentLogin } from '@/pages/login-parent'
@@ -53,6 +55,16 @@ export const router = createBrowserRouter([
           { path: paths.verify, element: <Verify /> },
           { path: paths.forgot, element: <ForgotPassword /> },
         ],
+      },
+    ],
+  },
+  {
+    element: <GuestOnly />,
+    children: [
+      {
+        path: paths.sso,
+        element: <SsoLayout />,
+        children: [{ index: true, element: <SsoLogin /> }],
       },
     ],
   },

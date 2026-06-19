@@ -30,7 +30,14 @@ type AuthState = {
    */
   signIn: (email: string, password: string) => FieldError | null
   /**
-   * Второй шаг: подтверждение кода из письма.
+   * Вход через SSO (Keycloak): проверка полей и сразу сессия без кода из письма.
+   * @param email - корпоративная почта или логин
+   * @param password - проверяется и отбрасывается
+   * @returns ошибку поля или `null` при успехе
+   */
+  completeSso: (email: string, password: string) => FieldError | null
+  /**
+   * Второй шаг (вход по ссылке): подтверждение кода из письма.
    * @param code - шесть цифр
    * @returns текст ошибки или `null` при успехе
    */
@@ -58,6 +65,25 @@ export const useAuth = create<AuthState>((set) => ({
     if (password.length < 4) return { field: 'password', message: 'Пароль слишком короткий' }
 
     set({ pendingEmail: trimmed })
+    return null
+  },
+
+  completeSso(email, password) {
+    const trimmed = email.trim()
+
+    if (!trimmed) return { field: 'login', message: 'Укажите почту' }
+    if (!emailPattern.test(trimmed)) return { field: 'login', message: 'Похоже, почта указана с ошибкой' }
+    if (!password) return { field: 'password', message: 'Укажите пароль' }
+    if (password.length < 4) return { field: 'password', message: 'Пароль слишком короткий' }
+
+    set({
+      session: {
+        email: trimmed,
+        name: 'Иванов Артём Сергеевич',
+      },
+      pendingEmail: null,
+    })
+
     return null
   },
 

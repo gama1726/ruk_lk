@@ -1,0 +1,17 @@
+.wrap {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+  background: #eceef3;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  padding: 2rem 2.25rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
