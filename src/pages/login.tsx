@@ -1,10 +1,16 @@
+/**
+ * @file Страница входа студента.
+ */
+
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
 import { paths } from '@/paths'
+import { AuthCard } from '@/blocks/auth-card'
+import card from '@/blocks/auth-card.module.css'
 import { LoginNotices } from '@/blocks/login-notices'
 import { LoginRoleLinks } from '@/blocks/login-role-links'
-import { ScreenHeader, Card, Input, Button } from '@/ui'
+import { Input, Button } from '@/ui'
 import styles from './auth-form.module.css'
 
 export function Login() {
@@ -37,8 +43,9 @@ export function Login() {
 
   return (
     <>
-      <ScreenHeader title="Вход" />
-      <Card>
+      <AuthCard>
+        <p className={card.sectionLabel}>Вход для студента</p>
+
         <form className={styles.form} onSubmit={handleSubmit}>
           <Input
             label="Почта или логин"
@@ -57,21 +64,20 @@ export function Login() {
             error={passwordError}
             disabled={busy}
           />
-          <p className={styles.hint}>Для входа нужна корпоративная почта студента РУК.</p>
-          <p className={styles.hint}>
-            <Link to={paths.forgot} className={styles.link}>
-              Забыли пароль?
-            </Link>
-          </p>
-          <div className={styles.actions}>
-            <Button type="submit" fullWidth loading={busy}>
-              Войти
-            </Button>
-          </div>
+          <Button type="submit" fullWidth loading={busy} size="lg">
+            Войти
+          </Button>
         </form>
-      </Card>
+
+        <p className={card.forgotRow}>
+          <Link to={paths.forgot}>Забыли пароль?</Link>
+        </p>
+
+        <p className={card.divider}>Или продолжите как</p>
+        <LoginRoleLinks />
+      </AuthCard>
+
       <LoginNotices />
-      <LoginRoleLinks />
     </>
   )
 }

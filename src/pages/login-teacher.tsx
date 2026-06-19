@@ -4,7 +4,9 @@
 
 import { Link } from 'react-router-dom'
 import { paths } from '@/paths'
-import { ScreenHeader, Card, Button } from '@/ui'
+import { AuthCard } from '@/blocks/auth-card'
+import card from '@/blocks/auth-card.module.css'
+import { Button } from '@/ui'
 import form from './auth-form.module.css'
 import pub from './public.module.css'
 
@@ -18,17 +20,16 @@ export function TeacherLogin() {
 
   return (
     <>
-      <ScreenHeader title="Вход для преподавателя" />
-
-      <Card>
+      <AuthCard>
+        <p className={card.sectionLabel}>Вход для преподавателя</p>
         <p className={form.hint}>
           Преподаватели и сотрудники входят через единый корпоративный портал. Студенческий логин здесь не
           подходит.
         </p>
-        <Button type="button" fullWidth onClick={goSso}>
+        <Button type="button" fullWidth size="lg" onClick={goSso}>
           Войти через корпоративный портал
         </Button>
-      </Card>
+      </AuthCard>
 
       <p className={pub.back}>
         <Link to={paths.login}>Вход для студента</Link>

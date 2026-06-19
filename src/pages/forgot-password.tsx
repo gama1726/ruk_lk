@@ -6,7 +6,9 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { paths } from '@/paths'
-import { ScreenHeader, Card, Input, Button } from '@/ui'
+import { AuthCard } from '@/blocks/auth-card'
+import card from '@/blocks/auth-card.module.css'
+import { Input, Button } from '@/ui'
 import styles from './public.module.css'
 import form from './auth-form.module.css'
 
@@ -45,16 +47,18 @@ export function ForgotPassword() {
 
   return (
     <>
-      <ScreenHeader title="Восстановление пароля" />
+      <AuthCard>
+        <p className={card.sectionLabel}>Восстановление пароля</p>
 
-      <Card>
         {done ? (
           <p className={styles.forgotOk}>
             Запрос принят. После подключения SSO письмо с инструкцией придёт на {email.trim()}.
           </p>
         ) : (
           <form className={form.form} onSubmit={handleSubmit}>
-            <p className={form.hint}>Укажите почту студента РУК и новый пароль. Сейчас это заглушка — пароль никуда не уходит.</p>
+            <p className={form.hint}>
+              Укажите почту студента РУК и новый пароль. Сейчас это заглушка — пароль никуда не уходит.
+            </p>
             <Input
               label="Корпоративная почта"
               type="email"
@@ -77,15 +81,15 @@ export function ForgotPassword() {
               error={pwdError}
               onChange={(e) => setConfirm(e.target.value)}
             />
-            <Button type="submit" fullWidth>
+            <Button type="submit" fullWidth size="lg">
               Восстановить пароль
             </Button>
           </form>
         )}
-      </Card>
+      </AuthCard>
 
       <p className={styles.back}>
-        <Link to={paths.login}>К входу</Link>
+        <Link to={paths.login}>Вход для студента</Link>
       </p>
     </>
   )

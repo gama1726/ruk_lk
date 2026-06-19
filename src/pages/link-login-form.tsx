@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { paths } from '@/paths'
-import { ScreenHeader, Card, Input, Button } from '@/ui'
+import { AuthCard } from '@/blocks/auth-card'
+import card from '@/blocks/auth-card.module.css'
+import { Input, Button } from '@/ui'
 import form from './auth-form.module.css'
 import pub from './public.module.css'
 
@@ -39,9 +41,9 @@ export function LinkLoginForm({ title, hint, fields, validate, successText }: Pr
 
   return (
     <>
-      <ScreenHeader title={title} />
+      <AuthCard>
+        <p className={card.sectionLabel}>{title}</p>
 
-      <Card>
         {done ? (
           <p className={pub.forgotOk}>{successText(values)}</p>
         ) : (
@@ -58,12 +60,12 @@ export function LinkLoginForm({ title, hint, fields, validate, successText }: Pr
                 onChange={(e) => setValues((v) => ({ ...v, [field.name]: e.target.value }))}
               />
             ))}
-            <Button type="submit" fullWidth>
+            <Button type="submit" fullWidth size="lg">
               Получить ссылку для входа
             </Button>
           </form>
         )}
-      </Card>
+      </AuthCard>
 
       <p className={pub.back}>
         <Link to={paths.login}>Вход для студента</Link>
