@@ -22,27 +22,11 @@
   text-decoration: none;
 }
 
-.brandMark {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
+.brandLogo {
+  display: block;
   height: 2rem;
-  border-radius: var(--radius-sm);
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-}
-
-.brandText {
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: var(--color-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: auto;
+  max-width: 120px;
 }
 
 .user {

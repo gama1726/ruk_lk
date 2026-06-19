@@ -1,21 +1,22 @@
 :root {
-  --color-primary: #7a1f2e;
-  --color-primary-hover: #5c1723;
-  --color-primary-muted: rgba(122, 31, 46, 0.08);
+  /* Бренд РУК: фиолетовый #51308E, золотой #F9B233 */
+  --color-primary: #51308e;
+  --color-primary-hover: #3f256d;
+  --color-primary-muted: rgba(81, 48, 142, 0.08);
 
-  --color-secondary: #c9a962;
-  --color-secondary-hover: #b8944f;
-  --color-secondary-muted: rgba(201, 169, 98, 0.15);
+  --color-secondary: #f9b233;
+  --color-secondary-hover: #e5a02e;
+  --color-secondary-muted: rgba(249, 178, 51, 0.18);
 
-  --color-bg: #faf8f5;
+  --color-bg: #f9f8fc;
   --color-surface: #ffffff;
-  --color-surface-muted: #f0eeeb;
-  --color-border: #e2ded8;
-  --color-border-strong: #c8c2b8;
+  --color-surface-muted: #f2f0f7;
+  --color-border: #e4e0ec;
+  --color-border-strong: #ccc6d8;
 
-  --color-text-primary: #2d2d2d;
-  --color-text-secondary: #6b6b6b;
-  --color-text-muted: #9a9590;
+  --color-text-primary: #2a2438;
+  --color-text-secondary: #6b6578;
+  --color-text-muted: #9a94a8;
   --color-text-inverse: #ffffff;
 
   --color-success: #2d6a4f;
@@ -24,8 +25,8 @@
   --color-warning-bg: #fdf6e3;
   --color-danger: #9b2335;
   --color-danger-bg: #fce8eb;
-  --color-info: #3d5a80;
-  --color-info-bg: #e8eef5;
+  --color-info: #51308e;
+  --color-info-bg: #efeaf7;
 
   --font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-size-xs: 0.75rem;
@@ -39,8 +40,8 @@
   --radius-md: 8px;
   --radius-lg: 12px;
 
-  --shadow-sm: 0 1px 2px rgba(45, 45, 45, 0.06);
-  --shadow-md: 0 4px 12px rgba(45, 45, 45, 0.08);
+  --shadow-sm: 0 1px 2px rgba(42, 36, 56, 0.06);
+  --shadow-md: 0 4px 12px rgba(42, 36, 56, 0.08);
 
   --sidebar-width: 260px;
   --topbar-height: 56px;

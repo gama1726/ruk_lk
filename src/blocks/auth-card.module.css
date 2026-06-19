@@ -8,44 +8,22 @@
 }
 
 .brandRow {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
   margin-bottom: 1.75rem;
 }
 
-.logo {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: var(--radius-md);
-  background: linear-gradient(145deg, var(--color-secondary) 0%, var(--color-primary) 100%);
-  color: var(--color-text-inverse);
-  font-size: var(--font-size-md);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.brandText {
-  min-width: 0;
+.logoImg {
+  display: block;
+  width: auto;
+  max-width: 160px;
+  height: auto;
+  margin-bottom: 0.75rem;
 }
 
 .brandSub {
   margin: 0;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   line-height: 1.35;
-}
-
-.brandName {
-  margin: 0.125rem 0 0;
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--color-primary);
-  line-height: 1.25;
 }
 
 .sectionLabel {

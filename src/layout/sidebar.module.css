@@ -39,12 +39,11 @@
   background-color: var(--color-primary-muted);
 }
 
-.logo {
+.logoImg {
   display: block;
-  font-size: var(--font-size-xl);
-  font-weight: 700;
-  color: var(--color-primary);
-  letter-spacing: 0.04em;
+  width: auto;
+  max-width: 140px;
+  height: auto;
 }
 
 .org {

@@ -3,6 +3,7 @@
  */
 
 import type { ReactNode } from 'react'
+import logo from '@/assets/ruk-logo.png'
 import styles from './auth-card.module.css'
 
 /**
@@ -18,18 +19,13 @@ export function AuthCard({ children }: { children: ReactNode }) {
 }
 
 /**
- * Логотип РУК и название университета.
+ * Логотип РУК и подпись кабинета.
  */
 export function AuthBrand() {
   return (
     <div className={styles.brandRow}>
-      <div className={styles.logo} aria-hidden="true">
-        РУК
-      </div>
-      <div className={styles.brandText}>
-        <p className={styles.brandSub}>Личный кабинет обучающегося</p>
-        <p className={styles.brandName}>Российский университет кооперации</p>
-      </div>
+      <img src={logo} alt="Российский университет кооперации" className={styles.logoImg} />
+      <p className={styles.brandSub}>Личный кабинет обучающегося</p>
     </div>
   )
 }

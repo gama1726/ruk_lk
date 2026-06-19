@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import logo from '@/assets/ruk-logo.png'
 import { paths } from '@/paths'
 import { menu } from '@/nav'
 import { ProgramPicker } from './program-picker'
@@ -9,7 +10,7 @@ export function Sidebar() {
   return (
     <nav className={styles.sidebar} aria-label="Разделы кабинета">
       <NavLink to={paths.home} className={({ isActive }) => [styles.home, isActive ? styles.homeActive : ''].filter(Boolean).join(' ')} end>
-        <span className={styles.logo}>РУК</span>
+        <img src={logo} alt="Российский университет кооперации" className={styles.logoImg} />
         <span className={styles.org}>Личный кабинет</span>
       </NavLink>
 

@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import logo from '@/assets/ruk-logo.png'
 import { useAuth } from '@/auth'
 import { paths } from '@/paths'
 import styles from './topbar.module.css'
@@ -15,8 +16,7 @@ export function Topbar() {
   return (
     <header className={styles.topbar}>
       <NavLink to={paths.home} className={styles.brand} end>
-        <span className={styles.brandMark}>РУК</span>
-        <span className={styles.brandText}>Российский университет кооперации</span>
+        <img src={logo} alt="Российский университет кооперации" className={styles.brandLogo} />
       </NavLink>
       {name ? <span className={styles.user}>{shortName(name)}</span> : null}
     </header>
