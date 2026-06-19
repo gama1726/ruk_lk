@@ -11,6 +11,12 @@
   flex-direction: column;
 }
 
+.programBar {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
 .content {
   flex: 1;
   padding: 1rem;
@@ -19,6 +25,10 @@
 }
 
 @media (min-width: 1024px) {
+  .programBar {
+    display: none;
+  }
+
   .content {
     padding: 1.5rem 2rem;
     padding-bottom: 1.5rem;

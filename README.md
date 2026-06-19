@@ -27,7 +27,11 @@ src/
   router.tsx — маршруты
 ```
 
-Цвета — в `src/styles/tokens.css`. Моки появятся в `src/mocks/`.
+Цвета — в `src/styles/tokens.css`. Моки — в `src/mocks/`.
+
+## JSDoc
+
+В `auth.ts`, `study.ts`, `mocks/` и layout-обёртках описания через JSDoc: `@param`, `@returns`, `@example`, `@see`, `@remarks`. Поля типов комментируем inline. UI-компоненты без очевидной логики не раздуваем.
 
 ## Backend
 

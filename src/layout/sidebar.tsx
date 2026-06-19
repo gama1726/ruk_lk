@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { paths } from '@/paths'
 import { menu } from '@/nav'
+import { ProgramPicker } from './program-picker'
 import { MenuLink } from './nav-link'
 import styles from './sidebar.module.css'
 
@@ -11,6 +12,10 @@ export function Sidebar() {
         <span className={styles.logo}>РУК</span>
         <span className={styles.org}>Личный кабинет</span>
       </NavLink>
+
+      <div className={styles.picker}>
+        <ProgramPicker compact />
+      </div>
 
       {menu.map((section) => (
         <div key={section.title} className={styles.section}>

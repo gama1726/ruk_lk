@@ -11,6 +11,16 @@
   overflow-y: auto;
 }
 
+.picker {
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .picker {
+    display: block;
+  }
+}
+
 .home {
   display: block;
   padding: 0.75rem;

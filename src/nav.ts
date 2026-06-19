@@ -1,15 +1,28 @@
+/**
+ * @file Структура меню кабинета.
+ * @see {@link menu} — сайдбар и drawer
+ * @see {@link mobileTabs} — нижняя панель на узком экране
+ */
+
 import { paths } from '@/paths'
 
+/** Пункт навигации */
 export type NavItem = {
+  /** path из {@link paths} */
   to: string
   label: string
 }
 
+/** Группа пунктов с заголовком */
 export type NavSection = {
   title: string
   items: NavItem[]
 }
 
+/**
+ * Полное меню для desktop-сайдбара и мобильного drawer.
+ * Сервисы перечислены по отдельности; хаб `/services` — только в {@link mobileTabs}.
+ */
 export const menu: NavSection[] = [
   {
     title: 'Главное',
@@ -46,12 +59,11 @@ export const menu: NavSection[] = [
   },
   {
     title: 'Аккаунт',
-    items: [
-      { to: paths.settings, label: 'Настройки' },
-    ],
+    items: [{ to: paths.settings, label: 'Настройки' }],
   },
 ]
 
+/** Короткий набор вкладок внизу экрана на mobile */
 export const mobileTabs: NavItem[] = [
   { to: paths.home, label: 'Главная' },
   { to: paths.schedule, label: 'Расписание' },
