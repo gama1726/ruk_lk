@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
+import { SocialIcon } from '@/icons/social'
 import { publicNav, socialLinks } from '@/mocks/public-nav'
 import { paths } from '@/paths'
 import styles from './login.module.css'
@@ -33,8 +34,8 @@ export function LoginShell() {
       <footer className={styles.footer}>
         <div className={styles.social}>
           {socialLinks.map((s) => (
-            <a key={s.id} href={s.url} target="_blank" rel="noopener noreferrer" aria-label={s.label}>
-              {s.label.slice(0, 2)}
+            <a key={s.id} href={s.url} target="_blank" rel="noopener noreferrer" aria-label={s.label} className={styles.socialLink}>
+              <SocialIcon id={s.id} className={styles.socialIcon} />
             </a>
           ))}
         </div>
