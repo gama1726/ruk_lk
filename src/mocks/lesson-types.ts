@@ -15,6 +15,8 @@ export type Lesson = {
   id: string
   /** {@link StudyProgram.id} */
   programId: string
+  /** День пары, `YYYY-MM-DD` */
+  date: string
   subject: string
   kind: LessonKind
   /** `ЧЧ:ММ`, локальное время */
