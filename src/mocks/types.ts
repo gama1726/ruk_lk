@@ -43,5 +43,10 @@ export type Student = {
   personalEmail: string
   /** Полный номер; перед показом — `maskPhone` из `mocks/format.ts` */
   phone: string
+  gender: string
+  /** ISO-дата рождения */
+  birthDate: string
+  /** бюджет, договор и т.п. */
+  funding: string
   programs: StudyProgram[]
 }

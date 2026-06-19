@@ -15,6 +15,9 @@ export const student: Student = {
   corporateEmail: 'ivanov.as@student.ruc.local',
   personalEmail: 'artem.ivanov@mail.ru',
   phone: '+79161234567',
+  gender: 'мужской',
+  birthDate: '2003-05-14',
+  funding: 'бюджет',
   programs: [
     {
       id: 'b-2023',
