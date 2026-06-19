@@ -7,7 +7,15 @@ const nav = [
   { to: paths.support, label: 'Поддержка' },
 ] as const
 
-const authPaths: string[] = [paths.login, paths.verify, paths.forgot]
+const authPaths: string[] = [
+  paths.login,
+  paths.loginParent,
+  paths.loginContract,
+  paths.loginTarget,
+  paths.loginTeacher,
+  paths.verify,
+  paths.forgot,
+]
 
 /**
  * Оболочка публичных страниц: вход, ресурсы, поддержка.

@@ -7,6 +7,10 @@
 export const paths = {
   home: '/',
   login: '/login',
+  loginParent: '/login/parent',
+  loginContract: '/login/contract',
+  loginTarget: '/login/target',
+  loginTeacher: '/login/teacher',
   verify: '/verify-code',
   forgot: '/forgot-password',
   resources: '/resources',

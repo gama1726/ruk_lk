@@ -7,6 +7,10 @@ import { RequireSession } from '@/layout/require-session'
 import { Login } from '@/pages/login'
 import { Verify } from '@/pages/verify-code'
 import { ForgotPassword } from '@/pages/forgot-password'
+import { ParentLogin } from '@/pages/login-parent'
+import { ContractLogin } from '@/pages/login-contract'
+import { TargetLogin } from '@/pages/login-target'
+import { TeacherLogin } from '@/pages/login-teacher'
 import { Resources } from '@/pages/resources'
 import { Support } from '@/pages/support'
 import { Home } from '@/pages/home'
@@ -42,6 +46,10 @@ export const router = createBrowserRouter([
         element: <GuestOnly />,
         children: [
           { path: paths.login, element: <Login /> },
+          { path: paths.loginParent, element: <ParentLogin /> },
+          { path: paths.loginContract, element: <ContractLogin /> },
+          { path: paths.loginTarget, element: <TargetLogin /> },
+          { path: paths.loginTeacher, element: <TeacherLogin /> },
           { path: paths.verify, element: <Verify /> },
           { path: paths.forgot, element: <ForgotPassword /> },
         ],
