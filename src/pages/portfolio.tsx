@@ -1,3 +1,8 @@
+/**
+ * @file Портфолио достижений.
+ * @see {@link usePortfolio}
+ */
+
 import { useState, type FormEvent } from 'react'
 import { achievementTypes, portfolioStatusLabel, type AchievementTypeId } from '@/mocks/portfolio-types'
 import { formatAchievementDate, usePortfolio } from '@/mocks/portfolio'

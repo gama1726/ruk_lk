@@ -1,3 +1,8 @@
+/**
+ * @file Обходной лист при выпуске.
+ * @see {@link bypassSheet}
+ */
+
 import {
   bypassProgress,
   bypassSheet,

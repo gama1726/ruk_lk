@@ -1,3 +1,8 @@
+/**
+ * @file Оплата обучения: договор, начисления, история.
+ * @see {@link paymentSummary}
+ */
+
 import {
   charges,
   formatShortDate,

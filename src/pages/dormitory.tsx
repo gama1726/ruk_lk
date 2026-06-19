@@ -1,3 +1,8 @@
+/**
+ * @file Общежитие: проживание, заявки, обращения.
+ * @see {@link dormitory}
+ */
+
 import {
   applicationStatusLabel,
   dormitory,

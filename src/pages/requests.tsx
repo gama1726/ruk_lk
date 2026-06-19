@@ -1,3 +1,8 @@
+/**
+ * @file Страница заявлений и справок.
+ * @see {@link useRequests}
+ */
+
 import { useState, type FormEvent } from 'react'
 import { deliveryOptions, requestStatusLabel, requestTypes, type RequestTypeId } from '@/mocks/requests-types'
 import { formatRequestDate, useRequests } from '@/mocks/requests'

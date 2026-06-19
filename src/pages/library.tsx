@@ -1,3 +1,8 @@
+/**
+ * @file Библиотека и электронные ресурсы.
+ * @see {@link libraryCard}
+ */
+
 import {
   booksOnHand,
   ebsResources,

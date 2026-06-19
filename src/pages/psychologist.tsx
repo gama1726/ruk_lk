@@ -1,3 +1,8 @@
+/**
+ * @file Психологическая поддержка.
+ * @see {@link usePsychologist}
+ */
+
 import { useState, type FormEvent } from 'react'
 import {
   availableSlots,
