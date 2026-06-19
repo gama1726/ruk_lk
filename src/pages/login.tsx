@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
 import { paths } from '@/paths'
 import { LoginNotices } from '@/blocks/login-notices'
+import { LoginRoleLinks } from '@/blocks/login-role-links'
 import { ScreenHeader, Card, Input, Button } from '@/ui'
 import styles from './auth-form.module.css'
 
@@ -70,6 +71,7 @@ export function Login() {
         </form>
       </Card>
       <LoginNotices />
+      <LoginRoleLinks />
     </>
   )
 }
