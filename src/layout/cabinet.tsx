@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './sidebar'
+import { CabinetHeader } from './cabinet-header'
 import { Topbar } from './topbar'
 import { MobileNav } from './mobile-nav'
 import { ProgramPicker } from './program-picker'
@@ -10,6 +11,7 @@ export function CabinetShell() {
     <div className={styles.wrap}>
       <Sidebar />
       <div className={styles.main}>
+        <CabinetHeader />
         <Topbar />
         <div className={styles.programBar}>
           <ProgramPicker />
