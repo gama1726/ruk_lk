@@ -2,29 +2,20 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(160deg, var(--color-bg) 0%, var(--color-secondary-muted) 100%);
+  background: var(--color-bg);
 }
 
 .top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.875rem 1.25rem;
+  padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
 }
 
-.topBrand {
-  font-weight: 700;
-  font-size: var(--font-size-md);
-  color: var(--color-primary);
-  text-decoration: none;
-}
-
 .topNav {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.5rem;
 }
 
 .topLink {
@@ -43,45 +34,49 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem 1.25rem;
-}
-
-.brand {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-.logo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  margin-bottom: 0.75rem;
-  border-radius: var(--radius-md);
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
-  font-size: var(--font-size-xl);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-}
-
-.org {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  padding: 2rem 1.25rem;
 }
 
 .content {
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
+}
+
+.contentWide {
+  width: 100%;
+  max-width: 520px;
 }
 
 .footer {
-  padding: 1rem 1.25rem;
+  padding: 1.25rem 1.5rem 1.5rem;
   text-align: center;
   border-top: 1px solid var(--color-border);
   background: var(--color-surface);
+}
+
+.social {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.social a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  background: var(--color-primary-muted);
+}
+
+.social a:hover {
+  background: var(--color-secondary-muted);
 }
 
 .copy {

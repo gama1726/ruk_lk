@@ -1,38 +1,23 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
+import { publicNav, socialLinks } from '@/mocks/public-nav'
 import { paths } from '@/paths'
 import styles from './login.module.css'
 
-const nav = [
-  { to: paths.resources, label: 'Ресурсы' },
-  { to: paths.support, label: 'Поддержка' },
-] as const
-
-const authPaths: string[] = [
-  paths.login,
-  paths.loginParent,
-  paths.loginContract,
-  paths.loginTarget,
-  paths.loginTeacher,
-  paths.verify,
-  paths.forgot,
-]
+const widePaths: string[] = [paths.resources, paths.support]
 
 /**
  * Оболочка публичных страниц: вход, ресурсы, поддержка.
  */
 export function LoginShell() {
   const { pathname } = useLocation()
-  const showBrand = authPaths.includes(pathname)
+  const wide = widePaths.includes(pathname)
 
   return (
     <div className={styles.wrap}>
       <header className={styles.top}>
-        <Link to={paths.login} className={styles.topBrand}>
-          РУК
-        </Link>
         <nav className={styles.topNav} aria-label="Публичное меню">
-          {nav.map((item) => (
-            <Link key={item.to} to={item.to} className={styles.topLink}>
+          {publicNav.map((item) => (
+            <Link key={item.label} to={item.to} className={styles.topLink}>
               {item.label}
             </Link>
           ))}
@@ -40,21 +25,19 @@ export function LoginShell() {
       </header>
 
       <main className={styles.main}>
-        {showBrand ? (
-          <div className={styles.brand}>
-            <div className={styles.logo} aria-hidden="true">
-              РУК
-            </div>
-            <p className={styles.org}>Российский университет кооперации</p>
-          </div>
-        ) : null}
-
-        <div className={styles.content}>
+        <div className={wide ? styles.contentWide : styles.content}>
           <Outlet />
         </div>
       </main>
 
       <footer className={styles.footer}>
+        <div className={styles.social}>
+          {socialLinks.map((s) => (
+            <a key={s.id} href={s.url} target="_blank" rel="noopener noreferrer" aria-label={s.label}>
+              {s.label.slice(0, 2)}
+            </a>
+          ))}
+        </div>
         <p className={styles.copy}>© {new Date().getFullYear()} Российский университет кооперации</p>
       </footer>
     </div>
