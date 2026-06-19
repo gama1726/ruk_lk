@@ -31,3 +31,21 @@ const debts: Debt[] = [
 export function activeDebts(programId: string): Debt[] {
   return debts.filter((d) => d.programId === programId && d.status === 'active')
 }
+
+/**
+ * Все задолженности программы (включая закрытые).
+ * @param programId - id записи об обучении
+ */
+export function debtsByProgram(programId: string): Debt[] {
+  return debts.filter((d) => d.programId === programId)
+}
+
+/**
+ * @param iso - `YYYY-MM-DD`
+ */
+export function formatDebtDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(
+    new Date(y, m - 1, d),
+  )
+}

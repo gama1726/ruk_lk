@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
-import { activeDebts } from '@/mocks/debts'
-import { formatShortDate } from '@/mocks/payment'
+import { activeDebts, formatDebtDate } from '@/mocks/debts'
 import { useCurrentProgram } from '@/study'
 import { paths } from '@/paths'
 import { Card } from '@/ui'
@@ -23,7 +22,7 @@ export function DebtAlert() {
         <strong>{debt.subject}</strong> · {debt.controlForm}
       </p>
       <p className={styles.muted}>{debt.teacher}</p>
-      <p className={styles.note}>Пересдача до {formatShortDate(debt.retakeUntil)}</p>
+      <p className={styles.note}>Пересдача до {formatDebtDate(debt.retakeUntil)}</p>
       <p className={styles.note}>
         <Link to={paths.debts}>Все задолженности</Link>
       </p>
