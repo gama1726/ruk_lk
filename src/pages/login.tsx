@@ -8,7 +8,6 @@ import { useAuth } from '@/auth'
 import { paths } from '@/paths'
 import { AuthCard } from '@/blocks/auth-card'
 import card from '@/blocks/auth-card.module.css'
-import { LoginNotices } from '@/blocks/login-notices'
 import { LoginRoleLinks } from '@/blocks/login-role-links'
 import { Input, Button } from '@/ui'
 import styles from './auth-form.module.css'
@@ -76,8 +75,6 @@ export function Login() {
         <p className={card.divider}>Или продолжите как</p>
         <LoginRoleLinks />
       </AuthCard>
-
-      <LoginNotices />
     </>
   )
 }

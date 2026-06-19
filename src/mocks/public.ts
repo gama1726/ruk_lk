@@ -1,13 +1,7 @@
 /**
- * @file Публичные данные: объявления, ссылки, контакты поддержки.
+ * @file Публичные данные: ссылки и контакты поддержки.
  * @remarks Доступны без авторизации.
  */
-
-export type SiteNotice = {
-  id: string
-  title: string
-  text: string
-}
 
 export type ResourceLink = {
   id: string
@@ -15,20 +9,6 @@ export type ResourceLink = {
   note: string
   url: string
 }
-
-/** Короткие объявления на экране входа */
-export const loginNotices: SiteNotice[] = [
-  {
-    id: 'n1',
-    title: 'Обновление личного кабинета',
-    text: 'Мы постепенно переводим разделы на новый интерфейс. Если заметите ошибку — напишите в поддержку.',
-  },
-  {
-    id: 'n2',
-    title: 'Приём заявлений на перевод',
-    text: 'До 1 июля можно подать заявление на вакантное бюджетное место через раздел «Заявления» после входа.',
-  },
-]
 
 /** Внешние сервисы университета */
 export const resourceLinks: ResourceLink[] = [
