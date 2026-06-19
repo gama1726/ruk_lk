@@ -5,72 +5,100 @@
   height: 100dvh;
   position: sticky;
   top: 0;
-  padding: 1.25rem 1rem;
   border-right: 1px solid var(--color-border);
   background-color: var(--color-surface);
-  overflow-y: auto;
+  overflow: hidden;
 }
 
-.picker {
-  margin-bottom: 1rem;
+.head {
+  flex-shrink: 0;
+  padding: 1.25rem 1rem 0.75rem;
 }
 
-@media (min-width: 1024px) {
-  .picker {
-    display: block;
-  }
-}
-
-.home {
+.brand {
   display: block;
-  padding: 0.75rem;
-  margin-bottom: 1.25rem;
-  border-radius: var(--radius-md);
   text-decoration: none;
   color: inherit;
 }
 
-.home:hover {
-  background-color: var(--color-surface-muted);
+.brand:hover {
   text-decoration: none;
-}
-
-.homeActive {
-  background-color: var(--color-primary-muted);
 }
 
 .logoImg {
   display: block;
   width: auto;
-  max-width: 140px;
+  max-width: 130px;
   height: auto;
 }
 
 .org {
   display: block;
-  margin-top: 0.125rem;
+  margin-top: 0.375rem;
   font-size: var(--font-size-xs);
+  line-height: 1.35;
   color: var(--color-text-secondary);
 }
 
-.section + .section {
-  margin-top: 1.25rem;
+.picker {
+  margin-top: 0.75rem;
 }
 
-.sectionTitle {
-  margin: 0 0 0.375rem;
-  padding: 0 0.75rem;
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
+.menu {
+  flex: 1;
+  min-height: 0;
+  padding: 0 0.5rem;
+  overflow-y: auto;
 }
 
-.list {
+.topList {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.footer {
+  flex-shrink: 0;
+  padding: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.625rem;
+}
+
+.socialLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  text-decoration: none;
+  background: var(--color-primary-muted);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.socialLink:hover {
+  color: var(--color-secondary);
+  background: var(--color-primary);
+}
+
+.socialIcon {
+  display: block;
+}
+
+.copy {
+  margin: 0;
+  font-size: 0.625rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
 }
 
 @media (min-width: 1024px) {
