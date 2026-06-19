@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { paths } from '@/paths'
 import { LoginShell } from '@/layout/login'
 import { CabinetShell } from '@/layout/cabinet'
+import { GuestOnly } from '@/layout/guest-only'
+import { RequireSession } from '@/layout/require-session'
 import { Login } from '@/pages/login'
 import { Verify } from '@/pages/verify-code'
 import { Home } from '@/pages/home'
@@ -31,36 +33,46 @@ export const router = createBrowserRouter([
   {
     element: <LoginShell />,
     children: [
-      { path: paths.login, element: <Login /> },
-      { path: paths.verify, element: <Verify /> },
+      {
+        element: <GuestOnly />,
+        children: [
+          { path: paths.login, element: <Login /> },
+          { path: paths.verify, element: <Verify /> },
+        ],
+      },
     ],
   },
   {
-    element: <CabinetShell />,
+    element: <RequireSession />,
     children: [
-      { path: paths.home, element: <Home /> },
-      { path: paths.profile, element: <Profile /> },
-      { path: paths.news, element: <News /> },
-      { path: paths.schedule, element: <Schedule /> },
-      { path: paths.education, element: <Education /> },
-      { path: paths.grades, element: <Grades /> },
-      { path: paths.recordBook, element: <RecordBook /> },
-      { path: paths.attendance, element: <Attendance /> },
-      { path: paths.debts, element: <Debts /> },
-      { path: paths.studyPlan, element: <StudyPlan /> },
-      { path: paths.roadmap, element: <Roadmap /> },
-      { path: paths.teachers, element: <Teachers /> },
-      { path: paths.orders, element: <Orders /> },
-      { path: paths.services, element: <Services /> },
-      { path: paths.requests, element: <Requests /> },
-      { path: paths.payments, element: <Payments /> },
-      { path: paths.dormitory, element: <Dormitory /> },
-      { path: paths.bypassList, element: <BypassList /> },
-      { path: paths.psychologist, element: <Psychologist /> },
-      { path: paths.portfolio, element: <Portfolio /> },
-      { path: paths.library, element: <Library /> },
-      { path: paths.settings, element: <Settings /> },
+      {
+        element: <CabinetShell />,
+        children: [
+          { path: paths.home, element: <Home /> },
+          { path: paths.profile, element: <Profile /> },
+          { path: paths.news, element: <News /> },
+          { path: paths.schedule, element: <Schedule /> },
+          { path: paths.education, element: <Education /> },
+          { path: paths.grades, element: <Grades /> },
+          { path: paths.recordBook, element: <RecordBook /> },
+          { path: paths.attendance, element: <Attendance /> },
+          { path: paths.debts, element: <Debts /> },
+          { path: paths.studyPlan, element: <StudyPlan /> },
+          { path: paths.roadmap, element: <Roadmap /> },
+          { path: paths.teachers, element: <Teachers /> },
+          { path: paths.orders, element: <Orders /> },
+          { path: paths.services, element: <Services /> },
+          { path: paths.requests, element: <Requests /> },
+          { path: paths.payments, element: <Payments /> },
+          { path: paths.dormitory, element: <Dormitory /> },
+          { path: paths.bypassList, element: <BypassList /> },
+          { path: paths.psychologist, element: <Psychologist /> },
+          { path: paths.portfolio, element: <Portfolio /> },
+          { path: paths.library, element: <Library /> },
+          { path: paths.settings, element: <Settings /> },
+        ],
+      },
     ],
   },
-  { path: '*', element: <Navigate to={paths.home} replace /> },
+  { path: '*', element: <Navigate to={paths.login} replace /> },
 ])
