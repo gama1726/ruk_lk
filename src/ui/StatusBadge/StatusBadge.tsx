@@ -27,6 +27,7 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   overdue: 'danger',
   not_passed: 'danger',
   not_graded: 'default',
+  passed: 'success',
   planned: 'secondary',
   archived: 'default',
 }
