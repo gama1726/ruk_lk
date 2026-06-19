@@ -6,6 +6,9 @@ import { GuestOnly } from '@/layout/guest-only'
 import { RequireSession } from '@/layout/require-session'
 import { Login } from '@/pages/login'
 import { Verify } from '@/pages/verify-code'
+import { ForgotPassword } from '@/pages/forgot-password'
+import { Resources } from '@/pages/resources'
+import { Support } from '@/pages/support'
 import { Home } from '@/pages/home'
 import { Profile } from '@/pages/profile'
 import { News } from '@/pages/news'
@@ -33,11 +36,14 @@ export const router = createBrowserRouter([
   {
     element: <LoginShell />,
     children: [
+      { path: paths.resources, element: <Resources /> },
+      { path: paths.support, element: <Support /> },
       {
         element: <GuestOnly />,
         children: [
           { path: paths.login, element: <Login /> },
           { path: paths.verify, element: <Verify /> },
+          { path: paths.forgot, element: <ForgotPassword /> },
         ],
       },
     ],
