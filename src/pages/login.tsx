@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
 import { paths } from '@/paths'
+import { LoginNotices } from '@/blocks/login-notices'
 import { ScreenHeader, Card, Input, Button } from '@/ui'
 import styles from './auth-form.module.css'
 
@@ -56,6 +57,11 @@ export function Login() {
             disabled={busy}
           />
           <p className={styles.hint}>Для входа нужна корпоративная почта студента РУК.</p>
+          <p className={styles.hint}>
+            <Link to={paths.forgot} className={styles.link}>
+              Забыли пароль?
+            </Link>
+          </p>
           <div className={styles.actions}>
             <Button type="submit" fullWidth loading={busy}>
               Войти
@@ -63,6 +69,7 @@ export function Login() {
           </div>
         </form>
       </Card>
+      <LoginNotices />
     </>
   )
 }
