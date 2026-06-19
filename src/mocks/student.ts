@@ -22,6 +22,7 @@ export const student: Student = {
     {
       id: 'b-2023',
       recordCode: 'RUC-B-2023-0142',
+      cardNumber: '23И0142',
       level: 'Бакалавриат',
       direction: 'Информационная безопасность',
       group: 'ИБ-23',
@@ -34,6 +35,7 @@ export const student: Student = {
     {
       id: 'm-2025',
       recordCode: 'RUC-M-2025-0061',
+      cardNumber: '25М0061',
       level: 'Магистратура',
       direction: 'Управление цифровыми проектами',
       group: 'МЦП-25',

@@ -64,7 +64,7 @@ export function Profile() {
             <dl className={styles.metaGrid}>
               <Field label="Логин" value={student.corporateEmail} />
               <Field label="Пол" value={student.gender} />
-              <Field label="Личный номер" value={student.studentId} />
+              <Field label="Личный номер" value={program.cardNumber} />
               <Field label="Личная почта" value={student.personalEmail} />
               <Field label="Возраст" value={ageWithBirthDate(student.birthDate)} />
               <Field label="Вид финансирования" value={student.funding} />

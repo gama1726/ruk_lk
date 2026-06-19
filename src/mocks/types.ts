@@ -17,6 +17,8 @@ export type StudyProgram = {
   id: string
   /** Код записи в учётной системе, например `RUC-B-2023-0142` */
   recordCode: string
+  /** Номер студенческого билета / личный номер по этой программе */
+  cardNumber: string
   level: StudyLevel
   /** Направление подготовки */
   direction: string
