@@ -1,0 +1,60 @@
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.stat {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.statValue {
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.statLabel {
+  margin-top: 0.25rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.tableWrap {
+  margin-top: 1.5rem;
+  overflow-x: auto;
+}
+
+.cards {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.card {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+}
+
+@media (min-width: 768px) {
+  .cards {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .tableWrap {
+    display: none;
+  }
+}
