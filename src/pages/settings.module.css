@@ -1,0 +1,49 @@
+.section {
+  margin-bottom: 1.5rem;
+}
+
+.sectionTitle {
+  margin: 0 0 0.75rem;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.card {
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.form {
+  display: grid;
+  gap: 1rem;
+  max-width: 28rem;
+}
+
+.hint {
+  margin: 0.5rem 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.success {
+  margin: 0.5rem 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-success);
+}
+
+.checks {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.securityNote {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.actions {
+  margin-top: 1rem;
+}
