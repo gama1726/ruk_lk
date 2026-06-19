@@ -1,0 +1,15 @@
+.form {
+  display: grid;
+  gap: 1rem;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.doc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
