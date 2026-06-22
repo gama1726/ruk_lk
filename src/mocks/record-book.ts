@@ -11,6 +11,7 @@ const grades: GradeRow[] = [
     semester: 5,
     subject: 'Информационная безопасность',
     controlForm: 'экзамен',
+    hours: 144,
     grade: 'хорошо',
     points: 4,
     teacher: 'Козлов В.И.',
@@ -23,6 +24,7 @@ const grades: GradeRow[] = [
     semester: 5,
     subject: 'Базы данных',
     controlForm: 'экзамен',
+    hours: 108,
     grade: 'отлично',
     points: 5,
     teacher: 'Смирнова Е.А.',
@@ -35,6 +37,7 @@ const grades: GradeRow[] = [
     semester: 5,
     subject: 'Web-технологии',
     controlForm: 'зачёт',
+    hours: 72,
     grade: null,
     points: null,
     teacher: 'Петров Д.С.',
@@ -47,6 +50,7 @@ const grades: GradeRow[] = [
     semester: 4,
     subject: 'Экономика организации',
     controlForm: 'зачёт',
+    hours: 72,
     grade: 'зачтено',
     points: null,
     teacher: 'Морозова Л.К.',
@@ -59,6 +63,7 @@ const grades: GradeRow[] = [
     semester: 4,
     subject: 'Правовое регулирование',
     controlForm: 'экзамен',
+    hours: 108,
     grade: 'удовлетворительно',
     points: 3,
     teacher: 'Никитина О.В.',
@@ -71,11 +76,25 @@ const grades: GradeRow[] = [
     semester: 1,
     subject: 'Управление цифровыми проектами',
     controlForm: 'зачёт',
+    hours: 72,
     grade: 'зачтено',
     points: null,
     teacher: 'Волкова Н.П.',
-    date: '2026-05-28',
+    date: '2026-01-12',
     status: 'passed',
+  },
+  {
+    id: 'g7',
+    programId: 'm-2025',
+    semester: 1,
+    subject: 'Стратегический менеджмент',
+    controlForm: 'экзамен',
+    hours: 108,
+    grade: 'отлично',
+    points: 5,
+    teacher: 'Волкова Н.П., Кудинова Т.В.',
+    date: '2026-01-15',
+    status: 'excellent',
   },
 ]
 
@@ -172,6 +191,73 @@ export function practiceByProgram(programId: string): PracticeRow[] {
  */
 export function courseworkByProgram(programId: string): CourseworkRow[] {
   return coursework.filter((c) => c.programId === programId)
+}
+
+/**
+ * Семестры программы для переключателя.
+ * @param programId - id записи об обучении
+ */
+export function semestersForProgram(programId: string): number[] {
+  const set = new Set(grades.filter((g) => g.programId === programId).map((g) => g.semester))
+  return [...set].sort((a, b) => a - b)
+}
+
+/**
+ * Оценки одного семестра.
+ * @param programId - id программы
+ * @param semester - номер семестра
+ */
+export function gradesForSemester(programId: string, semester: number): GradeRow[] {
+  return grades
+    .filter((g) => g.programId === programId && g.semester === semester)
+    .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
+}
+
+/**
+ * @param iso - `YYYY-MM-DD` или `null`
+ */
+export function formatRecordDate(iso: string | null): string {
+  if (!iso) return '—'
+  const [y, m, d] = iso.split('-')
+  return `${d}.${m}.${y}`
+}
+
+/**
+ * Вид контроля с заглавной буквы.
+ * @param form - значение из мока
+ */
+export function formatControlForm(form: string): string {
+  if (!form) return '—'
+  return form.charAt(0).toUpperCase() + form.slice(1)
+}
+
+/**
+ * Ячейка «Оценка (балл)» как в портале.
+ * @param row - строка зачётной книжки
+ */
+export function formatGradeCell(row: GradeRow): string {
+  if (!row.grade) return '—'
+  const text = row.grade.charAt(0).toUpperCase() + row.grade.slice(1)
+  if (row.points != null && row.controlForm.includes('экзамен')) {
+    return `${text} (${row.points})`
+  }
+  return text
+}
+
+/**
+ * @param hours - количество часов
+ */
+export function formatHours(hours: number): string {
+  return `${hours} ${hoursWord(hours)}`
+}
+
+function hoursWord(n: number): string {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod100 >= 11 && mod100 <= 14) return 'часов'
+  if (mod10 === 1) return 'час'
+  if (mod10 >= 2 && mod10 <= 4) return 'часа'
+  return 'часов'
 }
 
 /**

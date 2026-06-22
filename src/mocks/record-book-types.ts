@@ -30,6 +30,8 @@ export type GradeRow = {
   semester: number
   subject: string
   controlForm: string
+  /** Общее количество часов по дисциплине */
+  hours: number
   grade: string | null
   points: number | null
   teacher: string
