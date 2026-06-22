@@ -1,209 +1,137 @@
-import { programLabel } from '@/mocks/format'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
-  brsByProgram,
-  courseworkByProgram,
-  formatGradeDate,
-  gradesByProgram,
-  practiceByProgram,
+  formatControlForm,
+  formatGradeCell,
+  formatHours,
+  formatRecordDate,
+  gradesForSemester,
+  semestersForProgram,
 } from '@/mocks/record-book'
-import { gradeStatusLabel } from '@/mocks/record-book-types'
+import { paths } from '@/paths'
 import { useCurrentProgram } from '@/study'
-import {
-  ScreenHeader,
-  Tabs,
-  NoData,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableHeader,
-  TableCell,
-  StatusBadge,
-} from '@/ui'
+import { NoData } from '@/ui'
 import styles from './record-book.module.css'
 
-/**
- * Таблица оценок по семестрам.
- * @param programId - id программы
- */
-function GradesTab({ programId }: { programId: string }) {
-  const bySemester = gradesByProgram(programId)
-
-  if (bySemester.size === 0) {
-    return <NoData title="Записей пока нет" />
-  }
-
-  return (
-    <>
-      {[...bySemester.entries()].map(([semester, rows]) => (
-        <section key={semester} className={styles.semester}>
-          <h3 className={styles.semesterTitle}>{semester} семестр</h3>
-
-          <div className={styles.tableWrap}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableHeader>Дисциплина</TableHeader>
-                  <TableHeader>Форма</TableHeader>
-                  <TableHeader>Оценка</TableHeader>
-                  <TableHeader>Баллы</TableHeader>
-                  <TableHeader>Преподаватель</TableHeader>
-                  <TableHeader>Дата</TableHeader>
-                  <TableHeader>Статус</TableHeader>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{r.subject}</TableCell>
-                    <TableCell>{r.controlForm}</TableCell>
-                    <TableCell>{r.grade ?? '—'}</TableCell>
-                    <TableCell>{r.points ?? '—'}</TableCell>
-                    <TableCell>{r.teacher}</TableCell>
-                    <TableCell>{formatGradeDate(r.date)}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={r.status} label={gradeStatusLabel[r.status]} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className={styles.cards}>
-            {rows.map((r) => (
-              <article key={r.id} className={styles.card}>
-                <strong>{r.subject}</strong>
-                <div className={styles.cardRow}>
-                  <span className={styles.cardLabel}>Оценка</span>
-                  <span>{r.grade ?? '—'}</span>
-                </div>
-                <div className={styles.cardRow}>
-                  <span className={styles.cardLabel}>Преподаватель</span>
-                  <span>{r.teacher}</span>
-                </div>
-                <StatusBadge status={r.status} label={gradeStatusLabel[r.status]} />
-              </article>
-            ))}
-          </div>
-        </section>
-      ))}
-    </>
-  )
-}
-
-function BrsTab({ programId }: { programId: string }) {
-  const rows = brsByProgram(programId)
-  if (rows.length === 0) return <NoData title="Нет данных БРС" />
-
-  return (
-    <Table>
-      <TableHead>
-        <TableRow>
-          <TableHeader>Дисциплина</TableHeader>
-          <TableHeader>Семестр</TableHeader>
-          <TableHeader>Баллы</TableHeader>
-          <TableHeader>Преподаватель</TableHeader>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {rows.map((r) => (
-          <TableRow key={r.id}>
-            <TableCell>{r.subject}</TableCell>
-            <TableCell>{r.semester}</TableCell>
-            <TableCell>
-              {r.points} / {r.maxPoints}
-            </TableCell>
-            <TableCell>{r.teacher}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  )
-}
-
-function PracticeTab({ programId }: { programId: string }) {
-  const rows = practiceByProgram(programId)
-  if (rows.length === 0) return <NoData title="Практики нет в записи" />
-
-  return (
-    <Table>
-      <TableHead>
-        <TableRow>
-          <TableHeader>Вид</TableHeader>
-          <TableHeader>Место</TableHeader>
-          <TableHeader>Период</TableHeader>
-          <TableHeader>Руководитель</TableHeader>
-          <TableHeader>Оценка</TableHeader>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {rows.map((r) => (
-          <TableRow key={r.id}>
-            <TableCell>{r.title}</TableCell>
-            <TableCell>{r.place}</TableCell>
-            <TableCell>{r.period}</TableCell>
-            <TableCell>{r.supervisor}</TableCell>
-            <TableCell>
-              <StatusBadge status={r.status} label={gradeStatusLabel[r.status]} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  )
-}
-
-function CourseworkTab({ programId }: { programId: string }) {
-  const rows = courseworkByProgram(programId)
-  if (rows.length === 0) return <NoData title="Курсовых работ нет" />
-
-  return (
-    <Table>
-      <TableHead>
-        <TableRow>
-          <TableHeader>Дисциплина</TableHeader>
-          <TableHeader>Тема</TableHeader>
-          <TableHeader>Руководитель</TableHeader>
-          <TableHeader>Защита</TableHeader>
-          <TableHeader>Оценка</TableHeader>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {rows.map((r) => (
-          <TableRow key={r.id}>
-            <TableCell>{r.subject}</TableCell>
-            <TableCell>{r.topic}</TableCell>
-            <TableCell>{r.supervisor}</TableCell>
-            <TableCell>{formatGradeDate(r.defendedAt)}</TableCell>
-            <TableCell>
-              <StatusBadge status={r.status} label={gradeStatusLabel[r.status]} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  )
-}
+type ViewMode = 'standard' | 'gosuslugi'
 
 /**
- * Зачётная книжка с вкладками БРС, практика и курсовые.
+ * Электронная зачётная книжка в раскладке портала.
+ * Данные зависят от {@link useCurrentProgram}.
  */
 export function RecordBook() {
   const program = useCurrentProgram()
+  const semesters = semestersForProgram(program.id)
+  const [semester, setSemester] = useState(() => semesters[semesters.length - 1] ?? 1)
+  const [view, setView] = useState<ViewMode>('standard')
+
+  useEffect(() => {
+    if (semesters.length === 0) return
+    if (!semesters.includes(semester)) {
+      setSemester(semesters[semesters.length - 1])
+    }
+  }, [program.id, semester, semesters])
+
+  const rows = gradesForSemester(program.id, semester)
 
   return (
-    <>
-      <ScreenHeader title="Зачётная книжка" subtitle={programLabel(program)} />
+    <div className={styles.page}>
+      <nav className={styles.bread} aria-label="Навигация">
+        <Link to={paths.education}>Обучение</Link>
+        <span className={styles.breadSep}>/</span>
+        <span>Электронная зачётная книжка</span>
+      </nav>
 
-      <Tabs
-        items={[
-          { id: 'grades', label: 'Зачётная книжка', content: <GradesTab programId={program.id} /> },
-          { id: 'brs', label: 'БРС', content: <BrsTab programId={program.id} /> },
-          { id: 'practice', label: 'Практика', content: <PracticeTab programId={program.id} /> },
-          { id: 'coursework', label: 'Курсовые', content: <CourseworkTab programId={program.id} /> },
-        ]}
-      />
-    </>
+      <div className={styles.banner}>
+        <span className={styles.bannerIcon} aria-hidden="true">
+          i
+        </span>
+        <p className={styles.bannerText}>Балльно-рейтинговая система</p>
+        <Link to={paths.grades} className={styles.bannerLink}>
+          Подробнее →
+        </Link>
+      </div>
+
+      <div className={styles.toolbar}>
+        <div className={styles.viewSwitch} role="tablist" aria-label="Вид зачётной книжки">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'standard'}
+            className={[styles.viewBtn, view === 'standard' ? styles.viewBtnActive : ''].filter(Boolean).join(' ')}
+            onClick={() => setView('standard')}
+          >
+            Стандарт
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'gosuslugi'}
+            className={[styles.viewBtn, view === 'gosuslugi' ? styles.viewBtnActive : ''].filter(Boolean).join(' ')}
+            onClick={() => setView('gosuslugi')}
+          >
+            Госуслуги
+          </button>
+        </div>
+
+        {semesters.length > 0 ? (
+          <div className={styles.semesterPick}>
+            <span className={styles.semesterLabel}>Выберите семестр:</span>
+            <div className={styles.semesterBtns}>
+              {semesters.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={[styles.semesterBtn, semester === n ? styles.semesterBtnActive : ''].filter(Boolean).join(' ')}
+                  onClick={() => setSemester(n)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className={styles.card}>
+        {view === 'gosuslugi' ? (
+          <p className={styles.gosuslugiNote}>
+            Представление для Госуслуг подключится вместе с backend. Переключитесь на вкладку «Стандарт».
+          </p>
+        ) : rows.length === 0 ? (
+          <div className={styles.empty}>
+            <NoData title="В этом семестре записей нет" />
+          </div>
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Наименование дисциплины</th>
+                  <th>Вид контроля</th>
+                  <th>Общее кол-во час.</th>
+                  <th>Оценка (балл)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <td className={styles.date}>{formatRecordDate(row.date)}</td>
+                    <td className={styles.subject}>
+                      <strong>{row.subject}</strong>
+                      <span className={styles.teacher}>{row.teacher}</span>
+                    </td>
+                    <td>{formatControlForm(row.controlForm)}</td>
+                    <td>{formatHours(row.hours)}</td>
+                    <td className={styles.grade}>{formatGradeCell(row)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
