@@ -20,6 +20,11 @@ function parseLocal(iso: string): Date {
   return new Date(y, m - 1, d)
 }
 
+/** @param iso - `YYYY-MM-DD` */
+export function parseLessonDate(iso: string): Date {
+  return parseLocal(iso)
+}
+
 /** @param date - локальная дата */
 function toIsoLocal(date: Date): string {
   const y = date.getFullYear()
@@ -142,6 +147,19 @@ const schedule: Lesson[] = [
     status: 'scheduled',
   },
   {
+    id: 'l-sun22',
+    programId: 'b-2023',
+    date: '2026-06-22',
+    subject: 'Информационные системы и базы данных',
+    kind: 'консультация',
+    start: '18:00',
+    end: '19:30',
+    room: '—',
+    teacher: 'Смирнова Е.А.',
+    status: 'remote',
+    note: 'Дистанционно (СДО)',
+  },
+  {
     id: 'm1',
     programId: 'm-2025',
     date: DEMO_TODAY,
@@ -257,4 +275,76 @@ export function shiftWeek(weekStart: string, delta: number): string {
   const d = parseLocal(weekStart)
   d.setDate(d.getDate() + delta * 7)
   return toIsoLocal(d)
+}
+
+/** Ячейка месячного календаря */
+export type CalendarCell = {
+  date: string
+  inMonth: boolean
+}
+
+/**
+ * Сетка календаря: понедельник — первый столбец.
+ * @param year - полный год
+ * @param month - месяц 0–11
+ */
+export function calendarMonth(year: number, month: number): CalendarCell[] {
+  const first = new Date(year, month, 1)
+  const startPad = (first.getDay() + 6) % 7
+  const gridStart = new Date(year, month, 1 - startPad)
+  return Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(gridStart)
+    d.setDate(gridStart.getDate() + i)
+    return { date: toIsoLocal(d), inMonth: d.getMonth() === month }
+  })
+}
+
+/**
+ * Подпись месяца для шапки календаря.
+ * @param year - год
+ * @param month - месяц 0–11
+ */
+export function monthCaption(year: number, month: number): string {
+  const raw = new Intl.DateTimeFormat('ru-RU', { month: 'short', year: 'numeric' }).format(
+    new Date(year, month, 1),
+  )
+  return raw.replace('.', '.')
+}
+
+/**
+ * Сдвиг месяца в календаре.
+ * @param year - текущий год
+ * @param month - текущий месяц 0–11
+ * @param delta - `-1` | `1`
+ */
+export function shiftMonth(year: number, month: number, delta: number): { year: number; month: number } {
+  const d = new Date(year, month + delta, 1)
+  return { year: d.getFullYear(), month: d.getMonth() }
+}
+
+/**
+ * Количество пар по дням месяца (для точек в календаре).
+ * @param programId - id программы
+ * @param year - год
+ * @param month - месяц 0–11
+ */
+export function lessonCountsInMonth(programId: string, year: number, month: number): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const lesson of schedule) {
+    if (lesson.programId !== programId) continue
+    const d = parseLocal(lesson.date)
+    if (d.getFullYear() !== year || d.getMonth() !== month) continue
+    counts.set(lesson.date, (counts.get(lesson.date) ?? 0) + 1)
+  }
+  return counts
+}
+
+/**
+ * Заголовок дня в сетке расписания.
+ * @param iso - `YYYY-MM-DD`
+ */
+export function dayGridTitle(iso: string): string {
+  const d = parseLocal(iso)
+  const weekday = new Intl.DateTimeFormat('ru-RU', { weekday: 'long' }).format(d)
+  return weekday.charAt(0).toUpperCase() + weekday.slice(1)
 }
