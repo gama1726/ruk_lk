@@ -29,7 +29,14 @@ export type Lesson = {
   note?: string
 }
 
-/** Подписи статусов для UI */
+/** Короткая подпись вида занятия в карточке сетки */
+export const lessonKindShort: Record<LessonKind, string> = {
+  лекция: 'Лек',
+  практика: 'Пр',
+  лабораторная: 'Лаб',
+  консультация: 'Конс',
+  экзамен: 'Экз',
+}
 export const lessonStatusLabel: Record<LessonStatus, string> = {
   scheduled: 'по расписанию',
   rescheduled: 'перенесено',
