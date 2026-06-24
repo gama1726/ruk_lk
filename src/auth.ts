@@ -1,15 +1,16 @@
 /**
  * @file Клиентская авторизация.
- * При заданном `VITE_API_BASE_URL` — сессия через cookie backend; иначе mock в памяти.
+ * Зачётка + пароль → код на почту из 1С → сессия (cookie backend).
  */
 
 import { create } from 'zustand'
 import { ApiError, apiGet, apiPost, apiRequest, isApiConfigured } from '@/apiClient'
 
-/** Ответ `GET /api/auth/me` и `POST /api/auth/login` */
+/** Ответ `GET /api/auth/me` и `POST /api/auth/verify-code` */
 export type MeResponseDto = {
   studentId: string
   fullName: string
+  email: string
   programs: {
     id: string
     studentId: string
@@ -19,7 +20,14 @@ export type MeResponseDto = {
   }[]
 }
 
-/** Установленная сессия после входа */
+/** Ответ `POST /api/auth/login` — до ввода кода */
+export type LoginChallengeDto = {
+  studentId: string
+  email: string
+  fullName: string
+}
+
+/** Установленная сессия после подтверждения кода */
 export type Session = {
   studentId: string
   name: string
@@ -37,10 +45,10 @@ type AuthState = {
   pendingEmail: string | null
   status: 'loading' | 'ready'
   restoreSession: () => Promise<void>
-  loginWithStudentId: (studentId: string, password: string) => Promise<FieldError | null>
+  startStudentLogin: (studentId: string, password: string) => Promise<FieldError | null>
   signIn: (email: string, password: string) => FieldError | null
   completeSso: (email: string, password: string) => FieldError | null
-  confirmCode: (code: string) => string | null
+  confirmCode: (code: string) => Promise<string | null>
   signOut: () => Promise<void>
 }
 
@@ -50,6 +58,7 @@ function toSession(me: MeResponseDto): Session {
   return {
     studentId: me.studentId,
     name: me.fullName.trim() || me.studentId,
+    email: me.email || undefined,
   }
 }
 
@@ -72,32 +81,42 @@ export const useAuth = create<AuthState>((set) => ({
 
     try {
       const me = await apiGet<MeResponseDto>('/api/auth/me')
-      set({ session: toSession(me), status: 'ready' })
+      set({ session: toSession(me), pendingEmail: null, status: 'ready' })
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status === 401) {
-        set({ session: null, status: 'ready' })
-        return
+      if (error instanceof ApiError && error.status === 401) {
+        try {
+          const pending = await apiGet<LoginChallengeDto>('/api/auth/pending-challenge')
+          set({ session: null, pendingEmail: pending.email, status: 'ready' })
+          return
+        } catch {
+          set({ session: null, pendingEmail: null, status: 'ready' })
+          return
+        }
       }
-      set({ session: null, status: 'ready' })
+      set({ session: null, pendingEmail: null, status: 'ready' })
     }
   },
 
-  async loginWithStudentId(studentId, password) {
+  async startStudentLogin(studentId, password) {
     const trimmed = studentId.trim()
 
     if (!trimmed) return { field: 'login', message: 'Укажите номер зачётки' }
     if (!password) return { field: 'password', message: 'Укажите пароль' }
 
     if (!isApiConfigured()) {
-      return { field: 'login', message: 'API не настроен: укажите VITE_API_BASE_URL в .env' }
+      set({ pendingEmail: `${trimmed}@student.ruc.local` })
+      return null
     }
 
     try {
-      const me = await apiPost<MeResponseDto>('/api/auth/login', {
+      const challenge = await apiPost<LoginChallengeDto>('/api/auth/login', {
         studentId: trimmed,
         password,
       })
-      set({ session: toSession(me), pendingEmail: null })
+      set({
+        pendingEmail: challenge.email,
+        session: null,
+      })
       return null
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -140,10 +159,26 @@ export const useAuth = create<AuthState>((set) => ({
     return null
   },
 
-  confirmCode(code) {
+  async confirmCode(code) {
     const digits = code.replace(/\s/g, '')
 
     if (!/^\d{6}$/.test(digits)) return 'Нужен код из 6 цифр'
+
+    if (isApiConfigured()) {
+      try {
+        const me = await apiPost<MeResponseDto>('/api/auth/verify-code', { code: digits })
+        set({
+          session: toSession(me),
+          pendingEmail: null,
+        })
+        return null
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          return error.message || 'Неверный код подтверждения'
+        }
+        return error instanceof Error ? error.message : 'Не удалось подтвердить код'
+      }
+    }
 
     set((state) => ({
       session: {

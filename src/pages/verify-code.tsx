@@ -15,30 +15,32 @@ export function Verify() {
   const [busy, setBusy] = useState(false)
 
   if (!pendingEmail) {
-    return <Navigate to={paths.login} replace />
+    return <Navigate to={paths.loginStudent} replace />
   }
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setCodeError(undefined)
 
     const form = new FormData(e.currentTarget)
     const code = String(form.get('code') ?? '')
-    const error = confirmCode(code)
+
+    setBusy(true)
+    const error = await confirmCode(code)
+    setBusy(false)
 
     if (error) {
       setCodeError(error)
       return
     }
 
-    setBusy(true)
     navigate(paths.profile)
   }
 
   return (
     <AuthCard>
       <p className={card.sectionLabel}>Подтверждение входа</p>
-      <form className={styles.form} onSubmit={handleSubmit}>
+      <form className={styles.form} onSubmit={(e) => void handleSubmit(e)}>
         <p className={styles.hint}>
           Код отправлен на <strong>{maskEmail(pendingEmail)}</strong>. Проверьте входящие и папку «Спам».
         </p>

@@ -1,5 +1,5 @@
 /**
- * @file Вход студента по номеру зачётки и паролю (backend API).
+ * @file Вход по зачётке и паролю — шаг 1 перед кодом на почту из 1С.
  */
 
 import { useState, type FormEvent } from 'react'
@@ -12,11 +12,11 @@ import { Input, Button } from '@/ui'
 import form from './auth-form.module.css'
 
 /**
- * Резервный вход: `POST /api/auth/login` с cookie-сессией.
+ * Зачётка + пароль → {@link paths.verify}.
  */
 export function StudentLogin() {
   const navigate = useNavigate()
-  const loginWithStudentId = useAuth((s) => s.loginWithStudentId)
+  const startStudentLogin = useAuth((s) => s.startStudentLogin)
   const [studentIdError, setStudentIdError] = useState<string>()
   const [passwordError, setPasswordError] = useState<string>()
   const [busy, setBusy] = useState(false)
@@ -31,7 +31,7 @@ export function StudentLogin() {
     const password = String(data.get('password') ?? '')
 
     setBusy(true)
-    const result = await loginWithStudentId(studentId, password)
+    const result = await startStudentLogin(studentId, password)
     setBusy(false)
 
     if (result) {
@@ -40,12 +40,13 @@ export function StudentLogin() {
       return
     }
 
-    navigate(paths.profile)
+    navigate(paths.verify)
   }
 
   return (
     <AuthCard>
       <p className={card.sectionLabel}>Вход по номеру зачётки</p>
+      <p className={form.hint}>После проверки пароля отправим код на почту, привязанную в 1С.</p>
 
       <form className={form.form} onSubmit={(e) => void handleSubmit(e)}>
         <Input
@@ -66,7 +67,7 @@ export function StudentLogin() {
           disabled={busy}
         />
         <Button type="submit" fullWidth size="lg" loading={busy}>
-          Войти
+          Продолжить
         </Button>
       </form>
 
