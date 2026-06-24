@@ -4,7 +4,7 @@
  * @see {@link useSettings}
  */
 
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type MouseEvent } from 'react'
 import { useAuth } from '@/auth'
 import { isApiConfigured } from '@/apiClient'
 import { maskPhone } from '@/mocks/format'
@@ -38,6 +38,10 @@ export function Settings() {
   const [currentPwd, setCurrentPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
   const [confirmPwd, setConfirmPwd] = useState('')
+
+  const handleSignOut = (_e: MouseEvent<HTMLButtonElement>) => {
+    void signOut()
+  }
   const [pwdError, setPwdError] = useState<string>()
   const [pwdSaved, setPwdSaved] = useState(false)
 
@@ -74,7 +78,7 @@ export function Settings() {
         title="Настройки"
         subtitle="Контакты, безопасность и уведомления"
         actions={
-          <Button variant="ghost" onClick={signOut}>
+          <Button variant="ghost" onClick={handleSignOut}>
             Выйти
           </Button>
         }

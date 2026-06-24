@@ -89,8 +89,7 @@ export function UserMenu() {
 
   const handleLogout = () => {
     setOpen(false)
-    signOut()
-    navigate(paths.login)
+    void signOut().then(() => navigate(paths.login))
   }
 
   return (

@@ -13,8 +13,7 @@ export function MobileNav() {
   const signOut = useAuth((s) => s.signOut)
 
   const handleExit = () => {
-    signOut()
-    navigate(paths.login)
+    void signOut().then(() => navigate(paths.login))
   }
 
   return (
