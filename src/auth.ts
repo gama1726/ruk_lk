@@ -1,60 +1,112 @@
 /**
- * @file Клиентская авторизация (mock).
- * Пароль не сохраняем. Сессия только в памяти — задел под httpOnly-cookie / SSO.
+ * @file Клиентская авторизация.
+ * При заданном `VITE_API_BASE_URL` — сессия через cookie backend; иначе mock в памяти.
  */
 
 import { create } from 'zustand'
+import { ApiError, apiGet, apiPost, apiRequest, isApiConfigured } from '@/apiClient'
 
-/** Установленная сессия после подтверждения кода */
-type Session = {
-  email: string
+/** Ответ `GET /api/auth/me` и `POST /api/auth/login` */
+export type MeResponseDto = {
+  studentId: string
+  fullName: string
+  programs: {
+    id: string
+    studentId: string
+    level: string
+    direction: string
+    group: string
+  }[]
+}
+
+/** Установленная сессия после входа */
+export type Session = {
+  studentId: string
   name: string
+  email?: string
 }
 
 /** Ошибка поля на форме входа */
-type FieldError = {
+export type FieldError = {
   field: 'login' | 'password'
   message: string
 }
 
 type AuthState = {
-  /** `null`, если пользователь не вошёл */
   session: Session | null
-  /** Почта между шагом входа и вводом кода; пароль сюда не попадает */
   pendingEmail: string | null
-  /**
-   * Первый шаг входа: проверяем поля и запоминаем почту.
-   * @param email - корпоративная почта или логин
-   * @param password - проверяется и отбрасывается, в стор не пишется
-   * @returns ошибку поля или `null`, если можно переходить к коду
-   */
+  status: 'loading' | 'ready'
+  restoreSession: () => Promise<void>
+  loginWithStudentId: (studentId: string, password: string) => Promise<FieldError | null>
   signIn: (email: string, password: string) => FieldError | null
-  /**
-   * Вход через SSO (Keycloak): проверка полей и сразу сессия без кода из письма.
-   * @param email - корпоративная почта или логин
-   * @param password - проверяется и отбрасывается
-   * @returns ошибку поля или `null` при успехе
-   */
   completeSso: (email: string, password: string) => FieldError | null
-  /**
-   * Второй шаг (вход по ссылке): подтверждение кода из письма.
-   * @param code - шесть цифр
-   * @returns текст ошибки или `null` при успехе
-   */
   confirmCode: (code: string) => string | null
-  /** Сбрасывает сессию и незавершённый вход */
-  signOut: () => void
+  signOut: () => Promise<void>
 }
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+function toSession(me: MeResponseDto): Session {
+  return {
+    studentId: me.studentId,
+    name: me.fullName.trim() || me.studentId,
+  }
+}
+
 /**
  * Хук доступа к сессии и методам входа/выхода.
- * @remarks Не кладём токены в `localStorage` / `sessionStorage`.
+ * @remarks Токены не кладём в `localStorage` / `sessionStorage`.
  */
 export const useAuth = create<AuthState>((set) => ({
   session: null,
   pendingEmail: null,
+  status: isApiConfigured() ? 'loading' : 'ready',
+
+  async restoreSession() {
+    if (!isApiConfigured()) {
+      set({ status: 'ready' })
+      return
+    }
+
+    set({ status: 'loading' })
+
+    try {
+      const me = await apiGet<MeResponseDto>('/api/auth/me')
+      set({ session: toSession(me), status: 'ready' })
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status === 401) {
+        set({ session: null, status: 'ready' })
+        return
+      }
+      set({ session: null, status: 'ready' })
+    }
+  },
+
+  async loginWithStudentId(studentId, password) {
+    const trimmed = studentId.trim()
+
+    if (!trimmed) return { field: 'login', message: 'Укажите номер зачётки' }
+    if (!password) return { field: 'password', message: 'Укажите пароль' }
+
+    if (!isApiConfigured()) {
+      return { field: 'login', message: 'API не настроен: укажите VITE_API_BASE_URL в .env' }
+    }
+
+    try {
+      const me = await apiPost<MeResponseDto>('/api/auth/login', {
+        studentId: trimmed,
+        password,
+      })
+      set({ session: toSession(me), pendingEmail: null })
+      return null
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        return { field: 'password', message: 'Неверный номер зачётки или пароль' }
+      }
+      const message = error instanceof Error ? error.message : 'Не удалось войти'
+      return { field: 'login', message }
+    }
+  },
 
   signIn(email, password) {
     const trimmed = email.trim()
@@ -78,6 +130,7 @@ export const useAuth = create<AuthState>((set) => ({
 
     set({
       session: {
+        studentId: '23И0142',
         email: trimmed,
         name: 'Иванов Артём Сергеевич',
       },
@@ -94,6 +147,7 @@ export const useAuth = create<AuthState>((set) => ({
 
     set((state) => ({
       session: {
+        studentId: '23И0142',
         email: state.pendingEmail ?? 'ivanov.as@student.ruc.local',
         name: 'Иванов Артём Сергеевич',
       },
@@ -103,7 +157,15 @@ export const useAuth = create<AuthState>((set) => ({
     return null
   },
 
-  signOut() {
+  async signOut() {
+    if (isApiConfigured()) {
+      try {
+        await apiRequest('/api/auth/logout', { method: 'POST' })
+      } catch {
+        // локально всё равно сбрасываем сессию
+      }
+    }
+
     set({ session: null, pendingEmail: null })
   },
 }))
