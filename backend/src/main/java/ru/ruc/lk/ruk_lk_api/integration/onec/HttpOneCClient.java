@@ -20,9 +20,14 @@ import ru.ruc.lk.ruk_lk_api.api.auth.OneCAuthResponse;
 public class HttpOneCClient implements OneCClient {
     private final RestClient restClient;
     
-    public HttpOneCClient(@Value("${app.onec.base-url}") String baseUrl) {
+    public HttpOneCClient(
+        @Value("${app.onec.base-url}") String baseUrl,
+        @Value("${app.onec.publication-user}") String publicationUser,
+        @Value("${app.onec.publication-password}") String publicationPassword) {
         this.restClient = RestClient.builder()
             .baseUrl(baseUrl)// http://localhost/universitet_masterkova1
+            .defaultHeaders(headers ->
+                headers.setBasicAuth(publicationUser, publicationPassword))
             .build();
     }
 

@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -20,9 +21,10 @@ public class SecurityConfig {
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable())
             .authorizeHttpRequests(auth -> auth
-            //открытие эндпоинты
-            .requestMatchers("/api/health", "/api/auth/login").permitAll()
-            //другие только с сессией будут
+            //открытые эндпоинты
+            .requestMatchers("/api/health").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+            //все остальные только с сессией будут жоступны
             .anyRequest().authenticated()
             );
 
