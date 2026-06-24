@@ -1,5 +1,5 @@
 /**
- * @file Страница входа студента — кнопка SSO, как на lk.mirea.ru/auth.php.
+ * @file Страница входа студента — SSO, как на lk.mirea.ru/auth.php.
  */
 
 import { Link, useNavigate } from 'react-router-dom'
@@ -11,7 +11,7 @@ import { LoginRoleLinks } from '@/blocks/login-role-links'
 import { Button } from '@/ui'
 
 /**
- * Главный экран входа: SSO для студента и ссылки на другие роли.
+ * Главный экран входа: SSO и ссылка на вход по зачётке.
  */
 export function Login() {
   const navigate = useNavigate()
