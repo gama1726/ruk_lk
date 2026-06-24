@@ -42,7 +42,7 @@ public class HttpOneCClient implements OneCClient {
             }
             //Пароль верный
             return Optional.of(new MeResponse(
-                recordBookNumber,//номер по котормоу вошли
+                studentId,//номер по котормоу вошли
                 "",//тут будет фио
                 List.of()//тут будут учебные программы
             ));
