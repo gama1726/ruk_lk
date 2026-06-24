@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+#backend
+backend/target
+backend/.mvn
+backend/.idea
+backend/.vscode
