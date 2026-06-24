@@ -7,6 +7,7 @@
 export const paths = {
   home: '/',
   login: '/login',
+  loginStudent: '/login/student',
   loginParent: '/login/parent',
   loginContract: '/login/contract',
   loginTarget: '/login/target',

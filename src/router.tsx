@@ -6,6 +6,7 @@ import { CabinetShell } from '@/layout/cabinet'
 import { GuestOnly } from '@/layout/guest-only'
 import { RequireSession } from '@/layout/require-session'
 import { Login } from '@/pages/login'
+import { StudentLogin } from '@/pages/login-student'
 import { SsoLogin } from '@/pages/login-sso'
 import { Verify } from '@/pages/verify-code'
 import { ForgotPassword } from '@/pages/forgot-password'
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
         element: <GuestOnly />,
         children: [
           { path: paths.login, element: <Login /> },
+          { path: paths.loginStudent, element: <StudentLogin /> },
           { path: paths.loginParent, element: <ParentLogin /> },
           { path: paths.loginContract, element: <ContractLogin /> },
           { path: paths.loginTarget, element: <TargetLogin /> },
