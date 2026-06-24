@@ -16,6 +16,7 @@ public class SecurityConfig {
         http
             //для rest-api пока отключим csrf
             .csrf(csrf -> csrf.disable())
+            .cors(cors -> {}) //подхватит бин CorsConfig.corsConfigurationSource()
 
             //отключаем базово. форму для логина spring security
             .formLogin(form -> form.disable())
