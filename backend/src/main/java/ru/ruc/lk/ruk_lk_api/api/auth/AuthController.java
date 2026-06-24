@@ -11,39 +11,52 @@ import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.servlet.http.HttpSession;
 
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.LoginChallengeResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.LoginRequest;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.MeResponse;
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.VerifyCodeRequest;
 
-@RestController//класс отдает JSON
-@RequestMapping("/api/auth")//общий префикс для login/logout
+@RestController
+@RequestMapping("/api/auth")
 public class AuthController {
 
-    private final AuthService authService;//AuthService
-
-    //Spring подставит AuthService автоматически
+    private final AuthService authService;
 
     public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
-    @PostMapping("/login")//POST /api/auth/login
-
-    public MeResponse login(@RequestBody LoginRequest body, HttpSession session){
-        return authService.login(body.studentId(), body.password(), session);
+    /** Шаг 1: зачётка + пароль → код на почту из 1С. */
+    @PostMapping("/login")
+    public LoginChallengeResponse login(@RequestBody LoginRequest body, HttpSession session) {
+        return authService.startLoginChallenge(body.studentId(), body.password(), session);
     }
 
-    @GetMapping("/me")//GET /api/auth/me - кто залогинен
-
-    public MeResponse me(HttpSession session){
-        return authService.currentUser(session).
-        orElseThrow(() -> new ResponseStatusException(
-            HttpStatus.UNAUTHORIZED,
-             "Необходимо войти в систему"));
+    /** Шаг 2: код из письма → сессия. */
+    @PostMapping("/verify-code")
+    public MeResponse verifyCode(@RequestBody VerifyCodeRequest body, HttpSession session) {
+        return authService.verifyCode(body.code(), session);
     }
 
-    @PostMapping("/logout")//POST /api/auth/logout
-    @ResponseStatus(HttpStatus.NO_CONTENT)//204 No Content
-    public void logout(HttpSession session){
+    @GetMapping("/me")
+    public MeResponse me(HttpSession session) {
+        return authService.currentUser(session)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Необходимо войти в систему"));
+    }
+
+    @GetMapping("/pending-challenge")
+    public LoginChallengeResponse pendingChallenge(HttpSession session) {
+        return authService.pendingChallenge(session)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Нет незавершённого входа"));
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(HttpSession session) {
         authService.logout(session);
     }
 }

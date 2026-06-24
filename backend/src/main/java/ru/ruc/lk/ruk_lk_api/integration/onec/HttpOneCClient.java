@@ -47,9 +47,10 @@ public class HttpOneCClient implements OneCClient {
             }
             //Пароль верный
             return Optional.of(new MeResponse(
-                studentId,//номер по котормоу вошли
-                "",//тут будет фио
-                List.of()//тут будут учебные программы
+                studentId,
+                "",
+                authResponse.email(),
+                List.of()
             ));
         } catch (HttpClientErrorException e) {
 

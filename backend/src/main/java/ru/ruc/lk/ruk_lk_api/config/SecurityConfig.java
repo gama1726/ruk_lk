@@ -24,7 +24,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
             //открытые эндпоинты
             .requestMatchers("/api/health").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/auth/pending-challenge").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/verify-code").permitAll()
             //все остальные только с сессией будут жоступны
             .anyRequest().authenticated()
             );
