@@ -20,20 +20,21 @@ import ru.ruc.lk.ruk_lk_api.api.auth.OneCAuthResponse;
 public class HttpOneCClient implements OneCClient {
     private final RestClient restClient;
     
-    public HttpOneCClient(@Value("$(app.onec.base-url)") String baseUrl){
+    public HttpOneCClient(@Value("${app.onec.base-url}") String baseUrl) {
         this.restClient = RestClient.builder()
-        .baseUrl(baseUrl)// http://localhost/universitet_masterkova1
-        .build();
+            .baseUrl(baseUrl)// http://localhost/universitet_masterkova1
+            .build();
     }
+
     @Override
-    public Optional<MeResponse> login(String recordBookNumber, String password) {
+    public Optional<MeResponse> login(String studentId, String password) {
         try {
             OneCAuthResponse authResponse = restClient.post()
-            .uri("/hs/student/auth")
-            .contentType(MediaType.APPLICATION_JSON)
-            .body(new OneCAuthRequest(recordBookNumber, password))
-            .retrieve()
-            .body(OneCAuthResponse.class);// парсим { "authenticated": true/false }
+                .uri("/hs/student/auth")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new OneCAuthRequest(studentId, password))
+                .retrieve()
+                .body(OneCAuthResponse.class);// парсим { "authenticated": true/false }
 
             //если 1с ответила false или пусто
             if (authResponse == null || !authResponse.authenticated()) {
