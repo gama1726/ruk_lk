@@ -13,6 +13,8 @@ import org.springframework.web.server.ResponseStatusException;
 import jakarta.servlet.http.HttpSession;
 
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
+import ru.ruc.lk.ruk_lk_api.integration.email.VerificationEmailSender;
+import ru.ruc.lk.ruk_lk_api.integration.email.EmailSendException;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.LoginChallengeResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.MeResponse;
 
@@ -24,13 +26,16 @@ public class AuthService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final OneCClient onecClient;
+    private final VerificationEmailSender emailSender;
     private final String fixedCode;
 
     public AuthService(
         OneCClient onecClient,
+        VerificationEmailSender emailSender,
         @Value("${app.auth.fixed-code:}") String fixedCode
     ) {
         this.onecClient = onecClient;
+        this.emailSender = emailSender;
         this.fixedCode = fixedCode;
     }
 
@@ -48,6 +53,14 @@ public class AuthService {
         String email = resolveEmail(me);
         String code = generateCode();
 
+        try {
+            emailSender.sendLoginCode(email, me.fullName(), code);
+        } catch (EmailSendException e) {
+            throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Не удалось отправить код входа на email. Попробуйте позже."
+                );
+        }
         session.setAttribute(PENDING_KEY, new PendingChallenge(
             me.studentId(),
             me.fullName(),
@@ -56,8 +69,6 @@ public class AuthService {
             me.programs()
         ));
         session.removeAttribute(SESSION_KEY);
-
-        sendVerificationCode(email, code);
 
         return new LoginChallengeResponse(me.studentId(), email, me.fullName());
     }
@@ -76,7 +87,7 @@ public class AuthService {
 
         String digits = code == null ? "" : code.replaceAll("\\s", "");
         if (!pending.code().equals(digits)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Неверный код подтверждения");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Неверный код подтверждения");
         }
 
         StudentSession student = new StudentSession(
@@ -137,10 +148,5 @@ public class AuthService {
             return fixedCode.trim();
         }
         return String.format("%06d", RANDOM.nextInt(1_000_000));
-    }
-
-    /** TODO: интеграция с почтовым сервисом; пока код в логах сервера. */
-    private void sendVerificationCode(String email, String code) {
-        log.info("Код подтверждения входа для {}: {}", email, code);
     }
 }
