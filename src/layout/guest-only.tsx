@@ -8,6 +8,11 @@ import { paths } from '@/paths'
  */
 export function GuestOnly() {
   const session = useAuth((s) => s.session)
+  const status = useAuth((s) => s.status)
+
+  if (status === 'loading') {
+    return null
+  }
 
   if (session) {
     return <Navigate to={paths.profile} replace />

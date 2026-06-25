@@ -9,6 +9,11 @@ import { paths } from '@/paths'
  */
 export function RequireSession() {
   const session = useAuth((s) => s.session)
+  const status = useAuth((s) => s.status)
+
+  if (status === 'loading') {
+    return null
+  }
 
   if (!session) {
     return <Navigate to={paths.login} replace />
