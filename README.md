@@ -30,11 +30,11 @@ npm run dev
 Скопируй `.env.example` в `.env` и пропиши адрес API:
 
 ```
-VITE_API_BASE_URL=https://...
+VITE_API_BASE_URL=http://localhost:8080
 ```
 
 Дальше — заменять моки на вызовы из `apiClient.ts` и перевести авторизацию с mock на SSO/cookie. Пока переменная пустая, приложение живёт только на моках.
 
-## На заметку
+**Деплой на сервер:** Docker Compose — [`deploy/DEPLOY.md`](deploy/DEPLOY.md).
 
-Сессия и пароли не пишем в `localStorage` — только в памяти вкладки. После перезагрузки страницы снова нужен вход.
+
