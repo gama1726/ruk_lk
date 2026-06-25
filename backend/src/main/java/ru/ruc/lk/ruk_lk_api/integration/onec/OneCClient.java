@@ -3,6 +3,7 @@ package ru.ruc.lk.ruk_lk_api.integration.onec;
 import java.util.Optional;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.MeResponse;
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 
 public interface OneCClient {
         /**
@@ -12,4 +13,5 @@ public interface OneCClient {
  */
     
     Optional<MeResponse> login(String studentId, String password);
+    Optional<OneCProfileResponse> fetchProfile(String studentId);
 }

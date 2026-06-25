@@ -12,6 +12,7 @@ import org.springframework.web.client.RestClient;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.MeResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.OneCAuthResponse;
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
  //http клиент для 1С
  
 
@@ -48,7 +49,7 @@ public class HttpOneCClient implements OneCClient {
             //Пароль верный
             return Optional.of(new MeResponse(
                 studentId,
-                authResponse.fullname(),
+                authResponse.fullName(),
                 authResponse.email(),
                 List.of()
             ));
@@ -58,4 +59,20 @@ public class HttpOneCClient implements OneCClient {
         }
 
     }
-}
+    @Override
+    public Optional<OneCProfileResponse> fetchProfile(String studentId){
+        try{
+            OneCProfileResponse profile = restClient.get()
+            .uri("/hs/student/profile/?studentId = {id}", studentId)
+            .retrieve()
+            .body(OneCProfileResponse.class);
+
+            if (profile == null || !profile.found()) {
+                return Optional.empty();
+            }
+            return Optional.of(profile);
+        } catch (HttpClientErrorException e){
+            return Optional.empty();
+        }
+        }
+    }
