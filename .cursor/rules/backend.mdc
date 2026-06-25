@@ -1,0 +1,489 @@
+---
+description: Backend API РУК ЛК — эпики, endpoints, 1С, статусы. Читать при проектировании ruk-lk-api и интеграции с фронтом.
+alwaysApply: true
+---
+
+# ruk-lk-api — спецификация backend
+
+> **Источник правды** по контрактам API. При обсуждении или реализации endpoint — **обновлять этот файл** (статус, DTO, заметки).
+> Backend: `backend/` в монорепо `ruk_lk`, Spring Boot 4.1, Java 21, пакет `ru.ruc.lk.ruk_lk_api`.
+> Фронт: `VITE_API_BASE_URL`, `apiClient.ts` (`credentials: 'include'`).
+
+## Общие правила
+
+| Правило | Значение |
+|---------|----------|
+| Префикс API | `/api/...` |
+| Сессия | HttpSession + cookie (`SameSite=Lax`, `httpOnly`) |
+| CORS | `http://localhost:5173` (dev), прод — домен ЛК |
+| Ошибки | JSON `{ "message": "..." }` через `ApiExceptionHandler`; `server.error.include-message=always`; коды 400/401/403/404/503/500 |
+| programId | Query `?programId=b-2023` или path `/programs/{programId}/...` |
+| 1С | HTTP-сервисы под префиксом `/hs/student/...`; Basic Auth публикации; пароль студента **только** в login, не хранить |
+| Профиль Spring | `spring.profiles.active=onec` → `HttpOneCClient`; `MockOneCClient` — **не реализован** |
+| Dev-код | `app.auth.fixed-code` в `application-local.properties` (не коммитить) |
+| Email (код входа) | `app.unisender.*` в `application.properties` + секреты в `application-local.properties` |
+
+**Демо-студент (mock):** Иванов Артём Сергеевич — `23И0142` / `demo1234`, программы `b-2023`, `m-2025`.
+
+**Статусы эпика:** `planned` → `in_progress` → `done`
+
+---
+
+## Epic P0 — Auth `done`
+
+**Цель:** двухшаговый вход (зачётка + пароль → код на email → сессия); восстановление после F5.
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| POST | `/api/auth/login` | done |
+| POST | `/api/auth/verify-code` | done |
+| GET | `/api/auth/me` | done |
+| GET | `/api/auth/pending-challenge` | done |
+| POST | `/api/auth/logout` | done |
+| GET | `/api/health` | done |
+
+### POST `/api/auth/login` (шаг 1)
+
+- **Request:** `{ "studentId": "172194", "password": "..." }`
+- **Response 200:** `LoginChallengeResponse` — `{ studentId, email, fullName }`
+- **401:** неверный studentId или пароль
+- **503:** не удалось отправить код на email (ошибка UniSender)
+- **1С:** `POST /hs/student/auth` → `{ "authenticated": true/false, "fullName", "email" }`
+- **Сессия:** ключ `PENDING_CHALLENGE` — код и данные до verify; пароль не сохраняется
+- **Код:** 6 цифр; dev — `app.auth.fixed-code`; prod — случайный + отправка на email
+- **Email:** `VerificationEmailSender.sendLoginCode(email, fullName, code)` после успешного login в 1С
+- **Фронт:** `auth.ts` → `startStudentLogin`, `pages/login-student.tsx`
+
+### POST `/api/auth/verify-code` (шаг 2)
+
+- **Request:** `{ "code": "123456" }`
+- **Response 200:** `MeResponse` — `{ studentId, fullName, email, programs: [] }`
+- **400:** неверный код подтверждения (`Неверный код подтверждения`)
+- **401:** нет незавершённого входа (`Сначала войдите по номеру зачётки и паролю`)
+- **Сессия:** ключ `STUDENT` → `StudentSession`; challenge удаляется
+- **Фронт:** `auth.ts` → `confirmCode`, `pages/verify-code.tsx`; `apiClient.ts` читает `message` из JSON
+
+### GET `/api/auth/me`
+
+- **Auth:** cookie сессии (`STUDENT`)
+- **Response 200:** `MeResponse`
+- **401:** не авторизован
+- **Фронт:** `auth.ts` → `restoreSession`, `layout/auth-bootstrap.tsx`
+
+### GET `/api/auth/pending-challenge`
+
+- **Auth:** cookie с незавершённым входом
+- **Response 200:** `LoginChallengeResponse` (email для экрана кода)
+- **404:** нет challenge
+- **Фронт:** `restoreSession` — восстановление шага verify после F5
+
+### POST `/api/auth/logout`
+
+- Инвалидирует сессию, **204 No Content**
+- **Фронт:** `auth.ts` → `signOut`, `layout/user-menu.tsx`
+
+### GET `/api/health`
+
+- **Response 200:** `{ "status": "ok" }`
+- Реализация: `HealthController`
+
+### Security / CORS
+
+- `SecurityConfig`: `/api/**` — `permitAll`; проверка сессии в `AuthService` / `StudentService`
+- `CorsConfig`: `localhost:5173`, `credentials: true`
+- `ApiExceptionHandler`: `ResponseStatusException` → `{ "message": "..." }`
+
+### Email — код входа `done`
+
+**Цель:** отправка 6-значного кода на email студента из 1С после шага login.
+
+| Компонент | Роль |
+|-----------|------|
+| `VerificationEmailSender` | интерфейс `sendLoginCode(to, fullName, code)` |
+| `LoggingEmailSender` | dev: `app.unisender.enabled=false` — код в лог |
+| `UnisenderEmailSender` | prod: UniSender Go `POST /email/send.json`, заголовок `X-API-KEY` |
+| `EmailSendException` | сбой отправки → **503** в `AuthService` |
+
+**Конфиг (`application.properties`):**
+
+| Свойство | Значение |
+|----------|----------|
+| `app.unisender.base-url` | `https://goapi.unisender.ru/ru/transactional/api/v1` |
+| `app.unisender.enabled` | `false` по умолчанию (dev) |
+| `app.unisender.from-email` | пусто в репо; в local — `noreply@...` |
+| `app.unisender.api-key` | только в `application-local.properties` |
+
+**Письмо:** тема «Код для входа в личный кабинет РУК»; обращение «Здравствуйте, Имя Отчество!» (из `fullName`); имя отправителя — константа `FROM_NAME` в Java (без properties, обход кодировки Windows).
+
+**Dev:** `enabled=false` + `fixed-code=123456` → код в лог, без реальной почты.
+
+**Prod-тест:** `enabled=true`, api-key и from-email в local; убрать `fixed-code` для случайного кода.
+
+---
+
+## Epic P0 — SSO (Keycloak) `planned`
+
+**Цель:** основной вход, как у МИРЭА; зачётка — запасной путь.
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/auth/sso/callback` | planned |
+
+- **Фронт:** `sso.ts`, `VITE_SSO_URL` → Keycloak; после code → BFF обменивает code на сессию
+- **BFF:** OAuth2/OIDC client, привязка Keycloak-sub к студенту в 1С
+- **1С (позже):** `GET /hs/lk/auth/by-sso?sub=...`
+- **Не делать в v1:** дублировать логику SSO на фронте
+
+---
+
+## Epic P1 — Student / Profile `in_progress`
+
+**Цель:** карточка студента и список программ.
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/student/profile` | done |
+| — | `programs[]` в сессии / me | planned |
+
+### GET `/api/student/profile` `done`
+
+- **Auth:** cookie сессии (`STUDENT`)
+- **Query:** нет (запрос в 1С по `studentId` из сессии — номер зачётки при входе)
+- **Response 200:** `StudentProfileResponse` (см. таблицу маппинга ниже)
+- **401:** нет сессии
+- **404:** профиль не найден в 1С
+- **1С:** `GET /hs/student/profile?studentId={id}`
+- **Фронт:** `profile.ts` → `fetchStudentProfile`, `pages/profile.tsx`
+
+#### `OneCProfileResponse` (поля из 1С)
+
+`studentId`, `fullName`, `gender`, `birthDate`, `email`, `phone`, `zachetka`, `status`, `educationPlan`, `faculty`, `direction`, `specialization`, `educationForm`, `level`, `course`, `department`, `group`, `fundingType`, `fundingSource`
+
+**Не показываем в ЛК:** `educationPlan`, `fundingSource`.
+
+**Профиль найден**, если в ответе есть `studentId` или `fullName` (поля `found` в 1С больше нет).
+
+#### Маппинг 1С → `StudentProfileResponse`
+
+| API | 1С | Примечание |
+|-----|-----|------------|
+| `fullName` | `fullName` | |
+| `studentId` | `zachetka` | fallback: `studentId` |
+| `email` | `email` | личная почта; корпоративной нет |
+| `phone` | `phone` | |
+| `gender` | `gender` | |
+| `birthDate` | `birthDate` | ISO `YYYY-MM-DD` |
+| `funding` | `fundingType` | напр. «Полное возмещение затрат» |
+| `status` | `status` | бейдж, напр. «Является студентом» |
+| `faculty` | `faculty` | |
+| `department` | `department` | кафедра |
+| `direction` | `direction` + `specialization` | `Направление (Специализация)`; только direction, если specialization пуст |
+| `level` | `level` | напр. «Специалитет» |
+| `educationForm` | `educationForm` | напр. «Очная» |
+| `group` | `group` | бейдж группы |
+| `course` | `course` | бейдж «Курс …»; из 1С текстом («Пятый»), не число |
+
+Реализация склейки направления: `StudentService.formatDirection()`.
+
+#### UI профиля (фронт)
+
+**Шапка — бейджи:** `group`, `course`, `status` из API.
+
+**Карточка контактов:** пол, личный номер (зачётка), личная почта, возраст, вид финансирования, телефон (`maskPhone` — пустой/null → «—»).
+
+**Блок «Информация об обучении»** (порядок полей): факультет → кафедра → направление → уровень образования → форма обучения.
+
+**Заметка:** email в `POST /hs/student/auth` и `GET /hs/student/profile` может временно расходиться, пока 1С не выровняет источники. Код входа уходит на email из **auth**; профиль показывает email из **profile**.
+
+### Осталось по профилю `planned`
+
+- **Query `programId`** — когда 1С отдаст несколько программ обучения
+- **Response:** `programs[]` для переключателя
+- **Фронт:** `study.ts`, `useCurrentProgram` — пока мок для задолженностей и других разделов
+- **Моки на профиле:** задолженности, уведомления — до эпиков P2
+
+---
+
+## Epic P1 — Schedule `planned`
+
+**Цель:** неделя + день, источники расписания.
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/student/schedule` | planned |
+
+- **Query:** `programId`, `from` (ISO date), `to` (ISO date)
+- **Response:** массив занятий — см. `src/mocks/lessons.ts`, `lesson-types.ts`
+- Поля: дата, время, дисциплина, тип, аудитория, преподаватель, статус (по расписанию / перенесено / отменено / дистанционно)
+- **1С:** `GET /hs/lk/schedule?...`
+- **Фронт:** `schedule-calendar.tsx`, `schedule-day-grid.tsx`
+
+---
+
+## Epic P1 — Record book `planned`
+
+**Цель:** электронная зачётная книжка по семестрам.
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/student/record-book` | planned |
+
+- **Query:** `programId`, `semester?` (если нет — список семестров + текущий)
+- **Response:** см. `src/mocks/record-book.ts`, `record-book-types.ts` — семестры, дисциплины, оценки, зачёт/экзамен, часы, БРС-флаг
+- **1С:** `GET /hs/lk/record-book?...`
+- **Фронт:** `pages/record-book.tsx`
+
+---
+
+## Epic P2 — Home dashboard `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/student/dashboard` | planned |
+
+- **Query:** `programId`
+- **Response:** агрегат для главной — ближайшая пара, расписание на сегодня, счётчики уведомлений/долгов
+- **Моки:** `lessons.ts`, `warnings.ts`, `debts.ts`, `notices.ts`
+- **Фронт:** `pages/home.tsx`, блоки в `blocks/`
+
+---
+
+## Epic P2 — Notices / News `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/notices` | planned |
+| PATCH | `/api/notices/{id}/read` | planned |
+
+- **Query:** `category?`, `unreadOnly?`
+- **Response:** `src/mocks/notices.ts`
+- **Фронт:** `pages/news.tsx`, `notice-read.ts`
+
+---
+
+## Epic P2 — Debts `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/student/debts` | planned |
+
+- **Query:** `programId`
+- **Response:** `src/mocks/debts.ts`
+- **Фронт:** `pages/debts.tsx`, `debt-alert.tsx`
+
+---
+
+## Epic P2 — Attendance `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/student/attendance` | planned |
+
+- **Query:** `programId`, `disciplineId?`, `period?`
+- **Response:** `src/mocks/attendance.ts`, `attendance-types.ts`
+- **Фронт:** `pages/attendance.tsx`
+
+---
+
+## Epic P2 — Grades `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/student/grades` | planned |
+
+- **Query:** `programId`
+- **Response:** сводная успеваемость (отдельно от зачётки, если 1С отдаёт иначе)
+- **Фронт:** `pages/grades.tsx`
+
+---
+
+## Epic P2 — Study plan & Roadmap `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/student/study-plan` | planned |
+| GET | `/api/student/roadmap` | planned |
+
+- **Query:** `programId`
+- **Моки:** `study-plan.ts`, `roadmap.ts`
+- **Фронт:** `study-plan.tsx`, `roadmap.tsx`
+
+---
+
+## Epic P2 — Teachers `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/student/teachers` | planned |
+
+- **Query:** `programId`
+- **Response:** `src/mocks/teachers.ts`
+- **Фронт:** `pages/teachers.tsx`
+
+---
+
+## Epic P2 — Orders `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/student/orders` | planned |
+| GET | `/api/student/orders/{id}/file` | planned |
+
+- Приказы с PDF; безопасные имена файлов
+- **Мок:** `src/mocks/orders.ts`
+- **Фронт:** `pages/orders.tsx`
+
+---
+
+## Epic P3 — Requests `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/requests` | planned |
+| POST | `/api/requests` | planned |
+
+- **Response/Request:** `src/mocks/requests.ts`, `requests-types.ts`
+- **Фронт:** `pages/requests.tsx`
+
+---
+
+## Epic P3 — Payments `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/payments` | planned |
+
+- Договор, начисления, история — `src/mocks/payment.ts`
+- Реальная оплата — внешний шлюз, не в v1
+- **Фронт:** `pages/payments.tsx`
+
+---
+
+## Epic P3 — Dormitory `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/dormitory` | planned |
+| POST | `/api/dormitory/requests` | planned |
+
+- **Мок:** `src/mocks/dormitory.ts`
+- **Фронт:** `pages/dormitory` (если есть) / services
+
+---
+
+## Epic P3 — Bypass list `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/bypass-list` | planned |
+
+- **Мок:** `src/mocks/bypass-list.ts`
+- **Фронт:** `pages/bypass-list.tsx`
+
+---
+
+## Epic P3 — Psychologist `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/psychologist/slots` | planned |
+| POST | `/api/psychologist/appointments` | planned |
+
+- Без мед. деталей в ответах
+- **Мок:** `src/mocks/psychologist.ts`
+
+---
+
+## Epic P3 — Portfolio `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/portfolio` | planned |
+| POST | `/api/portfolio` | planned |
+
+- **Мок:** `src/mocks/portfolio.ts`, `portfolio-types.ts`
+- **Фронт:** `pages/portfolio.tsx`
+
+---
+
+## Epic P3 — Library `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/library` | planned |
+
+- **Мок:** `src/mocks/library.ts`
+- **Фронт:** `pages/library.tsx`
+
+---
+
+## Epic P3 — Settings `planned`
+
+| Метод | Путь | Статус |
+|-------|------|--------|
+| GET | `/api/settings` | planned |
+| PATCH | `/api/settings` | planned |
+| POST | `/api/settings/password` | planned |
+
+- Уведомления, контакты; смена пароля → 1С
+- **Фронт:** `settings.ts`, `pages/settings.tsx`
+
+---
+
+## Порядок реализации
+
+1. ~~**P0:** health → login → verify-code → me → logout → фронт~~ **done**
+2. ~~**P0:** отправка кода на email (UniSender Go)~~ **done**
+3. **P1 (текущий):** ~~profile (контакты + учебный блок из 1С)~~ → `programs[]` (несколько программ) → schedule → record-book
+4. **P2:** dashboard, notices, debts, attendance, grades, study-plan, roadmap, teachers, orders
+5. **P3:** сервисы (requests, payments, …)
+6. **P0 SSO:** после стабильного login по зачётке
+
+---
+
+## Структура Java (фактическая)
+
+```
+backend/src/main/java/ru/ruc/lk/ruk_lk_api/
+  config/SecurityConfig, CorsConfig, ApiExceptionHandler
+  api/auth/AuthController, AuthService, StudentSession, PendingChallenge
+  api/auth/dto/MeResponse, LoginRequest, LoginChallengeResponse, StudentProfileResponse, ...
+  api/student/StudentController, StudentService
+  integration/onec/OneCClient, HttpOneCClient, OneCAuthRequest, OneCProfileResponse
+  integration/email/VerificationEmailSender, LoggingEmailSender, UnisenderEmailSender, ...
+  HealthController
+```
+
+**Планируется:** `MockOneCClient`, `ScheduleController`, …
+
+---
+
+## Чеклист «бекенд живой»
+
+- [x] `GET /api/health` → 200
+- [x] `POST /api/auth/login` → challenge (email, fullName)
+- [x] `POST /api/auth/verify-code` → сессия + `MeResponse`
+- [x] `GET /api/auth/me` с cookie → ФИО
+- [x] F5 на фронте — сессия через `/api/auth/me`
+- [x] `GET /api/auth/pending-challenge` — восстановление шага кода
+- [x] `POST /api/auth/logout` — выход (204)
+- [x] CORS с `credentials` с `localhost:5173`
+- [x] `GET /api/student/profile` — контакты, учебные поля, финансирование из 1С
+- [x] Профиль: направление со специализацией в скобках, зачётка, один email
+- [x] Отправка кода на email (UniSender Go + dev-логгер)
+- [x] Ошибки verify-code: 400 неверный код, 401 нет challenge, JSON `{ message }`
+- [ ] `programs[]` из 1С в сессии / profile
+
+---
+
+## Журнал изменений спеки
+
+| Дата | Изменение |
+|------|-----------|
+| 2026-06-19 | Первая версия: эпики P0–P3, привязка к мокам фронта |
+| 2026-06-19 | P0 Auth → `done`: двухшаговый вход, `/api/auth/*`, 1С `/hs/student/auth` |
+| 2026-06-19 | P1 Profile → `in_progress`: `GET /api/student/profile`, 1С `/hs/student/profile`, фронт `profile.ts` |
+| 2026-06-25 | Email `done`: UniSender Go, `VerificationEmailSender`, dev `LoggingEmailSender` |
+| 2026-06-25 | Auth: 503 при сбое почты; verify-code 400/401; `ApiExceptionHandler`; фронт — сообщения на экране кода |
+| 2026-06-25 | Profile: расширен `/hs/student/profile` — учебные поля, `fundingType`, склейка direction+specialization; фронт без мока в блоке обучения |
+| 2026-06-25 | Profile: `studentId` ← zachetka, один `email`; UI — порядок полей обучения, без кафедры и кода записи |

@@ -1,0 +1,21 @@
+# Секреты backend на сервере.
+# Скопируйте в /opt/ruk-lk/backend/application-local.properties
+# и заполните значения. Файл не коммитится.
+
+# Доступ к публикации 1С (Basic Auth)
+app.onec.publication-user=
+app.onec.publication-password=
+
+# Фиксированный код для тестов (оставьте пустым в проде — код будет случайным)
+app.auth.fixed-code=
+
+# UniSender Go — отправка кода на email
+app.unisender.enabled=true
+app.unisender.api-key=
+app.unisender.from-email=
+
+# URL 1С — если на сервере другой адрес, чем в application.properties:
+# app.onec.base-url=http://10.10.31.13/universitet_masterkova1
+
+# CORS — только если фронт и API на разных origin (обычно не нужно за nginx)
+# app.cors.allowed-origins=https://lk.example.com
