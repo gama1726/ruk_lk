@@ -130,11 +130,10 @@ export function Profile() {
         <Card title="Информация об обучении" className={styles.educationCard}>
           <div className={styles.infoList}>
             <InfoRow label="Факультет" value={program.faculty} />
-            <InfoRow label="Направление" value={program.direction} />
-            <InfoRow label="Форма обучения" value={program.form} />
             <InfoRow label="Кафедра" value={program.department} />
-            <InfoRow label="Уровень" value={program.level} />
-            <InfoRow label="Код записи" value={program.recordCode} />
+            <InfoRow label="Направление" value={program.direction} />
+            <InfoRow label="Уровень образования" value={program.level} />
+            <InfoRow label="Форма обучения" value={program.form} />
           </div>
         </Card>
 
