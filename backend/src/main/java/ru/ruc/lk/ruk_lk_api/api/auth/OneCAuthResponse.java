@@ -4,11 +4,11 @@ public record OneCAuthResponse(
     boolean authenticated,
     String studentId,
     String email,
-    String fullname
+    String fullName
 ) {
     public OneCAuthResponse {
-        if (fullname == null){
-            fullname = "";
+        if (fullName == null){
+            fullName = "";
         }
         if (email == null) {
             email = "";
