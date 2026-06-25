@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ageWithBirthDate, firstName, maskPhone, noticeDate } from '@/mocks/format'
-import { activeDebts } from '@/mocks/debts'
+import { NoticeCategoryIcon } from '@/blocks/notice-category-icon'
+import { ageWithBirthDate, courseLabel, maskPhone, noticeDate } from '@/mocks/format'
 import { notices } from '@/mocks/notices'
-import { fetchStudentProfile, mockStudentProfile, type StudentProfileDto } from '@/profile'
-import { useCurrentProgram } from '@/study'
+import { mockStudentProfile } from '@/profile'
+import { useStudentProfile } from '@/student-profile-store'
 import { paths } from '@/paths'
-import { Card } from '@/ui'
+import { Card, StudentAvatar } from '@/ui'
 import { isApiConfigured } from '@/apiClient'
 import styles from './profile.module.css'
 
@@ -32,8 +32,8 @@ type InfoRowProps = {
 function InfoRow({ label, value }: InfoRowProps) {
   return (
     <div className={styles.infoRow}>
-      <span className={styles.infoLabel}>{label}</span>
-      <span className={styles.infoValue}>{value}</span>
+      <dt className={styles.infoLabel}>{label}</dt>
+      <dd className={styles.infoValue}>{value || '—'}</dd>
     </div>
   )
 }
@@ -42,38 +42,22 @@ function InfoRow({ label, value }: InfoRowProps) {
  * Профиль студента в раскладке портала: карточка ФИО, обучение, задолженности, уведомления.
  */
 export function Profile() {
-  const program = useCurrentProgram()
-  const debts = activeDebts(program.id)
+  const profile = useStudentProfile((s) => s.profile)
+  const profileStatus = useStudentProfile((s) => s.status)
+  const loadProfile = useStudentProfile((s) => s.load)
+
+  // Задолженности и уведомления — моки до API; на профиле пока без долгов
+  const debts = [] as const
   const recentNotices = notices.slice(0, 5)
 
-  const [profile, setProfile] = useState<StudentProfileDto | null>(
-    isApiConfigured() ? null : mockStudentProfile(),
-  )
-  const [loading, setLoading] = useState(isApiConfigured())
-  const [error, setError] = useState<string | null>(null)
-
   useEffect(() => {
-    if (!isApiConfigured()) return
-
-    let cancelled = false
-
-    fetchStudentProfile()
-      .then((data) => {
-        if (!cancelled) setProfile(data)
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Не удалось загрузить профиль')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
+    if (isApiConfigured() && profileStatus === 'idle') {
+      void loadProfile()
     }
-  }, [])
+  }, [loadProfile, profileStatus])
+
+  const loading = isApiConfigured() && (profileStatus === 'loading' || profileStatus === 'idle')
+  const displayProfile = profile ?? (isApiConfigured() ? null : mockStudentProfile())
 
   if (loading) {
     return (
@@ -85,11 +69,11 @@ export function Profile() {
     )
   }
 
-  if (error || !profile) {
+  if (!displayProfile) {
     return (
       <div className={styles.page}>
         <Card padding="lg">
-          <p>{error ?? 'Профиль недоступен'}</p>
+          <p>Профиль недоступен</p>
         </Card>
       </div>
     )
@@ -99,26 +83,26 @@ export function Profile() {
     <div className={styles.page}>
       <Card padding="lg" className={styles.hero}>
         <div className={styles.heroInner}>
-          <div className={styles.avatar} aria-hidden="true">
-            {firstName(profile.fullName).charAt(0)}
-          </div>
+          <StudentAvatar gender={displayProfile.gender} size="lg" aria-hidden="true" />
 
           <div className={styles.heroBody}>
-            <h1 className={styles.name}>{profile.fullName}</h1>
+            <h1 className={styles.name}>{displayProfile.fullName}</h1>
 
             <div className={styles.badges}>
-              <span className={styles.groupBadge}>{profile.group}</span>
-              <span className={styles.badge}>Курс {profile.course}</span>
-              <span className={styles.badge}>{profile.status}</span>
+              <span className={styles.groupBadge}>{displayProfile.group}</span>
+              <span className={styles.courseBadge}>
+                Курс {courseLabel(displayProfile.course)}
+              </span>
+              <span className={styles.statusBadge}>{displayProfile.status}</span>
             </div>
 
             <dl className={styles.metaGrid}>
-              <Field label="Пол" value={profile.gender} />
-              <Field label="Личный номер" value={profile.studentId} />
-              <Field label="Личная почта" value={profile.email} />
-              <Field label="Возраст" value={ageWithBirthDate(profile.birthDate)} />
-              <Field label="Вид финансирования" value={profile.funding} />
-              <Field label="Контактный номер" value={maskPhone(profile.phone)} />
+              <Field label="Пол" value={displayProfile.gender} />
+              <Field label="Личный номер" value={displayProfile.studentId} />
+              <Field label="Личная почта" value={displayProfile.email} />
+              <Field label="Возраст" value={ageWithBirthDate(displayProfile.birthDate)} />
+              <Field label="Вид финансирования" value={displayProfile.funding} />
+              <Field label="Контактный номер" value={maskPhone(displayProfile.phone)} />
             </dl>
           </div>
         </div>
@@ -126,12 +110,13 @@ export function Profile() {
 
       <div className={styles.lowerGrid}>
         <Card title="Информация об обучении" className={styles.educationCard}>
-          <div className={styles.infoList}>
-            <InfoRow label="Факультет" value={profile.faculty} />
-            <InfoRow label="Направление" value={profile.direction} />
-            <InfoRow label="Уровень образования" value={profile.level} />
-            <InfoRow label="Форма обучения" value={profile.educationForm} />
-          </div>
+          <dl className={styles.infoList}>
+            <InfoRow label="Факультет" value={displayProfile.faculty} />
+            <InfoRow label="Кафедра" value={displayProfile.department} />
+            <InfoRow label="Направление" value={displayProfile.direction} />
+            <InfoRow label="Уровень образования" value={displayProfile.level} />
+            <InfoRow label="Форма обучения" value={displayProfile.educationForm} />
+          </dl>
         </Card>
 
         <div className={styles.sideStack}>
@@ -168,7 +153,7 @@ export function Profile() {
             <ul className={styles.noticeList}>
               {recentNotices.map((n) => (
                 <li key={n.id} className={styles.noticeItem}>
-                  <span className={styles.noticeIcon} aria-hidden="true" />
+                  <NoticeCategoryIcon category={n.category} />
                   <div className={styles.noticeBody}>
                     <p className={styles.noticeTitle}>{n.title}</p>
                     <p className={styles.noticeDate}>{noticeDate(n.date)}</p>

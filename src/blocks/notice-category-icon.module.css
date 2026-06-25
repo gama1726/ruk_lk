@@ -1,0 +1,35 @@
+.icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-top: 0.0625rem;
+  border-radius: var(--radius-md);
+}
+
+.dekanat {
+  color: var(--color-primary);
+  background: var(--color-primary-muted);
+}
+
+.finance {
+  color: var(--color-warning);
+  background: var(--color-warning-bg);
+}
+
+.requests {
+  color: var(--color-info);
+  background: var(--color-info-bg);
+}
+
+.teachers {
+  color: #7a5c00;
+  background: var(--color-secondary-muted);
+}
+
+.system {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-muted);
+}
