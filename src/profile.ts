@@ -16,19 +16,32 @@ export type StudentProfileDto = {
   birthDate: string
   funding: string
   status: string
+  faculty: string
+  direction: string
+  level: string
+  educationForm: string
+  group: string
+  course: string
 }
 
 /** Мок-профиль для режима без API */
 export function mockStudentProfile(): StudentProfileDto {
+  const program = student.programs[0]
   return {
     fullName: student.fullName,
-    studentId: student.programs[0]?.cardNumber ?? student.studentId,
+    studentId: program?.cardNumber ?? student.studentId,
     email: student.personalEmail,
     phone: student.phone,
     gender: student.gender,
     birthDate: student.birthDate,
     funding: student.funding,
-    status: student.programs[0]?.status ?? '',
+    status: program?.status ?? '',
+    faculty: program?.faculty ?? '',
+    direction: program?.direction ?? '',
+    level: program?.level ?? '',
+    educationForm: program?.form ?? '',
+    group: program?.group ?? '',
+    course: String(program?.course ?? ''),
   }
 }
 

@@ -23,7 +23,8 @@ export function programLabel(program: StudyProgram): string {
  * @example
  * maskPhone('+79161234567') // → '+7 (916) ***-**-67'
  */
-export function maskPhone(phone: string): string {
+export function maskPhone(phone: string | null | undefined): string {
+  if (!phone) return '—'
   const digits = phone.replace(/\D/g, '')
 
   if (digits.length === 11 && (digits.startsWith('7') || digits.startsWith('8'))) {

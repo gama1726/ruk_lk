@@ -95,8 +95,6 @@ export function Profile() {
     )
   }
 
-  const statusBadge = profile.status || program.status
-
   return (
     <div className={styles.page}>
       <Card padding="lg" className={styles.hero}>
@@ -109,9 +107,9 @@ export function Profile() {
             <h1 className={styles.name}>{profile.fullName}</h1>
 
             <div className={styles.badges}>
-              <span className={styles.groupBadge}>{program.group}</span>
-              <span className={styles.badge}>Курс {program.course}</span>
-              <span className={styles.badge}>{statusBadge}</span>
+              <span className={styles.groupBadge}>{profile.group}</span>
+              <span className={styles.badge}>Курс {profile.course}</span>
+              <span className={styles.badge}>{profile.status}</span>
             </div>
 
             <dl className={styles.metaGrid}>
@@ -129,11 +127,10 @@ export function Profile() {
       <div className={styles.lowerGrid}>
         <Card title="Информация об обучении" className={styles.educationCard}>
           <div className={styles.infoList}>
-            <InfoRow label="Факультет" value={program.faculty} />
-            <InfoRow label="Кафедра" value={program.department} />
-            <InfoRow label="Направление" value={program.direction} />
-            <InfoRow label="Уровень образования" value={program.level} />
-            <InfoRow label="Форма обучения" value={program.form} />
+            <InfoRow label="Факультет" value={profile.faculty} />
+            <InfoRow label="Направление" value={profile.direction} />
+            <InfoRow label="Уровень образования" value={profile.level} />
+            <InfoRow label="Форма обучения" value={profile.educationForm} />
           </div>
         </Card>
 
