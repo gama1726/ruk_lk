@@ -173,8 +173,19 @@ export const useAuth = create<AuthState>((set) => ({
         })
         return null
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) {
-          return error.message || 'Неверный код подтверждения'
+        if (error instanceof ApiError) {
+          if (error.status === 400) {
+            const msg = error.message
+            if (!msg || msg === 'Неверный запрос.') return 'Неверный код подтверждения'
+            return msg
+          }
+          if (error.status === 401) {
+            const msg = error.message
+            if (!msg || msg === 'Сессия истекла. Войдите снова.') {
+              return 'Сначала войдите по номеру зачётки и паролю'
+            }
+            return msg
+          }
         }
         return error instanceof Error ? error.message : 'Не удалось подтвердить код'
       }

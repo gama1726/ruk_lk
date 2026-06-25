@@ -20,9 +20,11 @@ export function isApiConfigured(): boolean {
   return apiBaseUrl.length > 0
 }
 
-/** Тело ошибки от API (если сервер вернул JSON) */
+/** Тело ошибки от API (Spring ProblemDetail или произвольный JSON) */
 export type ApiErrorBody = {
   message?: string
+  detail?: string
+  title?: string
 }
 
 /**
@@ -101,7 +103,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   if (!response.ok) {
     const body = (typeof data === 'object' && data !== null ? data : undefined) as ApiErrorBody | undefined
-    const message = body?.message ?? defaultMessage(response.status)
+    const message = body?.message ?? body?.detail ?? defaultMessage(response.status)
     throw new ApiError(response.status, message, body)
   }
 
@@ -133,6 +135,7 @@ export function apiPost<T>(path: string, json: unknown, init?: RequestInit): Pro
  */
 function defaultMessage(status: number): string {
   if (status === 401) return 'Сессия истекла. Войдите снова.'
+  if (status === 400) return 'Неверный запрос.'
   if (status === 403) return 'Недостаточно прав для этого действия.'
   if (status >= 500) return 'Сервер временно недоступен. Попробуйте позже.'
   return 'Не удалось выполнить запрос.'
