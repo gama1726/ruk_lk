@@ -18,7 +18,7 @@ public class StudentController{
         this.studentService = studentService;
     }
     @GetMapping("/profile")
-    public StudentProfileResponse profile(HttpSession session){
+    public StudentProfileResponse profile(HttpSession session) {
         return studentService.getProfile(session);
-}
+    }
 }
