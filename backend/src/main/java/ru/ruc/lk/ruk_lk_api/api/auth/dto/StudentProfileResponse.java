@@ -8,5 +8,11 @@ public record StudentProfileResponse(
     String gender,
     String birthDate,
     String funding,
-    String status
+    String status,
+    String faculty,
+    String direction,
+    String level,
+    String educationForm,
+    String group,
+    String course
 ) {}

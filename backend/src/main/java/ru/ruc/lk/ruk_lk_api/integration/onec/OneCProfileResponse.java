@@ -9,5 +9,13 @@ public record OneCProfileResponse(
     String email,
     String phone,
     String zachetka,
-    String status
+    String status,
+    String faculty,
+    String direction,
+    String specialization,
+    String educationForm,
+    String level,
+    String course,
+    String group,
+    String fundingType
 ){}
