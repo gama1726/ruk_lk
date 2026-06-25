@@ -8,9 +8,9 @@ import { student } from '@/mocks/student'
 /** Ответ `GET /api/student/profile` */
 export type StudentProfileDto = {
   fullName: string
+  /** Номер зачётки */
   studentId: string
-  corporateEmail: string
-  personalEmail: string
+  email: string
   phone: string
   gender: string
   birthDate: string
@@ -22,9 +22,8 @@ export type StudentProfileDto = {
 export function mockStudentProfile(): StudentProfileDto {
   return {
     fullName: student.fullName,
-    studentId: student.studentId,
-    corporateEmail: student.corporateEmail,
-    personalEmail: student.personalEmail,
+    studentId: student.programs[0]?.cardNumber ?? student.studentId,
+    email: student.personalEmail,
     phone: student.phone,
     gender: student.gender,
     birthDate: student.birthDate,

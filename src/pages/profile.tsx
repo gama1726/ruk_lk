@@ -115,10 +115,9 @@ export function Profile() {
             </div>
 
             <dl className={styles.metaGrid}>
-              <Field label="Логин" value={profile.corporateEmail} />
               <Field label="Пол" value={profile.gender} />
-              <Field label="Личный номер" value={profile.studentId || program.cardNumber} />
-              <Field label="Личная почта" value={profile.personalEmail} />
+              <Field label="Личный номер" value={profile.studentId} />
+              <Field label="Личная почта" value={profile.email} />
               <Field label="Возраст" value={ageWithBirthDate(profile.birthDate)} />
               <Field label="Вид финансирования" value={profile.funding} />
               <Field label="Контактный номер" value={maskPhone(profile.phone)} />

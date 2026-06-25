@@ -29,10 +29,13 @@ public class StudentService {
             "Профиль студента не найден"
         ));
 
+        String zachetka = profile.zachetka() != null && !profile.zachetka().isBlank()
+            ? profile.zachetka().trim()
+            : profile.studentId();
+
         return new StudentProfileResponse(
             profile.fullName(),
-            profile.studentId(),
-            profile.email(),
+            zachetka,
             profile.email(),
             profile.phone(),
             profile.gender(),
