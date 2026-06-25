@@ -67,12 +67,16 @@ public class HttpOneCClient implements OneCClient {
                 .retrieve()
                 .body(OneCProfileResponse.class);
 
-            if (profile == null || !profile.found()) {
+            if (profile == null || isBlank(profile.studentId()) && isBlank(profile.fullName())) {
                 return Optional.empty();
             }
             return Optional.of(profile);
         } catch (HttpClientErrorException e) {
             return Optional.empty();
         }
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

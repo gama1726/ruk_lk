@@ -10,6 +10,7 @@ public record StudentProfileResponse(
     String funding,
     String status,
     String faculty,
+    String department,
     String direction,
     String level,
     String educationForm,
