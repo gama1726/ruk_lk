@@ -7,7 +7,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
 import { isApiConfigured } from '@/apiClient'
 import { student } from '@/mocks/student'
-import { firstName } from '@/mocks/format'
+import { useStudentProfile } from '@/student-profile-store'
+import { StudentAvatar } from '@/ui/StudentAvatar'
 import { paths } from '@/paths'
 import { useStudy } from '@/study'
 import styles from './user-menu.module.css'
@@ -67,6 +68,7 @@ export function UserMenu() {
   const signOut = useAuth((s) => s.signOut)
   const activeId = useStudy((s) => s.activeId)
   const pick = useStudy((s) => s.pick)
+  const profileGender = useStudentProfile((s) => s.profile?.gender)
 
   const programBadges = isApiConfigured() && studentId
     ? [{ id: studentId, cardNumber: studentId, level: '' }]
@@ -108,9 +110,7 @@ export function UserMenu() {
         onClick={() => setOpen((v) => !v)}
       >
         <span className={styles.userName}>{shortName(name)}</span>
-        <span className={styles.avatar} aria-hidden="true">
-          {firstName(name).charAt(0)}
-        </span>
+        <StudentAvatar gender={profileGender} size="sm" />
         <MenuIcon kind="chevron" />
       </button>
 
