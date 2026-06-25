@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
+import { isApiConfigured } from '@/apiClient'
 import { student } from '@/mocks/student'
 import { firstName } from '@/mocks/format'
 import { paths } from '@/paths'
@@ -62,9 +63,14 @@ export function UserMenu() {
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const name = useAuth((s) => s.session?.name)
+  const studentId = useAuth((s) => s.session?.studentId)
   const signOut = useAuth((s) => s.signOut)
   const activeId = useStudy((s) => s.activeId)
   const pick = useStudy((s) => s.pick)
+
+  const programBadges = isApiConfigured() && studentId
+    ? [{ id: studentId, cardNumber: studentId, level: '' }]
+    : student.programs
 
   useEffect(() => {
     if (!open) return
@@ -111,17 +117,19 @@ export function UserMenu() {
       {open ? (
         <div className={styles.menu} role="menu">
           <div className={styles.badges}>
-            {student.programs.map((program) => {
-              const active = program.id === activeId
+            {programBadges.map((program) => {
+              const active = program.id === activeId || programBadges.length === 1
+              const canSwitch = programBadges.length > 1
               return (
                 <button
                   key={program.id}
                   type="button"
                   role="menuitemradio"
                   aria-checked={active}
+                  disabled={!canSwitch}
                   className={[styles.badge, active ? styles.badgeActive : styles.badgeIdle].filter(Boolean).join(' ')}
-                  title={program.level}
-                  onClick={() => pick(program.id)}
+                  title={program.level || undefined}
+                  onClick={() => canSwitch && pick(program.id)}
                 >
                   {program.cardNumber}
                 </button>

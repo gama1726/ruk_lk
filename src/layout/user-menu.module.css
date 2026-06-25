@@ -99,6 +99,15 @@
   background: var(--color-primary-hover);
 }
 
+.badge:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.badge:disabled:hover {
+  filter: none;
+}
+
 .list {
   margin: 0;
   padding: 0;
