@@ -17,6 +17,21 @@ export function programLabel(program: StudyProgram): string {
 }
 
 /**
+ * Подпись курса: число из мока или текст из 1С («Пятый»).
+ */
+export function courseLabel(course: string | number): string {
+  if (typeof course === 'number') {
+    return course > 0 ? String(course) : ''
+  }
+  const trimmed = course.trim()
+  const parsed = parseInt(trimmed, 10)
+  if (!Number.isNaN(parsed) && String(parsed) === trimmed) {
+    return trimmed
+  }
+  return trimmed
+}
+
+/**
  * Маскирует телефон перед выводом в кабинете.
  * @param phone - номер в любом формате
  * @returns замаскированная строка; исходник не мутируем

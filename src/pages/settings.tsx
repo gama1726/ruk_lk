@@ -8,6 +8,7 @@ import { useState, type FormEvent, type MouseEvent } from 'react'
 import { useAuth } from '@/auth'
 import { isApiConfigured } from '@/apiClient'
 import { maskPhone } from '@/mocks/format'
+import { useStudentProfile } from '@/student-profile-store'
 import {
   notificationLabels,
   useSettings,
@@ -21,6 +22,7 @@ import styles from './settings.module.css'
  */
 export function Settings() {
   const signOut = useAuth((s) => s.signOut)
+  const profile = useStudentProfile((s) => s.profile)
   const personalEmail = useSettings((s) => s.personalEmail)
   const phone = useSettings((s) => s.phone)
   const notifications = useSettings((s) => s.notifications)
@@ -44,6 +46,10 @@ export function Settings() {
   }
   const [pwdError, setPwdError] = useState<string>()
   const [pwdSaved, setPwdSaved] = useState(false)
+
+  const contactsFromApi = isApiConfigured()
+  const displayEmail = contactsFromApi ? (profile?.email ?? '') : personalEmail
+  const displayPhone = contactsFromApi ? (profile?.phone ?? '') : phone
 
   const handleEmail = (e: FormEvent) => {
     e.preventDefault()
@@ -87,32 +93,48 @@ export function Settings() {
       <section className={styles.section} id="email">
         <h2 className={styles.sectionTitle}>Контакты</h2>
         <Card>
-          <form className={styles.form} onSubmit={handleEmail}>
-            <Input
-              label="Личная почта"
-              type="email"
-              value={emailDraft}
-              error={emailError}
-              onChange={(e) => {
-                setEmailDraft(e.target.value)
-                setEmailSaved(false)
-              }}
-            />
-            <Button type="submit">Сохранить почту</Button>
-            {emailSaved ? <p className={styles.success}>Почта обновлена в сессии</p> : null}
-          </form>
+          {contactsFromApi ? (
+            <div className={styles.form}>
+              <p className={styles.hint}>
+                <strong>Личная почта:</strong> {displayEmail || '—'}
+              </p>
+              <p className={styles.hint}>
+                <strong>Телефон:</strong> {maskPhone(displayPhone)}
+              </p>
+              <p className={styles.securityNote}>
+                Контакты синхронизируются из учётной системы университета. Изменить их можно в 1С.
+              </p>
+            </div>
+          ) : (
+            <>
+              <form className={styles.form} onSubmit={handleEmail}>
+                <Input
+                  label="Личная почта"
+                  type="email"
+                  value={emailDraft}
+                  error={emailError}
+                  onChange={(e) => {
+                    setEmailDraft(e.target.value)
+                    setEmailSaved(false)
+                  }}
+                />
+                <Button type="submit">Сохранить почту</Button>
+                {emailSaved ? <p className={styles.success}>Почта обновлена в сессии</p> : null}
+              </form>
 
-          <form className={styles.form} onSubmit={handlePhone} id="phone" style={{ marginTop: '1.25rem' }}>
-            <Input
-              label="Телефон"
-              type="tel"
-              value={phoneDraft}
-              error={phoneError}
-              onChange={(e) => setPhoneDraft(e.target.value)}
-            />
-            <p className={styles.hint}>Сейчас в профиле: {maskPhone(phone)}</p>
-            <Button type="submit">Сохранить телефон</Button>
-          </form>
+              <form className={styles.form} onSubmit={handlePhone} id="phone" style={{ marginTop: '1.25rem' }}>
+                <Input
+                  label="Телефон"
+                  type="tel"
+                  value={phoneDraft}
+                  error={phoneError}
+                  onChange={(e) => setPhoneDraft(e.target.value)}
+                />
+                <p className={styles.hint}>Сейчас в профиле: {maskPhone(phone)}</p>
+                <Button type="submit">Сохранить телефон</Button>
+              </form>
+            </>
+          )}
         </Card>
       </section>
 

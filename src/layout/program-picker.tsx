@@ -1,6 +1,8 @@
 import { student } from '@/mocks/student'
 import { programLabel } from '@/mocks/format'
 import { useStudy } from '@/study'
+import { useStudentProfile } from '@/student-profile-store'
+import { isApiConfigured } from '@/apiClient'
 import { Select } from '@/ui/Select/Select'
 import styles from './program-picker.module.css'
 
@@ -22,6 +24,11 @@ type Props = {
 export function ProgramPicker({ compact = false }: Props) {
   const activeId = useStudy((s) => s.activeId)
   const pick = useStudy((s) => s.pick)
+  const profile = useStudentProfile((s) => s.profile)
+
+  if (isApiConfigured() && profile) {
+    return null
+  }
 
   const options = student.programs.map((p) => ({
     value: p.id,

@@ -1,6 +1,8 @@
-import { student } from '@/mocks/student'
-import { programLabel, firstName } from '@/mocks/format'
+import { useAuth } from '@/auth'
+import { programLabel, firstName, courseLabel } from '@/mocks/format'
 import { useCurrentProgram } from '@/study'
+import { useStudentProfile } from '@/student-profile-store'
+import { isApiConfigured } from '@/apiClient'
 import { ScreenHeader } from '@/ui'
 import { StudentStrip } from '@/blocks/student-strip'
 import { NextLesson } from '@/blocks/next-lesson'
@@ -18,11 +20,17 @@ import styles from '@/blocks/home.module.css'
  */
 export function Home() {
   const program = useCurrentProgram()
-  const name = firstName(student.fullName)
+  const sessionName = useAuth((s) => s.session?.name)
+  const profile = useStudentProfile((s) => s.profile)
+  const name = firstName(sessionName ?? profile?.fullName ?? '')
+
+  const subtitle = isApiConfigured() && profile
+    ? `${profile.group} · Курс ${courseLabel(profile.course)} · ${profile.direction}`
+    : programLabel(program)
 
   return (
     <>
-      <ScreenHeader title={`Добрый день, ${name}`} subtitle={programLabel(program)} />
+      <ScreenHeader title={`Добрый день, ${name}`} subtitle={subtitle} />
 
       <div className={styles.grid}>
         <StudentStrip />

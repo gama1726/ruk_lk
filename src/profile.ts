@@ -17,6 +17,7 @@ export type StudentProfileDto = {
   funding: string
   status: string
   faculty: string
+  department: string
   direction: string
   level: string
   educationForm: string
@@ -37,6 +38,7 @@ export function mockStudentProfile(): StudentProfileDto {
     funding: student.funding,
     status: program?.status ?? '',
     faculty: program?.faculty ?? '',
+    department: program?.department ?? '',
     direction: program?.direction ?? '',
     level: program?.level ?? '',
     educationForm: program?.form ?? '',

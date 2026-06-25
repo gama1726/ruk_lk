@@ -4,8 +4,11 @@
  */
 
 import { create } from 'zustand'
+import { isApiConfigured } from '@/apiClient'
 import { student } from '@/mocks/student'
 import type { StudyProgram } from '@/mocks/types'
+import type { StudentProfileDto } from '@/profile'
+import { useStudentProfile } from '@/student-profile-store'
 
 type StudyState = {
   /** {@link StudyProgram.id} активной записи */
@@ -15,6 +18,24 @@ type StudyState = {
    * @param id - id программы из {@link student.programs}
    */
   pick: (id: string) => void
+}
+
+/** Профиль API → одна учебная запись для UI. */
+export function profileToStudyProgram(p: StudentProfileDto): StudyProgram {
+  const parsed = parseInt(p.course, 10)
+  return {
+    id: p.studentId,
+    recordCode: '',
+    cardNumber: p.studentId,
+    level: p.level as StudyProgram['level'],
+    direction: p.direction,
+    group: p.group,
+    course: Number.isNaN(parsed) ? 0 : parsed,
+    form: p.educationForm,
+    status: p.status,
+    faculty: p.faculty,
+    department: p.department,
+  }
 }
 
 /**
@@ -29,9 +50,15 @@ export const useStudy = create<StudyState>((set) => ({
 
 /**
  * Хук: текущая программа с учётом выбора в {@link useStudy}.
- * @returns активная {@link StudyProgram}; если id не найден — первая из списка
+ * @returns активная {@link StudyProgram}; при API — из профиля 1С
  */
 export function useCurrentProgram(): StudyProgram {
   const activeId = useStudy((s) => s.activeId)
+  const profile = useStudentProfile((s) => s.profile)
+
+  if (isApiConfigured() && profile) {
+    return profileToStudyProgram(profile)
+  }
+
   return student.programs.find((p) => p.id === activeId) ?? student.programs[0]
 }

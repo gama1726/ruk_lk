@@ -5,6 +5,7 @@
 
 import { create } from 'zustand'
 import { ApiError, apiGet, apiPost, apiRequest, isApiConfigured } from '@/apiClient'
+import { useStudentProfile } from '@/student-profile-store'
 
 /** Ответ `GET /api/auth/me` и `POST /api/auth/verify-code` */
 export type MeResponseDto = {
@@ -81,7 +82,9 @@ export const useAuth = create<AuthState>((set) => ({
 
     try {
       const me = await apiGet<MeResponseDto>('/api/auth/me')
-      set({ session: toSession(me), pendingEmail: null, status: 'ready' })
+      set({ session: toSession(me), pendingEmail: null })
+      await useStudentProfile.getState().load()
+      set({ status: 'ready' })
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         try {
@@ -171,6 +174,7 @@ export const useAuth = create<AuthState>((set) => ({
           session: toSession(me),
           pendingEmail: null,
         })
+        await useStudentProfile.getState().load()
         return null
       } catch (error) {
         if (error instanceof ApiError) {
@@ -213,6 +217,7 @@ export const useAuth = create<AuthState>((set) => ({
     }
 
     set({ session: null, pendingEmail: null })
+    useStudentProfile.getState().reset()
   },
 }))
 
