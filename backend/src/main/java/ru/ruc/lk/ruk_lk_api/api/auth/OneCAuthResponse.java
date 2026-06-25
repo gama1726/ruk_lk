@@ -6,6 +6,9 @@ public record OneCAuthResponse(
     String email
 ) {
     public OneCAuthResponse {
+        if (fullname == null){
+            fullname = "";
+        }
         if (email == null) {
             email = "";
         }
