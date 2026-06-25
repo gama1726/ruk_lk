@@ -1,11 +1,13 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { student } from '@/mocks/student'
 import { ageWithBirthDate, firstName, maskPhone, noticeDate } from '@/mocks/format'
 import { activeDebts } from '@/mocks/debts'
 import { notices } from '@/mocks/notices'
+import { fetchStudentProfile, mockStudentProfile, type StudentProfileDto } from '@/profile'
 import { useCurrentProgram } from '@/study'
 import { paths } from '@/paths'
 import { Card } from '@/ui'
+import { isApiConfigured } from '@/apiClient'
 import styles from './profile.module.css'
 
 type FieldProps = {
@@ -17,7 +19,7 @@ function Field({ label, value }: FieldProps) {
   return (
     <div className={styles.field}>
       <dt className={styles.fieldLabel}>{label}</dt>
-      <dd className={styles.fieldValue}>{value}</dd>
+      <dd className={styles.fieldValue}>{value || '—'}</dd>
     </div>
   )
 }
@@ -44,31 +46,82 @@ export function Profile() {
   const debts = activeDebts(program.id)
   const recentNotices = notices.slice(0, 5)
 
+  const [profile, setProfile] = useState<StudentProfileDto | null>(
+    isApiConfigured() ? null : mockStudentProfile(),
+  )
+  const [loading, setLoading] = useState(isApiConfigured())
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isApiConfigured()) return
+
+    let cancelled = false
+
+    fetchStudentProfile()
+      .then((data) => {
+        if (!cancelled) setProfile(data)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Не удалось загрузить профиль')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (loading) {
+    return (
+      <div className={styles.page}>
+        <Card padding="lg">
+          <p>Загрузка профиля…</p>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error || !profile) {
+    return (
+      <div className={styles.page}>
+        <Card padding="lg">
+          <p>{error ?? 'Профиль недоступен'}</p>
+        </Card>
+      </div>
+    )
+  }
+
+  const statusBadge = profile.status || program.status
+
   return (
     <div className={styles.page}>
       <Card padding="lg" className={styles.hero}>
         <div className={styles.heroInner}>
           <div className={styles.avatar} aria-hidden="true">
-            {firstName(student.fullName).charAt(0)}
+            {firstName(profile.fullName).charAt(0)}
           </div>
 
           <div className={styles.heroBody}>
-            <h1 className={styles.name}>{student.fullName}</h1>
+            <h1 className={styles.name}>{profile.fullName}</h1>
 
             <div className={styles.badges}>
               <span className={styles.groupBadge}>{program.group}</span>
               <span className={styles.badge}>Курс {program.course}</span>
-              <span className={styles.badge}>{program.status}</span>
+              <span className={styles.badge}>{statusBadge}</span>
             </div>
 
             <dl className={styles.metaGrid}>
-              <Field label="Логин" value={student.corporateEmail} />
-              <Field label="Пол" value={student.gender} />
-              <Field label="Личный номер" value={program.cardNumber} />
-              <Field label="Личная почта" value={student.personalEmail} />
-              <Field label="Возраст" value={ageWithBirthDate(student.birthDate)} />
-              <Field label="Вид финансирования" value={student.funding} />
-              <Field label="Контактный номер" value={maskPhone(student.phone)} />
+              <Field label="Логин" value={profile.corporateEmail} />
+              <Field label="Пол" value={profile.gender} />
+              <Field label="Личный номер" value={profile.studentId || program.cardNumber} />
+              <Field label="Личная почта" value={profile.personalEmail} />
+              <Field label="Возраст" value={ageWithBirthDate(profile.birthDate)} />
+              <Field label="Вид финансирования" value={profile.funding} />
+              <Field label="Контактный номер" value={maskPhone(profile.phone)} />
             </dl>
           </div>
         </div>
