@@ -1,5 +1,5 @@
 /**
- * @file Страница входа студента — SSO, как на lk.mirea.ru/auth.php.
+ * @file Страница входа студента — кнопка SSO, как на lk.mirea.ru/auth.php.
  */
 
 import { Link, useNavigate } from 'react-router-dom'
@@ -11,14 +11,14 @@ import { LoginRoleLinks } from '@/blocks/login-role-links'
 import { Button } from '@/ui'
 
 /**
- * Главный экран входа: SSO и ссылка на вход по зачётке.
+ * Главный экран входа: «Войти через SSO» → зачётка и пароль (пока без Keycloak).
  */
 export function Login() {
   const navigate = useNavigate()
 
   const handleSso = () => {
     if (redirectToSso()) return
-    navigate(paths.sso)
+    navigate(paths.loginStudent)
   }
 
   return (
@@ -30,8 +30,6 @@ export function Login() {
       </Button>
 
       <p className={card.forgotRow}>
-        <Link to={paths.loginStudent}>Войти по номеру зачётки</Link>
-        {' · '}
         <Link to={paths.forgot}>Забыли пароль?</Link>
       </p>
 

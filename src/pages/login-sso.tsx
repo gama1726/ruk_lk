@@ -4,7 +4,7 @@
  */
 
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
 import { paths } from '@/paths'
 import { Input, Button } from '@/ui'
@@ -68,7 +68,11 @@ export function SsoLogin() {
         </Button>
       </form>
 
-      <p className={styles.hint}>Демо-режим: любая корректная почта и пароль от 4 символов.</p>
+      <p className={styles.hint}>
+        Демо-режим: любая корректная почта и пароль от 4 символов.
+        {' '}
+        <Link to={paths.loginStudent}>Войти по номеру зачётки</Link>
+      </p>
     </>
   )
 }
