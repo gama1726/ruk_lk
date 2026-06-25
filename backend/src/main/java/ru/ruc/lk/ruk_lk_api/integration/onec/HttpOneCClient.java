@@ -60,19 +60,19 @@ public class HttpOneCClient implements OneCClient {
 
     }
     @Override
-    public Optional<OneCProfileResponse> fetchProfile(String studentId){
-        try{
+    public Optional<OneCProfileResponse> fetchProfile(String studentId) {
+        try {
             OneCProfileResponse profile = restClient.get()
-            .uri("/hs/student/profile/?studentId = {id}", studentId)
-            .retrieve()
-            .body(OneCProfileResponse.class);
+                .uri("/hs/student/profile?studentId={id}", studentId)
+                .retrieve()
+                .body(OneCProfileResponse.class);
 
             if (profile == null || !profile.found()) {
                 return Optional.empty();
             }
             return Optional.of(profile);
-        } catch (HttpClientErrorException e){
+        } catch (HttpClientErrorException e) {
             return Optional.empty();
         }
-        }
     }
+}
