@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -22,13 +21,12 @@ public class SecurityConfig {
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable())
             .authorizeHttpRequests(auth -> auth
-            //открытые эндпоинты
+            // публичные эндпоинты
             .requestMatchers("/api/health").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/auth/pending-challenge").permitAll()
-            .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-            .requestMatchers(HttpMethod.POST, "/api/auth/verify-code").permitAll()
-            //все остальные только с сессией будут жоступны
-            .anyRequest().authenticated()
+            // auth: сессия в HttpSession, не в Spring Security Authentication
+            .requestMatchers("/api/auth/**").permitAll()
+            // остальное API — позже; пока тоже через сессию в контроллерах
+            .anyRequest().permitAll()
             );
 
      return http.build();
