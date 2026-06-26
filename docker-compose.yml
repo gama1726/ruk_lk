@@ -16,7 +16,7 @@ services:
       context: .
       dockerfile: deploy/Dockerfile.web
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:?Задайте VITE_API_BASE_URL в .env}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     container_name: ruk-lk-web
     restart: unless-stopped
     ports:

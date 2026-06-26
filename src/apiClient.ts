@@ -9,15 +9,28 @@
  * const profile = await apiGet<StudentDto>('/student/profile')
  */
 
-/** Базовый URL из `.env`; пустая строка — режим только моков */
-export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+/**
+ * Базовый URL API.
+ * Dev: из `VITE_API_BASE_URL`. Prod за nginx: текущий origin (IP и домен работают одинаково).
+ */
+export function getApiBaseUrl(): string {
+  const fromEnv = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+  if (import.meta.env.PROD && typeof window !== 'undefined') {
+    return window.location.origin
+  }
+  return fromEnv
+}
+
+/** @deprecated Используйте {@link getApiBaseUrl}; в prod всегда origin страницы */
+export const apiBaseUrl = getApiBaseUrl()
 
 /**
- * Проверяет, задан ли адрес API в окружении.
- * @returns `true`, если в `.env` указан `VITE_API_BASE_URL`
+ * Проверяет, подключён ли backend.
+ * @returns в prod — `true`; в dev — если задан `VITE_API_BASE_URL`
  */
 export function isApiConfigured(): boolean {
-  return apiBaseUrl.length > 0
+  if (import.meta.env.PROD) return true
+  return getApiBaseUrl().length > 0
 }
 
 /** Тело ошибки от API (Spring ProblemDetail или произвольный JSON) */
@@ -63,7 +76,7 @@ function buildUrl(path: string): string {
   if (!isApiConfigured()) {
     throw new Error('API не настроен: укажите VITE_API_BASE_URL в .env')
   }
-  return `${apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`
+  return `${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`
 }
 
 /**
