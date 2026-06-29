@@ -8,8 +8,8 @@ import {
   lessonCountsInMonth,
   monthCaption,
   parseLessonDate,
-  shiftMonth,
 } from '@/mocks/lessons'
+import { shiftMonthKeepingDay } from '@/dates'
 import styles from './schedule-calendar.module.css'
 
 type Props = {
@@ -17,7 +17,9 @@ type Props = {
   year: number
   month: number
   picked: string
-  onMonthChange: (year: number, month: number) => void
+  today?: string
+  lessonCounts?: Map<string, number>
+  onMonthChange: (year: number, month: number, picked: string) => void
   onPick: (iso: string) => void
 }
 
@@ -27,9 +29,18 @@ const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] as con
  * @param props.programId - активная программа
  * @param props.picked - выбранный день `YYYY-MM-DD`
  */
-export function ScheduleCalendar({ programId, year, month, picked, onMonthChange, onPick }: Props) {
+export function ScheduleCalendar({
+  programId,
+  year,
+  month,
+  picked,
+  today = DEMO_TODAY,
+  lessonCounts,
+  onMonthChange,
+  onPick,
+}: Props) {
   const cells = calendarMonth(year, month)
-  const counts = lessonCountsInMonth(programId, year, month)
+  const counts = lessonCounts ?? lessonCountsInMonth(programId, year, month)
 
   return (
     <div className={styles.wrap}>
@@ -39,8 +50,8 @@ export function ScheduleCalendar({ programId, year, month, picked, onMonthChange
           className={styles.navBtn}
           aria-label="Предыдущий месяц"
           onClick={() => {
-            const next = shiftMonth(year, month, -1)
-            onMonthChange(next.year, next.month)
+            const next = shiftMonthKeepingDay(picked, -1)
+            onMonthChange(next.year, next.month, next.picked)
           }}
         >
           ‹
@@ -51,8 +62,8 @@ export function ScheduleCalendar({ programId, year, month, picked, onMonthChange
           className={styles.navBtn}
           aria-label="Следующий месяц"
           onClick={() => {
-            const next = shiftMonth(year, month, 1)
-            onMonthChange(next.year, next.month)
+            const next = shiftMonthKeepingDay(picked, 1)
+            onMonthChange(next.year, next.month, next.picked)
           }}
         >
           ›
@@ -71,7 +82,7 @@ export function ScheduleCalendar({ programId, year, month, picked, onMonthChange
         {cells.map((cell) => {
           const count = counts.get(cell.date) ?? 0
           const selected = cell.date === picked
-          const today = cell.date === DEMO_TODAY
+          const todayMark = cell.date === today
           return (
             <button
               key={cell.date}
@@ -80,7 +91,7 @@ export function ScheduleCalendar({ programId, year, month, picked, onMonthChange
                 styles.day,
                 !cell.inMonth ? styles.dayOutside : '',
                 selected ? styles.daySelected : '',
-                today ? styles.dayToday : '',
+                todayMark ? styles.dayToday : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
