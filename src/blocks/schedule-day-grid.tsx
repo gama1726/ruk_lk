@@ -7,15 +7,16 @@ import type { Lesson } from '@/mocks/lesson-types'
 import { lessonKindShort } from '@/mocks/lesson-types'
 import styles from './schedule-day-grid.module.css'
 
-const HOUR_START = 9
+const HOUR_START = 8
 const HOUR_END = 22
 const HOUR_HEIGHT = 52
 
 const hours = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_START + i)
 
 function toMinutes(time: string) {
-  const [h, m] = time.split(':').map(Number)
-  return h * 60 + m
+  const match = time.match(/(\d{1,2}):(\d{2})/)
+  if (!match) return HOUR_START * 60
+  return Number(match[1]) * 60 + Number(match[2])
 }
 
 function lessonPlace(lesson: Lesson) {
@@ -58,21 +59,22 @@ export function ScheduleDayGrid({ date, lessons }: Props) {
             const start = toMinutes(lesson.start)
             const end = toMinutes(lesson.end)
             const top = ((start - HOUR_START * 60) / 60) * HOUR_HEIGHT
-            const height = Math.max(((end - start) / 60) * HOUR_HEIGHT - 4, 56)
+            const slotHeight = ((end - start) / 60) * HOUR_HEIGHT - 4
             const cancelled = lesson.status === 'cancelled'
+            const meta = [lessonPlace(lesson), lesson.teacher].filter(Boolean).join(' · ')
 
             return (
               <article
                 key={lesson.id}
                 className={[styles.event, cancelled ? styles.eventCancelled : ''].filter(Boolean).join(' ')}
-                style={{ top, height }}
+                style={{ top, height: slotHeight }}
+                title={[lesson.subject, meta].join('\n')}
               >
                 <p className={styles.eventTime}>
-                  {lesson.start} - {lesson.end} | {lessonKindShort[lesson.kind]} |
+                  {lesson.start}–{lesson.end} · {lessonKindShort[lesson.kind]}
                 </p>
                 <p className={styles.eventSubject}>{lesson.subject}</p>
-                <p className={styles.eventPlace}>{lessonPlace(lesson)}</p>
-                <p className={styles.eventTeacher}>{lesson.teacher}</p>
+                <p className={styles.eventMeta}>{meta}</p>
               </article>
             )
           })}
