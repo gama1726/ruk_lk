@@ -9,13 +9,11 @@ import org.springframework.web.server.ResponseStatusException;
 import jakarta.servlet.http.HttpSession;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
-
+import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
-
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
-
 import org.springframework.http.HttpStatus;
-
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCGradebookResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 
 
@@ -104,7 +102,18 @@ public class StudentService {
 
     }
 
+    public RecordBookResponse getRecordBook(HttpSession session) {
+        StudentSession student = requireStudent(session);
 
+        OneCGradebookResponse gradebook = onecClient
+            .fetchGradebook(student.studentId())
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Зачётная книжка не найдена"
+            ));
+
+        return GradebookMapper.toResponse(gradebook);
+    }
 
     private static String formatDirection(String direction, String specialization) {
 

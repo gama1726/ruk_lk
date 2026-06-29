@@ -76,6 +76,23 @@ public class HttpOneCClient implements OneCClient {
         }
     }
 
+    @Override
+    public Optional<OneCGradebookResponse> fetchGradebook(String studentId) {
+        try {
+            OneCGradebookResponse gradebook = restClient.get()
+                .uri("/hs/student/gradebook?studentId={id}", studentId)
+                .retrieve()
+                .body(OneCGradebookResponse.class);
+
+            if (gradebook == null || !gradebook.found()) {
+                return Optional.empty();
+            }
+            return Optional.of(gradebook);
+        } catch (HttpClientErrorException e) {
+            return Optional.empty();
+        }
+    }
+
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
