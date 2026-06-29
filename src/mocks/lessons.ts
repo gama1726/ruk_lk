@@ -4,6 +4,7 @@
  */
 
 import type { Lesson } from './lesson-types'
+import { formatIsoDate, parseIsoDate, shiftMonth } from '@/dates'
 
 /** «Сегодня» в демо-режиме — пятница, 19 июня 2026 */
 export const DEMO_TODAY = '2026-06-19'
@@ -11,27 +12,12 @@ export const DEMO_TODAY = '2026-06-19'
 /** Условное «сейчас» для ближайшей пары на главной */
 const DEMO_NOW = '11:45'
 
-/**
- * @param iso - `YYYY-MM-DD`
- * @returns локальная дата без сдвига по UTC
- */
-function parseLocal(iso: string): Date {
-  const [y, m, d] = iso.split('-').map(Number)
-  return new Date(y, m - 1, d)
-}
-
 /** @param iso - `YYYY-MM-DD` */
 export function parseLessonDate(iso: string): Date {
-  return parseLocal(iso)
+  return parseIsoDate(iso)
 }
 
-/** @param date - локальная дата */
-function toIsoLocal(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
+export { shiftMonth }
 
 const schedule: Lesson[] = [
   {
@@ -179,11 +165,11 @@ const schedule: Lesson[] = [
  * @returns ISO понедельника той же недели
  */
 export function mondayOf(iso: string): string {
-  const d = parseLocal(iso)
+  const d = parseIsoDate(iso)
   const day = d.getDay()
   const diff = day === 0 ? -6 : 1 - day
   d.setDate(d.getDate() + diff)
-  return toIsoLocal(d)
+  return formatIsoDate(d)
 }
 
 /**
@@ -191,11 +177,11 @@ export function mondayOf(iso: string): string {
  * @param weekStart - ISO понедельника
  */
 export function weekDays(weekStart: string): string[] {
-  const start = parseLocal(weekStart)
+  const start = parseIsoDate(weekStart)
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start)
     d.setDate(start.getDate() + i)
-    return toIsoLocal(d)
+    return formatIsoDate(d)
   })
 }
 
@@ -208,6 +194,19 @@ export function lessonsOnDate(programId: string, date: string): Lesson[] {
   return schedule
     .filter((l) => l.programId === programId && l.date === date)
     .sort((a, b) => a.start.localeCompare(b.start))
+}
+
+/**
+ * Все пары программы в календарном месяце (для моков).
+ */
+export function lessonsInMonth(programId: string, year: number, month: number): Lesson[] {
+  return schedule
+    .filter((l) => {
+      if (l.programId !== programId) return false
+      const d = parseIsoDate(l.date)
+      return d.getFullYear() === year && d.getMonth() === month
+    })
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
 }
 
 /**
@@ -249,7 +248,7 @@ export function pickNextLesson(programId: string): Lesson | null {
 export function weekCaption(weekStart: string): string {
   const days = weekDays(weekStart)
   const fmt = (iso: string) =>
-    new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(parseLocal(iso))
+    new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(parseIsoDate(iso))
   return `${fmt(days[0])} — ${fmt(days[6])}`
 }
 
@@ -260,7 +259,7 @@ const weekdayShort = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'] as
  * @param iso - `YYYY-MM-DD`
  */
 export function dayCaption(iso: string): string {
-  const d = parseLocal(iso)
+  const d = parseIsoDate(iso)
   const wd = weekdayShort[d.getDay()]
   const rest = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(d)
   return `${wd}, ${rest}`
@@ -272,9 +271,9 @@ export function dayCaption(iso: string): string {
  * @param delta - `-1` назад, `1` вперёд
  */
 export function shiftWeek(weekStart: string, delta: number): string {
-  const d = parseLocal(weekStart)
+  const d = parseIsoDate(weekStart)
   d.setDate(d.getDate() + delta * 7)
-  return toIsoLocal(d)
+  return formatIsoDate(d)
 }
 
 /** Ячейка месячного календаря */
@@ -295,7 +294,7 @@ export function calendarMonth(year: number, month: number): CalendarCell[] {
   return Array.from({ length: 42 }, (_, i) => {
     const d = new Date(gridStart)
     d.setDate(gridStart.getDate() + i)
-    return { date: toIsoLocal(d), inMonth: d.getMonth() === month }
+    return { date: formatIsoDate(d), inMonth: d.getMonth() === month }
   })
 }
 
@@ -312,17 +311,6 @@ export function monthCaption(year: number, month: number): string {
 }
 
 /**
- * Сдвиг месяца в календаре.
- * @param year - текущий год
- * @param month - текущий месяц 0–11
- * @param delta - `-1` | `1`
- */
-export function shiftMonth(year: number, month: number, delta: number): { year: number; month: number } {
-  const d = new Date(year, month + delta, 1)
-  return { year: d.getFullYear(), month: d.getMonth() }
-}
-
-/**
  * Количество пар по дням месяца (для точек в календаре).
  * @param programId - id программы
  * @param year - год
@@ -332,7 +320,7 @@ export function lessonCountsInMonth(programId: string, year: number, month: numb
   const counts = new Map<string, number>()
   for (const lesson of schedule) {
     if (lesson.programId !== programId) continue
-    const d = parseLocal(lesson.date)
+    const d = parseIsoDate(lesson.date)
     if (d.getFullYear() !== year || d.getMonth() !== month) continue
     counts.set(lesson.date, (counts.get(lesson.date) ?? 0) + 1)
   }
@@ -344,7 +332,7 @@ export function lessonCountsInMonth(programId: string, year: number, month: numb
  * @param iso - `YYYY-MM-DD`
  */
 export function dayGridTitle(iso: string): string {
-  const d = parseLocal(iso)
+  const d = parseIsoDate(iso)
   const weekday = new Intl.DateTimeFormat('ru-RU', { weekday: 'long' }).format(d)
   return weekday.charAt(0).toUpperCase() + weekday.slice(1)
 }
