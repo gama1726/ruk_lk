@@ -1,38 +1,53 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { isApiConfigured } from '@/apiClient'
 import {
   formatControlForm,
   formatGradeCell,
   formatHours,
   formatRecordDate,
-  gradesForSemester,
-  semestersForProgram,
-} from '@/mocks/record-book'
+} from '@/record-book-format'
+import { gradesForSemester } from '@/record-book'
+import { useRecordBook } from '@/record-book-store'
 import { paths } from '@/paths'
 import { useCurrentProgram } from '@/study'
-import { NoData } from '@/ui'
+import { Loader, NoData } from '@/ui'
 import styles from './record-book.module.css'
 
 type ViewMode = 'standard' | 'gosuslugi'
 
 /**
  * Электронная зачётная книжка в раскладке портала.
- * Данные зависят от {@link useCurrentProgram}.
  */
 export function RecordBook() {
   const program = useCurrentProgram()
-  const semesters = semestersForProgram(program.id)
+  const rows = useRecordBook((s) => s.rows)
+  const semesters = useRecordBook((s) => s.semesters)
+  const bookStatus = useRecordBook((s) => s.status)
+  const loadRecordBook = useRecordBook((s) => s.load)
+
   const [semester, setSemester] = useState(() => semesters[semesters.length - 1] ?? 1)
   const [view, setView] = useState<ViewMode>('standard')
+
+  useEffect(() => {
+    if (isApiConfigured() && bookStatus === 'idle') {
+      void loadRecordBook(program.id)
+    }
+  }, [bookStatus, loadRecordBook, program.id])
 
   useEffect(() => {
     if (semesters.length === 0) return
     if (!semesters.includes(semester)) {
       setSemester(semesters[semesters.length - 1])
     }
-  }, [program.id, semester, semesters])
+  }, [semester, semesters])
 
-  const rows = gradesForSemester(program.id, semester)
+  const semesterRows = useMemo(
+    () => gradesForSemester(rows, semester),
+    [rows, semester],
+  )
+
+  const loading = isApiConfigured() && (bookStatus === 'loading' || bookStatus === 'idle')
 
   return (
     <div className={styles.page}>
@@ -94,11 +109,13 @@ export function RecordBook() {
       </div>
 
       <div className={styles.card}>
-        {view === 'gosuslugi' ? (
+        {loading ? (
+          <Loader />
+        ) : view === 'gosuslugi' ? (
           <p className={styles.gosuslugiNote}>
             Представление для Госуслуг подключится вместе с backend. Переключитесь на вкладку «Стандарт».
           </p>
-        ) : rows.length === 0 ? (
+        ) : semesterRows.length === 0 ? (
           <div className={styles.empty}>
             <NoData title="В этом семестре записей нет" />
           </div>
@@ -115,7 +132,7 @@ export function RecordBook() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
+                {semesterRows.map((row) => (
                   <tr key={row.id}>
                     <td className={styles.date}>{formatRecordDate(row.date)}</td>
                     <td className={styles.subject}>

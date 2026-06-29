@@ -1,14 +1,16 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
+import { isApiConfigured } from '@/apiClient'
 import { programLabel } from '@/mocks/format'
-import { gradesByProgram } from '@/mocks/record-book'
 import { gradeStatusLabel } from '@/mocks/record-book-types'
+import { groupGradesBySemester } from '@/record-book'
+import { formatControlForm } from '@/record-book-format'
+import { useRecordBook } from '@/record-book-store'
 import { useCurrentProgram } from '@/study'
-import { ScreenHeader, NoData, Table, TableHead, TableBody, TableRow, TableHeader, TableCell, StatusBadge } from '@/ui'
+import { ScreenHeader, NoData, Table, TableHead, TableBody, TableRow, TableHeader, TableCell, StatusBadge, Loader } from '@/ui'
 import styles from './grades.module.css'
 
 /**
  * Считает сводку по текущему семестру.
- * @param rows - оценки семестра
  */
 function semesterStats(rows: { status: string; points: number | null }[]) {
   const withPoints = rows.filter((r) => r.points != null)
@@ -25,21 +27,36 @@ function semesterStats(rows: { status: string; points: number | null }[]) {
  */
 export function Grades() {
   const program = useCurrentProgram()
-  const bySemester = gradesByProgram(program.id)
+  const rows = useRecordBook((s) => s.rows)
+  const semesters = useRecordBook((s) => s.semesters)
+  const bookStatus = useRecordBook((s) => s.status)
+  const loadRecordBook = useRecordBook((s) => s.load)
+
+  useEffect(() => {
+    if (isApiConfigured() && bookStatus === 'idle') {
+      void loadRecordBook(program.id)
+    }
+  }, [bookStatus, loadRecordBook, program.id])
+
+  const bySemester = useMemo(() => groupGradesBySemester(rows), [rows])
 
   const currentSemester = useMemo(() => {
+    if (semesters.length > 0) return semesters[semesters.length - 1]
     const keys = [...bySemester.keys()]
     return keys.length === 0 ? null : Math.max(...keys)
-  }, [bySemester])
+  }, [bySemester, semesters])
 
-  const rows = currentSemester ? (bySemester.get(currentSemester) ?? []) : []
-  const stats = semesterStats(rows)
+  const semesterRows = currentSemester ? (bySemester.get(currentSemester) ?? []) : []
+  const stats = semesterStats(semesterRows)
+  const loading = isApiConfigured() && (bookStatus === 'loading' || bookStatus === 'idle')
 
   return (
     <>
       <ScreenHeader title="Успеваемость" subtitle={programLabel(program)} />
 
-      {rows.length === 0 ? (
+      {loading ? (
+        <Loader />
+      ) : semesterRows.length === 0 ? (
         <NoData title="Нет оценок" />
       ) : (
         <>
@@ -70,10 +87,10 @@ export function Grades() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((r) => (
+                {semesterRows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>{r.subject}</TableCell>
-                    <TableCell>{r.controlForm}</TableCell>
+                    <TableCell>{formatControlForm(r.controlForm)}</TableCell>
                     <TableCell>{r.grade ?? '—'}</TableCell>
                     <TableCell>{r.points ?? '—'}</TableCell>
                     <TableCell>
@@ -86,7 +103,7 @@ export function Grades() {
           </div>
 
           <div className={styles.cards}>
-            {rows.map((r) => (
+            {semesterRows.map((r) => (
               <article key={r.id} className={styles.card}>
                 <strong>{r.subject}</strong>
                 <p>

@@ -5,6 +5,7 @@
 
 import { create } from 'zustand'
 import { ApiError, apiGet, apiPost, apiRequest, isApiConfigured } from '@/apiClient'
+import { useRecordBook } from '@/record-book-store'
 import { useStudentProfile } from '@/student-profile-store'
 
 /** Ответ `GET /api/auth/me` и `POST /api/auth/verify-code` */
@@ -218,6 +219,7 @@ export const useAuth = create<AuthState>((set) => ({
 
     set({ session: null, pendingEmail: null })
     useStudentProfile.getState().reset()
+    useRecordBook.getState().reset()
   },
 }))
 
