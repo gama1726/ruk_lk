@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { maskEmail, useAuth } from '@/auth'
+import { useAuth } from '@/auth'
 import { paths } from '@/paths'
 import { AuthCard } from '@/blocks/auth-card'
 import card from '@/blocks/auth-card.module.css'
@@ -9,14 +9,21 @@ import styles from './auth-form.module.css'
 
 export function Verify() {
   const navigate = useNavigate()
-  const pendingEmail = useAuth((s) => s.pendingEmail)
+  const pendingLogin = useAuth((s) => s.pendingLogin)
+  const pendingIdentification = useAuth((s) => s.pendingIdentification)
   const confirmCode = useAuth((s) => s.confirmCode)
   const [codeError, setCodeError] = useState<string>()
   const [busy, setBusy] = useState(false)
 
-  if (!pendingEmail) {
+  if (!pendingLogin) {
+    if (pendingIdentification) {
+      return <Navigate to={paths.loginDelivery} replace />
+    }
     return <Navigate to={paths.loginStudent} replace />
   }
+
+  const isMax = pendingLogin.channel === 'MAX'
+  const deliveryLabel = pendingLogin.deliveryHint
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -42,10 +49,19 @@ export function Verify() {
       <p className={card.sectionLabel}>Подтверждение входа</p>
       <form className={styles.form} onSubmit={(e) => void handleSubmit(e)}>
         <p className={styles.hint}>
-          Код отправлен на <strong>{maskEmail(pendingEmail)}</strong>. Проверьте входящие и папку «Спам».
+          {isMax ? (
+            <>
+              Код отправлен на номер <strong>{deliveryLabel}</strong> в мессенджер MAX. Откройте чат с ботом
+              университета.
+            </>
+          ) : (
+            <>
+              Код отправлен на <strong>{deliveryLabel}</strong>. Проверьте входящие и папку «Спам».
+            </>
+          )}
         </p>
         <Input
-          label="Код из письма"
+          label={isMax ? 'Код из MAX' : 'Код из письма'}
           name="code"
           inputMode="numeric"
           autoComplete="one-time-code"

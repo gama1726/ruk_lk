@@ -7,6 +7,7 @@ import { GuestOnly } from '@/layout/guest-only'
 import { RequireSession } from '@/layout/require-session'
 import { Login } from '@/pages/login'
 import { StudentLogin } from '@/pages/login-student'
+import { LoginDelivery } from '@/pages/login-delivery'
 import { SsoLogin } from '@/pages/login-sso'
 import { Verify } from '@/pages/verify-code'
 import { ForgotPassword } from '@/pages/forgot-password'
@@ -37,6 +38,8 @@ import { Psychologist } from '@/pages/psychologist'
 import { Portfolio } from '@/pages/portfolio'
 import { Library } from '@/pages/library'
 import { Settings } from '@/pages/settings'
+import { PassPhoto } from '@/pages/pass-photo'
+import { AdminPassPhotos } from '@/pages/admin-pass-photos'
 
 export const router = createBrowserRouter([
   {
@@ -49,6 +52,7 @@ export const router = createBrowserRouter([
         children: [
           { path: paths.login, element: <Login /> },
           { path: paths.loginStudent, element: <StudentLogin /> },
+          { path: paths.loginDelivery, element: <LoginDelivery /> },
           { path: paths.loginParent, element: <ParentLogin /> },
           { path: paths.loginContract, element: <ContractLogin /> },
           { path: paths.loginTarget, element: <TargetLogin /> },
@@ -97,9 +101,11 @@ export const router = createBrowserRouter([
           { path: paths.portfolio, element: <Portfolio /> },
           { path: paths.library, element: <Library /> },
           { path: paths.settings, element: <Settings /> },
+          { path: paths.passPhoto, element: <PassPhoto /> },
         ],
       },
     ],
   },
+  { path: paths.adminPassPhotos, element: <AdminPassPhotos /> },
   { path: '*', element: <Navigate to={paths.login} replace /> },
 ])

@@ -11,6 +11,13 @@
   line-height: 1.5;
 }
 
+.error {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger, #c62828);
+  line-height: 1.5;
+}
+
 .link {
   color: var(--color-primary);
   text-decoration: none;

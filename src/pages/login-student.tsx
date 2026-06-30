@@ -1,5 +1,5 @@
 /**
- * @file Вход по зачётке и паролю — шаг 1 перед кодом на почту из 1С.
+ * @file Вход по зачётке — шаг 1: только номер зачётки.
  */
 
 import { useState, type FormEvent } from 'react'
@@ -12,41 +12,37 @@ import { Input, Button } from '@/ui'
 import form from './auth-form.module.css'
 
 /**
- * Зачётка + пароль → {@link paths.verify}.
+ * Зачётка → {@link paths.loginDelivery}.
  */
 export function StudentLogin() {
   const navigate = useNavigate()
-  const startStudentLogin = useAuth((s) => s.startStudentLogin)
+  const identifyStudent = useAuth((s) => s.identifyStudent)
   const [studentIdError, setStudentIdError] = useState<string>()
-  const [passwordError, setPasswordError] = useState<string>()
   const [busy, setBusy] = useState(false)
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setStudentIdError(undefined)
-    setPasswordError(undefined)
 
     const data = new FormData(e.currentTarget)
     const studentId = String(data.get('studentId') ?? '')
-    const password = String(data.get('password') ?? '')
 
     setBusy(true)
-    const result = await startStudentLogin(studentId, password)
+    const result = await identifyStudent(studentId)
     setBusy(false)
 
     if (result) {
-      if (result.field === 'login') setStudentIdError(result.message)
-      if (result.field === 'password') setPasswordError(result.message)
+      setStudentIdError(result.message)
       return
     }
 
-    navigate(paths.verify)
+    navigate(paths.loginDelivery)
   }
 
   return (
     <AuthCard>
       <p className={card.sectionLabel}>Вход по номеру зачётки</p>
-      <p className={form.hint}>После проверки пароля отправим код на почту, привязанную в 1С.</p>
+      <p className={form.hint}>Укажите номер зачётки — проверим, что вы есть в базе студентов.</p>
 
       <form className={form.form} onSubmit={(e) => void handleSubmit(e)}>
         <Input
@@ -58,14 +54,7 @@ export function StudentLogin() {
           error={studentIdError}
           disabled={busy}
         />
-        <Input
-          label="Пароль"
-          type="password"
-          name="password"
-          autoComplete="current-password"
-          error={passwordError}
-          disabled={busy}
-        />
+
         <Button type="submit" fullWidth size="lg" loading={busy}>
           Продолжить
         </Button>

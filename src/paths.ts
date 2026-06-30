@@ -8,6 +8,7 @@ export const paths = {
   home: '/',
   login: '/login',
   loginStudent: '/login/student',
+  loginDelivery: '/login/delivery',
   loginParent: '/login/parent',
   loginContract: '/login/contract',
   loginTarget: '/login/target',
@@ -38,4 +39,6 @@ export const paths = {
   portfolio: '/portfolio',
   library: '/library',
   settings: '/settings',
+  passPhoto: '/services/pass-photo',
+  adminPassPhotos: '/admin/pass-photos',
 } as const
