@@ -6,5 +6,11 @@ public record MeResponse(
     String studentId,
     String fullName,
     String email,
-    List<ProgramSummary> programs
-) {}
+    String phone,
+    List<ProgramSummary> programs,
+    Long maxUserId
+) {
+    public MeResponse(String studentId, String fullName, String email, List<ProgramSummary> programs) {
+        this(studentId, fullName, email, "", programs, null);
+    }
+}
