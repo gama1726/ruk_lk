@@ -16,6 +16,21 @@
   min-width: 0;
 }
 
+.passPhotoLink {
+  margin: 0.75rem 0 0;
+  font-size: var(--font-size-sm);
+}
+
+.passPhotoLink a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.passPhotoLink a:hover {
+  text-decoration: underline;
+}
+
 .name {
   margin: 0 0 0.875rem;
   font-size: var(--font-size-lg);
