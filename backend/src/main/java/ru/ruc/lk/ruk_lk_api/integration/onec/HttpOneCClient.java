@@ -33,29 +33,28 @@ public class HttpOneCClient implements OneCClient {
     }
 
     @Override
-    public Optional<MeResponse> login(String studentId, String password) {
+    public Optional<MeResponse> login(String studentId) {
         try {
             OneCAuthResponse authResponse = restClient.post()
                 .uri("/hs/student/auth")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new OneCAuthRequest(studentId, password))
+                .body(new OneCAuthRequest(studentId))
                 .retrieve()
-                .body(OneCAuthResponse.class);// парсим { "authenticated": true/false }
+                .body(OneCAuthResponse.class);
 
-            //если 1с ответила false или пусто
             if (authResponse == null || !authResponse.authenticated()) {
                 return Optional.empty();
             }
-            //Пароль верный
             return Optional.of(new MeResponse(
                 studentId,
                 authResponse.fullName(),
                 authResponse.email(),
-                List.of()
+                authResponse.phone(),
+                List.of(),
+                authResponse.maxUserId()
             ));
         } catch (HttpClientErrorException e) {
-
-            return Optional.empty();// 4XX ошибки от 1с - не вошли
+            return Optional.empty();
         }
 
     }
