@@ -143,6 +143,54 @@ export function apiPost<T>(path: string, json: unknown, init?: RequestInit): Pro
 }
 
 /**
+ * POST multipart/form-data (загрузка файлов).
+ */
+export async function apiPostFormData<T>(path: string, formData: FormData, init?: RequestInit): Promise<T> {
+  const response = await fetch(buildUrl(path), {
+    credentials: 'include',
+    method: 'POST',
+    body: formData,
+    ...init,
+    headers: {
+      ...init?.headers,
+    },
+  })
+
+  const text = await response.text()
+  let data: unknown = undefined
+  if (text) {
+    try {
+      data = JSON.parse(text) as unknown
+    } catch {
+      if (!response.ok) {
+        throw new ApiError(response.status, 'Ошибка сервера')
+      }
+      throw new Error('Ответ API не является JSON')
+    }
+  }
+
+  if (!response.ok) {
+    const body = (typeof data === 'object' && data !== null ? data : undefined) as ApiErrorBody & {
+      issues?: PassPhotoIssuePayload[]
+    }
+    const message = body?.message ?? body?.detail ?? defaultMessage(response.status)
+    const err = new ApiError(response.status, message, body)
+    if (response.status === 422 && body?.issues) {
+      ;(err as ApiError & { issues?: PassPhotoIssuePayload[] }).issues = body.issues
+    }
+    throw err
+  }
+
+  return data as T
+}
+
+export type PassPhotoIssuePayload = {
+  code?: string
+  severity?: 'FAIL' | 'WARN'
+  message: string
+}
+
+/**
  * @param status - HTTP-код
  * @returns сообщение по умолчанию для UI
  */
