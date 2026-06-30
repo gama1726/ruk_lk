@@ -11,9 +11,12 @@ import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.servlet.http.HttpSession;
 
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.AuthChannelsDto;
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.IdentifyRequest;
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.IdentifyResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.LoginChallengeResponse;
-import ru.ruc.lk.ruk_lk_api.api.auth.dto.LoginRequest;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.MeResponse;
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.SendCodeRequest;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.VerifyCodeRequest;
 
 @RestController
@@ -26,13 +29,24 @@ public class AuthController {
         this.authService = authService;
     }
 
-    /** Шаг 1: зачётка + пароль → код на почту из 1С. */
-    @PostMapping("/login")
-    public LoginChallengeResponse login(@RequestBody LoginRequest body, HttpSession session) {
-        return authService.startLoginChallenge(body.studentId(), body.password(), session);
+    @GetMapping("/channels")
+    public AuthChannelsDto channels() {
+        return authService.loginChannels();
     }
 
-    /** Шаг 2: код из письма → сессия. */
+    /** Шаг 1: зачётка → проверка в 1С. */
+    @PostMapping("/identify")
+    public IdentifyResponse identify(@RequestBody IdentifyRequest body, HttpSession session) {
+        return authService.identify(body.studentId(), session);
+    }
+
+    /** Шаг 2: выбор канала → отправка кода. */
+    @PostMapping("/send-code")
+    public LoginChallengeResponse sendCode(@RequestBody SendCodeRequest body, HttpSession session) {
+        return authService.sendCode(body.channelOrDefault(), session);
+    }
+
+    /** Шаг 3: код → сессия. */
     @PostMapping("/verify-code")
     public MeResponse verifyCode(@RequestBody VerifyCodeRequest body, HttpSession session) {
         return authService.verifyCode(body.code(), session);
@@ -44,6 +58,14 @@ public class AuthController {
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
                 "Необходимо войти в систему"));
+    }
+
+    @GetMapping("/pending-identification")
+    public IdentifyResponse pendingIdentification(HttpSession session) {
+        return authService.pendingIdentification(session)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Нет незавершённой проверки зачётки"));
     }
 
     @GetMapping("/pending-challenge")

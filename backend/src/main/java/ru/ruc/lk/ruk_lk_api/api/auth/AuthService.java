@@ -12,76 +12,144 @@ import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.servlet.http.HttpSession;
 
-import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
-import ru.ruc.lk.ruk_lk_api.integration.email.VerificationEmailSender;
-import ru.ruc.lk.ruk_lk_api.integration.email.EmailSendException;
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.AuthChannelsDto;
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.IdentifyResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.LoginChallengeResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.MeResponse;
+import ru.ruc.lk.ruk_lk_api.integration.email.EmailSendException;
+import ru.ruc.lk.ruk_lk_api.integration.email.VerificationEmailSender;
+import ru.ruc.lk.ruk_lk_api.integration.max.MaxSendException;
+import ru.ruc.lk.ruk_lk_api.integration.max.VerificationMaxSender;
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 
 @Service
 public class AuthService {
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private static final String SESSION_KEY = "STUDENT";
+    private static final String PENDING_IDENTIFICATION_KEY = "PENDING_IDENTIFICATION";
     private static final String PENDING_KEY = "PENDING_CHALLENGE";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final OneCClient onecClient;
     private final VerificationEmailSender emailSender;
+    private final VerificationMaxSender maxSender;
+    private final boolean maxLoginOption;
     private final String fixedCode;
 
     public AuthService(
         OneCClient onecClient,
         VerificationEmailSender emailSender,
+        VerificationMaxSender maxSender,
+        @Value("${app.max.login-option:false}") boolean maxLoginOption,
         @Value("${app.auth.fixed-code:}") String fixedCode
     ) {
         this.onecClient = onecClient;
         this.emailSender = emailSender;
+        this.maxSender = maxSender;
+        this.maxLoginOption = maxLoginOption;
         this.fixedCode = fixedCode;
     }
 
-    /**
-     * Шаг 1: проверка зачётки и пароля в 1С, отправка кода на почту из 1С.
-     */
-    public LoginChallengeResponse startLoginChallenge(String studentId, String password, HttpSession session) {
+    public AuthChannelsDto loginChannels() {
+        return new AuthChannelsDto(maxLoginOption);
+    }
+
+    /** Шаг 1: проверка зачётки в 1С, сохранение данных для выбора канала. */
+    public IdentifyResponse identify(String studentId, HttpSession session) {
         MeResponse me = onecClient
-            .login(studentId, password)
+            .login(studentId)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
-                "Неверный номер зачётки или пароль"
+                "Студент с таким номером зачётки не найден"
             ));
 
         String email = resolveEmail(me);
-        String code = generateCode();
+        String phone = blankToEmpty(me.phone());
 
-        try {
-            emailSender.sendLoginCode(email, me.fullName(), code);
-        } catch (EmailSendException e) {
-            throw new ResponseStatusException(
-                HttpStatus.SERVICE_UNAVAILABLE,
-                "Не удалось отправить код входа на email. Попробуйте позже."
-                );
-        }
-        session.setAttribute(PENDING_KEY, new PendingChallenge(
+        session.setAttribute(PENDING_IDENTIFICATION_KEY, new PendingIdentification(
             me.studentId(),
             me.fullName(),
             email,
-            code,
+            phone,
+            me.maxUserId(),
             me.programs()
         ));
+        session.removeAttribute(PENDING_KEY);
         session.removeAttribute(SESSION_KEY);
 
-        return new LoginChallengeResponse(me.studentId(), email, me.fullName());
+        return toIdentifyResponse(me.studentId(), email, phone, me.maxUserId());
     }
 
-    /**
-     * Шаг 2: подтверждение кода из письма, создание сессии.
-     */
+    /** Шаг 2: отправка кода на выбранный канал. */
+    public LoginChallengeResponse sendCode(LoginCodeChannel channel, HttpSession session) {
+        LoginCodeChannel delivery = channel == null ? LoginCodeChannel.EMAIL : channel;
+
+        Object raw = session.getAttribute(PENDING_IDENTIFICATION_KEY);
+        if (!(raw instanceof PendingIdentification pending)) {
+            throw new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Сначала укажите номер зачётки"
+            );
+        }
+
+        String code = generateCode();
+        String deliveryHint;
+
+        if (delivery == LoginCodeChannel.MAX) {
+            if (!isMaxAvailable(pending.maxUserId())) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Вход через MAX недоступен"
+                );
+            }
+            try {
+                maxSender.sendLoginCode(pending.maxUserId(), pending.fullName(), code);
+            } catch (MaxSendException e) {
+                throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Не удалось отправить код в MAX. Попробуйте email или позже."
+                );
+            }
+            deliveryHint = maskPhone(pending.phone());
+        } else {
+            try {
+                emailSender.sendLoginCode(pending.email(), pending.fullName(), code);
+            } catch (EmailSendException e) {
+                throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Не удалось отправить код входа на email. Попробуйте позже."
+                );
+            }
+            deliveryHint = maskEmail(pending.email());
+        }
+
+        session.setAttribute(PENDING_KEY, new PendingChallenge(
+            pending.studentId(),
+            pending.fullName(),
+            pending.email(),
+            pending.phone(),
+            pending.maxUserId(),
+            delivery,
+            code,
+            pending.programs()
+        ));
+        session.removeAttribute(PENDING_IDENTIFICATION_KEY);
+
+        return new LoginChallengeResponse(
+            pending.studentId(),
+            pending.email(),
+            delivery,
+            deliveryHint
+        );
+    }
+
+    /** Шаг 3: подтверждение кода, создание сессии. */
     public MeResponse verifyCode(String code, HttpSession session) {
         Object raw = session.getAttribute(PENDING_KEY);
         if (!(raw instanceof PendingChallenge pending)) {
             throw new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
-                "Сначала войдите по номеру зачётки и паролю"
+                "Сначала войдите по номеру зачётки"
             );
         }
 
@@ -98,6 +166,7 @@ public class AuthService {
         );
         session.setAttribute(SESSION_KEY, student);
         session.removeAttribute(PENDING_KEY);
+        session.removeAttribute(PENDING_IDENTIFICATION_KEY);
 
         return toMeResponse(student);
     }
@@ -110,15 +179,32 @@ public class AuthService {
         return Optional.of(toMeResponse(student));
     }
 
+    public Optional<IdentifyResponse> pendingIdentification(HttpSession session) {
+        Object raw = session.getAttribute(PENDING_IDENTIFICATION_KEY);
+        if (!(raw instanceof PendingIdentification pending)) {
+            return Optional.empty();
+        }
+        return Optional.of(toIdentifyResponse(
+            pending.studentId(),
+            pending.email(),
+            pending.phone(),
+            pending.maxUserId()
+        ));
+    }
+
     public Optional<LoginChallengeResponse> pendingChallenge(HttpSession session) {
         Object raw = session.getAttribute(PENDING_KEY);
         if (!(raw instanceof PendingChallenge pending)) {
             return Optional.empty();
         }
+        String deliveryHint = pending.channel() == LoginCodeChannel.MAX
+            ? maskPhone(pending.phone())
+            : maskEmail(pending.email());
         return Optional.of(new LoginChallengeResponse(
             pending.studentId(),
             pending.email(),
-            pending.fullName()
+            pending.channel(),
+            deliveryHint
         ));
     }
 
@@ -126,12 +212,35 @@ public class AuthService {
         session.invalidate();
     }
 
+    private IdentifyResponse toIdentifyResponse(
+        String studentId,
+        String email,
+        String phone,
+        Long maxUserId
+    ) {
+        return new IdentifyResponse(
+            studentId,
+            maskEmail(email),
+            maskPhone(phone),
+            true,
+            isMaxAvailable(maxUserId)
+        );
+    }
+
+    private boolean isMaxAvailable(Long maxUserId) {
+        return maxLoginOption
+            && maxSender.isConfigured()
+            && maxUserId != null;
+    }
+
     private MeResponse toMeResponse(StudentSession student) {
         return new MeResponse(
             student.studentId(),
             student.fullName(),
             student.email(),
-            student.programs()
+            "",
+            student.programs(),
+            null
         );
     }
 
@@ -148,5 +257,33 @@ public class AuthService {
             return fixedCode.trim();
         }
         return String.format("%06d", RANDOM.nextInt(1_000_000));
+    }
+
+    private static String blankToEmpty(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static String maskEmail(String email) {
+        int at = email.indexOf('@');
+        if (at <= 1) {
+            return email;
+        }
+        return email.charAt(0) + "***" + email.substring(at);
+    }
+
+    private static String maskPhone(String phone) {
+        if (phone == null || phone.isBlank()) {
+            return "—";
+        }
+        String digits = phone.replaceAll("\\D", "");
+        if (digits.length() == 11 && (digits.startsWith("7") || digits.startsWith("8"))) {
+            String code = digits.substring(1, 4);
+            String tail = digits.substring(digits.length() - 2);
+            return "+7 (" + code + ") ***-**-" + tail;
+        }
+        if (digits.length() >= 4) {
+            return "***" + digits.substring(digits.length() - 4);
+        }
+        return "***";
     }
 }

@@ -1,8 +1,11 @@
 package ru.ruc.lk.ruk_lk_api.api.auth.dto;
 
-/** Ответ после проверки зачётки и пароля — до ввода кода из письма. */
+import ru.ruc.lk.ruk_lk_api.api.auth.LoginCodeChannel;
+
+/** Ответ после проверки зачётки — до ввода кода подтверждения. */
 public record LoginChallengeResponse(
     String studentId,
     String email,
-    String fullName
+    LoginCodeChannel channel,
+    String deliveryHint
 ) {}

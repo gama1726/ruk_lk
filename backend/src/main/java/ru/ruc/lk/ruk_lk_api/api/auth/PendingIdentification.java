@@ -4,14 +4,12 @@ import java.util.List;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.ProgramSummary;
 
-/** Незавершённый вход: ждём код из выбранного канала. */
-public record PendingChallenge(
+/** Шаг после проверки зачётки — до выбора канала доставки кода. */
+public record PendingIdentification(
     String studentId,
     String fullName,
     String email,
     String phone,
     Long maxUserId,
-    LoginCodeChannel channel,
-    String code,
     List<ProgramSummary> programs
 ) {}
