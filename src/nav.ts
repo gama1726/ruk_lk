@@ -59,6 +59,7 @@ export const sidebarGroups: NavGroup[] = [
       { to: paths.psychologist, label: 'Приём психолога' },
       { to: paths.portfolio, label: 'Портфолио' },
       { to: paths.settings, label: 'Настройки' },
+      { to: paths.passPhoto, label: 'Фото для пропуска' },
     ],
   },
 ]

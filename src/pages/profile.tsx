@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { NoticeCategoryIcon } from '@/blocks/notice-category-icon'
 import { ageWithBirthDate, courseLabel, maskPhone, noticeDate } from '@/mocks/format'
@@ -6,8 +6,14 @@ import { notices } from '@/mocks/notices'
 import { mockStudentProfile } from '@/profile'
 import { useStudentProfile } from '@/student-profile-store'
 import { paths } from '@/paths'
-import { Card, StudentAvatar } from '@/ui'
 import { isApiConfigured } from '@/apiClient'
+import {
+  fetchPassPhotoSubmission,
+  isPassPhotoApiEnabled,
+  passPhotoImageUrl,
+  passPhotoStatusLabel,
+} from '@/pass-photo'
+import { Card, StudentAvatar } from '@/ui'
 import styles from './profile.module.css'
 
 type FieldProps = {
@@ -46,6 +52,9 @@ export function Profile() {
   const profileStatus = useStudentProfile((s) => s.status)
   const loadProfile = useStudentProfile((s) => s.load)
 
+  const [passPhotoSrc, setPassPhotoSrc] = useState<string | null>(null)
+  const [passPhotoStatus, setPassPhotoStatus] = useState<string | null>(null)
+
   // Задолженности и уведомления — моки до API; на профиле пока без долгов
   const debts = [] as const
   const recentNotices = notices.slice(0, 5)
@@ -55,6 +64,22 @@ export function Profile() {
       void loadProfile()
     }
   }, [loadProfile, profileStatus])
+
+  useEffect(() => {
+    if (!isPassPhotoApiEnabled()) return
+    void (async () => {
+      try {
+        const sub = await fetchPassPhotoSubmission()
+        setPassPhotoStatus(sub.status ? passPhotoStatusLabel[sub.status] : null)
+        if (sub.status === 'PERCO_SYNCED' && sub.id) {
+          setPassPhotoSrc(passPhotoImageUrl(sub.id))
+        }
+      } catch {
+        setPassPhotoSrc(null)
+        setPassPhotoStatus(null)
+      }
+    })()
+  }, [profileStatus])
 
   const loading = isApiConfigured() && (profileStatus === 'loading' || profileStatus === 'idle')
   const displayProfile = profile ?? (isApiConfigured() ? null : mockStudentProfile())
@@ -83,7 +108,12 @@ export function Profile() {
     <div className={styles.page}>
       <Card padding="lg" className={styles.hero}>
         <div className={styles.heroInner}>
-          <StudentAvatar gender={displayProfile.gender} size="lg" aria-hidden="true" />
+          <StudentAvatar
+            gender={displayProfile.gender}
+            photoSrc={passPhotoSrc}
+            size="lg"
+            aria-hidden="true"
+          />
 
           <div className={styles.heroBody}>
             <h1 className={styles.name}>{displayProfile.fullName}</h1>
@@ -99,11 +129,20 @@ export function Profile() {
             <dl className={styles.metaGrid}>
               <Field label="Пол" value={displayProfile.gender} />
               <Field label="Личный номер" value={displayProfile.studentId} />
+              {passPhotoStatus && (
+                <Field label="Фото для пропуска" value={passPhotoStatus} />
+              )}
               <Field label="Личная почта" value={displayProfile.email} />
               <Field label="Возраст" value={ageWithBirthDate(displayProfile.birthDate)} />
               <Field label="Вид финансирования" value={displayProfile.funding} />
               <Field label="Контактный номер" value={maskPhone(displayProfile.phone)} />
             </dl>
+
+            {isPassPhotoApiEnabled() && (
+              <p className={styles.passPhotoLink}>
+                <Link to={paths.passPhoto}>Фото для пропуска</Link>
+              </p>
+            )}
           </div>
         </div>
       </Card>

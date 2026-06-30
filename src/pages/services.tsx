@@ -9,8 +9,9 @@ const items = [
   { to: paths.dormitory, title: 'Общежитие', note: 'Проживание, заявки, бытовые вопросы' },
   { to: paths.bypassList, title: 'Обходной лист', note: 'Подписи подразделений' },
   { to: paths.psychologist, title: 'Психолог', note: 'Запись на консультацию' },
-  { to: paths.portfolio, title: 'Портфолио', note: 'Достижения и модерация' },
-  { to: paths.library, title: 'Библиотека / ЭБС', note: 'Читательский билет, книги' },
+      { to: paths.portfolio, title: 'Портфолио', note: 'Достижения и модерация' },
+      { to: paths.passPhoto, title: 'Фото для пропуска', note: 'Загрузка фото для Perco-Web' },
+      { to: paths.library, title: 'Библиотека / ЭБС', note: 'Читательский билет, книги' },
 ] as const
 
 /**
