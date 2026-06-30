@@ -1,0 +1,17 @@
+package ru.ruc.lk.ruk_lk_api.passphoto;
+
+public enum PassPhotoIssueCode {
+    INVALID_FORMAT,
+    FILE_TOO_LARGE,
+    IMAGE_TOO_SMALL,
+    BACKGROUND_TOO_DARK,
+    BACKGROUND_NOT_UNIFORM,
+    FACE_AREA_TOO_DARK,
+    FACE_AREA_TOO_BRIGHT,
+    FACE_AREA_LOW_DETAIL,
+    IMAGE_TOO_BLURRY,
+    CENTER_TOO_UNIFORM,
+    NO_FACE,
+    MULTIPLE_FACES,
+    FACE_TOO_SMALL
+}
