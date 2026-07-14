@@ -2,7 +2,6 @@ package ru.ruc.lk.ruk_lk_api.integration.max;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -18,13 +17,10 @@ public class HttpMaxSender implements VerificationMaxSender {
     private final RestClient restClient;
     private final String botToken;
 
-    public HttpMaxSender(
-        @Value("${app.max.api-url:https://platform-api2.max.ru}") String apiUrl,
-        @Value("${app.max.bot-token:}") String botToken
-    ) {
-        this.botToken = botToken == null ? "" : botToken.trim();
+    public HttpMaxSender(MaxProperties properties) {
+        this.botToken = properties.getBotToken() == null ? "" : properties.getBotToken().trim();
         this.restClient = RestClient.builder()
-            .baseUrl(apiUrl)
+            .baseUrl(properties.getApiUrl())
             .defaultHeader("Authorization", this.botToken)
             .build();
     }
@@ -35,17 +31,10 @@ public class HttpMaxSender implements VerificationMaxSender {
     }
 
     @Override
-    public void sendLoginCode(long maxUserId, String recipientName, String code) {
+    public void sendMessage(long maxUserId, String text) {
         if (!isConfigured()) {
             throw new MaxSendException("MAX не настроен: укажите app.max.bot-token");
         }
-
-        String safeName = recipientName == null || recipientName.isBlank()
-            ? "студент"
-            : recipientName.trim();
-        String text = "Здравствуйте, " + safeName + "!\n\n"
-            + "Код для входа в личный кабинет РУК: " + code + "\n\n"
-            + "Никому не сообщайте этот код.";
 
         try {
             restClient.post()
@@ -54,10 +43,10 @@ public class HttpMaxSender implements VerificationMaxSender {
                 .body(new MaxMessageRequest(text))
                 .retrieve()
                 .toBodilessEntity();
-            log.info("Код входа отправлен в MAX, user_id={}", maxUserId);
+            log.info("Сообщение отправлено в MAX, user_id={}", maxUserId);
         } catch (RestClientResponseException e) {
             log.error("MAX HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new MaxSendException("Не удалось отправить код в MAX", e);
+            throw new MaxSendException("Не удалось отправить сообщение в MAX", e);
         }
     }
 

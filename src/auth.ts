@@ -81,6 +81,8 @@ type AuthState = {
   status: 'loading' | 'ready'
   restoreSession: () => Promise<void>
   fetchLoginChannels: () => Promise<AuthChannelsDto>
+  fetchMaxBindLink: () => Promise<{ url: string; expiresInSeconds: number } | string>
+  refreshPendingIdentification: () => Promise<string | null>
   identifyStudent: (studentId: string) => Promise<FieldError | null>
   sendLoginCode: (channel: LoginCodeChannel) => Promise<string | null>
   signIn: (email: string, password: string) => FieldError | null
@@ -174,6 +176,39 @@ export const useAuth = create<AuthState>((set) => ({
       return { maxEnabled: false }
     }
     return apiGet<AuthChannelsDto>('/api/auth/channels')
+  },
+
+  async fetchMaxBindLink() {
+    if (!isApiConfigured()) {
+      return 'API не настроен'
+    }
+    try {
+      return await apiGet<{ url: string; expiresInSeconds: number }>('/api/auth/max-bind-link')
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return error.message || 'Не удалось получить ссылку на бота MAX'
+      }
+      return error instanceof Error ? error.message : 'Не удалось получить ссылку на бота MAX'
+    }
+  },
+
+  async refreshPendingIdentification() {
+    if (!isApiConfigured()) {
+      return null
+    }
+    try {
+      const identified = await apiPost<IdentifyResponseDto>('/api/auth/refresh-identification', {})
+      set({
+        pendingIdentification: toPendingIdentification(identified),
+        pendingLogin: null,
+      })
+      return null
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return error.message || 'Не удалось обновить статус привязки'
+      }
+      return error instanceof Error ? error.message : 'Не удалось обновить статус привязки'
+    }
   },
 
   async identifyStudent(studentId) {

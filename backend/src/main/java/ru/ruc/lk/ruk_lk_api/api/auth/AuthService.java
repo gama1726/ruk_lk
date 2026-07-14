@@ -15,9 +15,11 @@ import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.AuthChannelsDto;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.IdentifyResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.LoginChallengeResponse;
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.MaxBindLinkResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.MeResponse;
 import ru.ruc.lk.ruk_lk_api.integration.email.EmailSendException;
 import ru.ruc.lk.ruk_lk_api.integration.email.VerificationEmailSender;
+import ru.ruc.lk.ruk_lk_api.integration.max.MaxBindingService;
 import ru.ruc.lk.ruk_lk_api.integration.max.MaxSendException;
 import ru.ruc.lk.ruk_lk_api.integration.max.VerificationMaxSender;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
@@ -33,25 +35,25 @@ public class AuthService {
     private final OneCClient onecClient;
     private final VerificationEmailSender emailSender;
     private final VerificationMaxSender maxSender;
-    private final boolean maxLoginOption;
+    private final MaxBindingService maxBindingService;
     private final String fixedCode;
 
     public AuthService(
         OneCClient onecClient,
         VerificationEmailSender emailSender,
         VerificationMaxSender maxSender,
-        @Value("${app.max.login-option:false}") boolean maxLoginOption,
+        MaxBindingService maxBindingService,
         @Value("${app.auth.fixed-code:}") String fixedCode
     ) {
         this.onecClient = onecClient;
         this.emailSender = emailSender;
         this.maxSender = maxSender;
-        this.maxLoginOption = maxLoginOption;
+        this.maxBindingService = maxBindingService;
         this.fixedCode = fixedCode;
     }
 
     public AuthChannelsDto loginChannels() {
-        return new AuthChannelsDto(maxLoginOption);
+        return new AuthChannelsDto(maxBindingService.isLoginChannelEnabled());
     }
 
     /** Шаг 1: проверка зачётки в 1С, сохранение данных для выбора канала. */
@@ -65,45 +67,63 @@ public class AuthService {
 
         String email = resolveEmail(me);
         String phone = blankToEmpty(me.phone());
+        Long maxUserId = maxBindingService.findMaxUserId(me.studentId()).orElse(null);
 
         session.setAttribute(PENDING_IDENTIFICATION_KEY, new PendingIdentification(
             me.studentId(),
             me.fullName(),
             email,
             phone,
-            me.maxUserId(),
+            maxUserId,
             me.programs()
         ));
         session.removeAttribute(PENDING_KEY);
         session.removeAttribute(SESSION_KEY);
 
-        return toIdentifyResponse(me.studentId(), email, phone, me.maxUserId());
+        return toIdentifyResponse(me.studentId(), email, phone, maxUserId);
+    }
+
+    /** Deep link для привязки MAX (нужна сессия pending identification). */
+    public MaxBindLinkResponse maxBindLink(HttpSession session) {
+        PendingIdentification pending = requirePendingIdentification(session);
+        MaxBindingService.MaxBindLink link = maxBindingService.createBindLink(pending.studentId());
+        return new MaxBindLinkResponse(link.url(), link.expiresInSeconds());
+    }
+
+    /** Обновить maxAvailable из БД (после привязки в боте). */
+    public IdentifyResponse refreshPendingIdentification(HttpSession session) {
+        PendingIdentification pending = requirePendingIdentification(session);
+        Long maxUserId = maxBindingService.findMaxUserId(pending.studentId()).orElse(null);
+        session.setAttribute(PENDING_IDENTIFICATION_KEY, new PendingIdentification(
+            pending.studentId(),
+            pending.fullName(),
+            pending.email(),
+            pending.phone(),
+            maxUserId,
+            pending.programs()
+        ));
+        return toIdentifyResponse(pending.studentId(), pending.email(), pending.phone(), maxUserId);
     }
 
     /** Шаг 2: отправка кода на выбранный канал. */
     public LoginChallengeResponse sendCode(LoginCodeChannel channel, HttpSession session) {
         LoginCodeChannel delivery = channel == null ? LoginCodeChannel.EMAIL : channel;
 
-        Object raw = session.getAttribute(PENDING_IDENTIFICATION_KEY);
-        if (!(raw instanceof PendingIdentification pending)) {
-            throw new ResponseStatusException(
-                HttpStatus.UNAUTHORIZED,
-                "Сначала укажите номер зачётки"
-            );
-        }
+        PendingIdentification pending = requirePendingIdentification(session);
+        Long maxUserId = maxBindingService.findMaxUserId(pending.studentId()).orElse(null);
 
         String code = generateCode();
         String deliveryHint;
 
         if (delivery == LoginCodeChannel.MAX) {
-            if (!isMaxAvailable(pending.maxUserId())) {
+            if (!isMaxAvailable(maxUserId)) {
                 throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Вход через MAX недоступен"
+                    "Сначала привяжите MAX через бота"
                 );
             }
             try {
-                maxSender.sendLoginCode(pending.maxUserId(), pending.fullName(), code);
+                maxSender.sendLoginCode(maxUserId, pending.fullName(), code);
             } catch (MaxSendException e) {
                 throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
@@ -128,7 +148,7 @@ public class AuthService {
             pending.fullName(),
             pending.email(),
             pending.phone(),
-            pending.maxUserId(),
+            maxUserId,
             delivery,
             code,
             pending.programs()
@@ -184,11 +204,12 @@ public class AuthService {
         if (!(raw instanceof PendingIdentification pending)) {
             return Optional.empty();
         }
+        Long maxUserId = maxBindingService.findMaxUserId(pending.studentId()).orElse(null);
         return Optional.of(toIdentifyResponse(
             pending.studentId(),
             pending.email(),
             pending.phone(),
-            pending.maxUserId()
+            maxUserId
         ));
     }
 
@@ -212,6 +233,17 @@ public class AuthService {
         session.invalidate();
     }
 
+    private PendingIdentification requirePendingIdentification(HttpSession session) {
+        Object raw = session.getAttribute(PENDING_IDENTIFICATION_KEY);
+        if (!(raw instanceof PendingIdentification pending)) {
+            throw new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Сначала укажите номер зачётки"
+            );
+        }
+        return pending;
+    }
+
     private IdentifyResponse toIdentifyResponse(
         String studentId,
         String email,
@@ -228,9 +260,7 @@ public class AuthService {
     }
 
     private boolean isMaxAvailable(Long maxUserId) {
-        return maxLoginOption
-            && maxSender.isConfigured()
-            && maxUserId != null;
+        return maxBindingService.isLoginChannelEnabled() && maxUserId != null;
     }
 
     private MeResponse toMeResponse(StudentSession student) {

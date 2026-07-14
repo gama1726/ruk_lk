@@ -15,6 +15,7 @@ import ru.ruc.lk.ruk_lk_api.api.auth.dto.AuthChannelsDto;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.IdentifyRequest;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.IdentifyResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.LoginChallengeResponse;
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.MaxBindLinkResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.MeResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.SendCodeRequest;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.VerifyCodeRequest;
@@ -38,6 +39,18 @@ public class AuthController {
     @PostMapping("/identify")
     public IdentifyResponse identify(@RequestBody IdentifyRequest body, HttpSession session) {
         return authService.identify(body.studentId(), session);
+    }
+
+    /** Deep link для привязки MAX к текущей зачётке. */
+    @GetMapping("/max-bind-link")
+    public MaxBindLinkResponse maxBindLink(HttpSession session) {
+        return authService.maxBindLink(session);
+    }
+
+    /** Обновить maxAvailable после привязки в боте. */
+    @PostMapping("/refresh-identification")
+    public IdentifyResponse refreshIdentification(HttpSession session) {
+        return authService.refreshPendingIdentification(session);
     }
 
     /** Шаг 2: выбор канала → отправка кода. */

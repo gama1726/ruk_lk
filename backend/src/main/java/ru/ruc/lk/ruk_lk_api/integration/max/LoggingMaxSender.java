@@ -17,7 +17,7 @@ public class LoggingMaxSender implements VerificationMaxSender {
     }
 
     @Override
-    public void sendLoginCode(long maxUserId, String recipientName, String code) {
-        log.info("DEV: код входа в MAX для user_id={} ({}): {}", maxUserId, recipientName, code);
+    public void sendMessage(long maxUserId, String text) {
+        log.info("DEV: сообщение в MAX для user_id={}: {}", maxUserId, text);
     }
 }
