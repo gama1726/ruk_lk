@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Заглушка до подключения реального API Perco-Web.
- * Включите {@code app.perco.enabled=true} и реализуйте {@link HttpPercoClient}.
+ * Включите {@code app.perco.enabled=true} для {@link HttpPercoClient}.
  */
 @Component
 @ConditionalOnProperty(name = "app.perco.enabled", havingValue = "false", matchIfMissing = true)
