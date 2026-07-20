@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -23,7 +22,6 @@ import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoAdminItemDto;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoAvatarPreferenceRequest;
-import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoIssueDto;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoRejectRequest;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoSubmissionDto;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoValidationResultDto;

@@ -12,10 +12,6 @@ public interface PassPhotoSubmissionRepository extends JpaRepository<PassPhotoSu
 
     Optional<PassPhotoSubmission> findFirstByStudentIdOrderBySubmittedAtDesc(String studentId);
 
-    Optional<PassPhotoSubmission> findFirstByStudentIdAndStatus(String studentId, PassPhotoStatus status);
-
-    List<PassPhotoSubmission> findByStatusOrderBySubmittedAtAsc(PassPhotoStatus status);
-
     List<PassPhotoSubmission> findByStatusInOrderBySubmittedAtAsc(Collection<PassPhotoStatus> statuses);
 
     List<PassPhotoSubmission> findByStatus(PassPhotoStatus status);

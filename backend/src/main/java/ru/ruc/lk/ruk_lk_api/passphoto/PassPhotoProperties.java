@@ -13,5 +13,7 @@ public record PassPhotoProperties(
     @DefaultValue("0.18") double minFaceHeightRatio,
     @DefaultValue("0.6") float faceScoreThreshold,
     /** Как часто студент может снова отправить фото после принятого (дни). */
-    @DefaultValue("3") int resubmitCooldownDays
+    @DefaultValue("3") int resubmitCooldownDays,
+    /** TTL кэша успешного /validate для пропуска повторного ML на upload (сек). */
+    @DefaultValue("300") int validateCacheTtlSeconds
 ) {}

@@ -100,7 +100,7 @@ function AdminPassPhotoCard({
             disabled={busyId === item.id}
             onClick={() => onRevert(item.id)}
           >
-            Откатить
+            Сбросить
           </Button>
         )}
       </div>
@@ -188,7 +188,7 @@ export function AdminPassPhotos() {
 
   const onRevert = async (id: string) => {
     const ok = window.confirm(
-      'Откатить заявку? Фото будет удалено, студент сможет загрузить новое.',
+      'Сбросить заявку в ЛК? Файл будет удалён, студент сможет загрузить фото заново. Фото в Perco (если было) не меняется.',
     )
     if (!ok) return
     setBusyId(id)
@@ -261,7 +261,8 @@ export function AdminPassPhotos() {
 
       <h2 className={styles.sectionTitle}>Обработанные заявки</h2>
       <p className={styles.sectionHint}>
-        При ошибке Perco можно повторить загрузку. Откат удаляет заявку и файл — студент сможет загрузить фото заново.
+        При ошибке Perco можно повторить загрузку. «Сбросить» доступен для отклонённых и ошибок Perco —
+        удаляет заявку в ЛК. Принятые (в Perco) сбросить нельзя: студент загрузит новое по лимиту 3 дня.
       </p>
       <ul className={styles.list}>
         {history.map((item) => (
@@ -271,7 +272,11 @@ export function AdminPassPhotos() {
               token={token}
               busyId={busyId}
               onRetryPerco={item.status === 'PERCO_FAILED' ? onRetryPerco : undefined}
-              onRevert={onRevert}
+              onRevert={
+                item.status === 'REJECTED' || item.status === 'PERCO_FAILED'
+                  ? onRevert
+                  : undefined
+              }
             />
           </li>
         ))}

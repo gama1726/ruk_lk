@@ -1,10 +1,13 @@
 package ru.ruc.lk.ruk_lk_api.passphoto;
 
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -37,6 +40,7 @@ public class PassPhotoService {
     private final PassPhotoSubmissionRepository repository;
     private final StudentPassPhotoPrefsRepository prefsRepository;
     private final PassPhotoValidationService validationService;
+    private final PassPhotoValidationCache validationCache;
     private final PassPhotoStorageService storageService;
     private final PercoClient percoClient;
     private final OneCClient oneCClient;
@@ -46,6 +50,7 @@ public class PassPhotoService {
         PassPhotoSubmissionRepository repository,
         StudentPassPhotoPrefsRepository prefsRepository,
         PassPhotoValidationService validationService,
+        PassPhotoValidationCache validationCache,
         PassPhotoStorageService storageService,
         PercoClient percoClient,
         OneCClient oneCClient,
@@ -54,6 +59,7 @@ public class PassPhotoService {
         this.repository = repository;
         this.prefsRepository = prefsRepository;
         this.validationService = validationService;
+        this.validationCache = validationCache;
         this.storageService = storageService;
         this.percoClient = percoClient;
         this.oneCClient = oneCClient;
@@ -79,9 +85,15 @@ public class PassPhotoService {
     }
 
     public PassPhotoValidationResultDto validatePreview(HttpSession session, MultipartFile file) throws IOException {
-        requireStudent(session);
+        StudentSession student = requireStudent(session);
         byte[] bytes = file.getBytes();
         PassPhotoValidationResult result = validationService.validate(bytes, file.getContentType());
+        validationCache.put(
+            student.studentId(),
+            sha256Hex(bytes),
+            result,
+            Duration.ofSeconds(Math.max(1, properties.validateCacheTtlSeconds()))
+        );
         return PassPhotoMapper.toValidationDto(result);
     }
 
@@ -114,12 +126,17 @@ public class PassPhotoService {
         }
 
         byte[] bytes = file.getBytes();
-        PassPhotoValidationResult result = validationService.validate(bytes, file.getContentType());
+        String contentType = file.getContentType();
+        String hash = sha256Hex(bytes);
+
+        // После успешного /validate тот же файл в TTL не гоняет ML повторно.
+        PassPhotoValidationResult result = validationCache.getIfMatch(student.studentId(), hash)
+            .orElseGet(() -> validationService.validate(bytes, contentType));
         if (result.hasFailures()) {
             throw new PassPhotoValidationException(result.issues());
         }
 
-        byte[] storedBytes = validationService.normalizeForStorage(bytes, file.getContentType());
+        byte[] storedBytes = validationService.normalizeForStorage(bytes, contentType);
         if (storedBytes.length > validationService.maxSizeBytes()) {
             throw new PassPhotoValidationException(List.of(new PassPhotoIssue(
                 PassPhotoIssueCode.FILE_TOO_LARGE,
@@ -146,6 +163,7 @@ public class PassPhotoService {
             PassPhotoMapper.warningsToJson(warnings)
         );
         repository.save(submission);
+        validationCache.invalidate(student.studentId());
         return toStudentDto(submission);
     }
 
@@ -169,6 +187,11 @@ public class PassPhotoService {
     );
 
     private static final List<PassPhotoStatus> REVERTABLE_STATUSES = List.of(
+        PassPhotoStatus.REJECTED,
+        PassPhotoStatus.PERCO_FAILED
+    );
+
+    private static final List<PassPhotoStatus> HISTORY_STATUSES = List.of(
         PassPhotoStatus.REJECTED,
         PassPhotoStatus.PERCO_SYNCED,
         PassPhotoStatus.PERCO_FAILED
@@ -209,7 +232,7 @@ public class PassPhotoService {
     public List<PassPhotoAdminItemDto> listProcessed(int limit) {
         int capped = Math.min(Math.max(limit, 1), 100);
         return repository.findByStatusInOrderByReviewedAtDesc(
-            REVERTABLE_STATUSES,
+            HISTORY_STATUSES,
             PageRequest.of(0, capped)
         ).stream()
             .map(PassPhotoMapper::toAdminItem)
@@ -261,7 +284,9 @@ public class PassPhotoService {
     }
 
     /**
-     * Удаляет обработанную заявку и файл — студент сможет загрузить фото заново.
+     * Удаляет заявку и файл в ЛК (только REJECTED / PERCO_FAILED).
+     * Для принятых (PERCO_SYNCED) откат недоступен — фото уже в Perco;
+     * студент может загрузить новое по cooldown.
      */
     public void revert(UUID id) throws IOException {
         PassPhotoSubmission submission = requireSubmission(id);
@@ -270,6 +295,13 @@ public class PassPhotoService {
             throw new ResponseStatusException(
                 HttpStatus.CONFLICT,
                 "Откат недоступен для заявки на проверке. Используйте «Отклонить»."
+            );
+        }
+        if (submission.getStatus() == PassPhotoStatus.PERCO_SYNCED) {
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Принятое фото нельзя откатить: оно уже в системе пропуска. "
+                    + "Студент сможет загрузить новое по истечении лимита повторной отправки."
             );
         }
         if (!REVERTABLE_STATUSES.contains(submission.getStatus())) {
@@ -384,6 +416,15 @@ public class PassPhotoService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Сначала войдите в систему");
         }
         return student;
+    }
+
+    private static String sha256Hex(byte[] bytes) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
     }
 
     private record ResubmitPolicy(boolean canResubmit, Instant nextResubmitAt) {}
