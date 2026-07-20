@@ -129,9 +129,22 @@ export function PassPhoto() {
   const canUpload =
     !submission?.status ||
     submission.status === 'REJECTED' ||
-    submission.status === 'PERCO_FAILED'
+    submission.status === 'PERCO_FAILED' ||
+    (submission.status === 'PERCO_SYNCED' && submission.canResubmit === true)
 
   const showForm = canUpload
+  const syncedCooldownHint =
+    submission?.status === 'PERCO_SYNCED' &&
+    submission.canResubmit === false &&
+    submission.nextResubmitAt
+      ? new Date(submission.nextResubmitAt).toLocaleString('ru-RU', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : null
 
   if (!isPassPhotoApiEnabled()) {
     return (
@@ -267,6 +280,14 @@ export function PassPhoto() {
       {submission?.status === 'PERCO_SYNCED' && (
         <Card padding="lg">
           <p>Фото принято и загружено в систему пропуска. Пропуск обновится в течение нескольких часов.</p>
+          {syncedCooldownHint && (
+            <p className={styles.muted}>
+              Загрузить новое фото можно не чаще раза в 3 дня. Следующая попытка: {syncedCooldownHint}.
+            </p>
+          )}
+          {submission.canResubmit === true && (
+            <p className={styles.muted}>Можно отправить новое фото на проверку — форма ниже.</p>
+          )}
         </Card>
       )}
     </>

@@ -11,5 +11,7 @@ public record PassPhotoProperties(
     int minHeight,
     @DefaultValue("true") boolean mlEnabled,
     @DefaultValue("0.18") double minFaceHeightRatio,
-    @DefaultValue("0.6") float faceScoreThreshold
+    @DefaultValue("0.6") float faceScoreThreshold,
+    /** Как часто студент может снова отправить фото после принятого (дни). */
+    @DefaultValue("3") int resubmitCooldownDays
 ) {}

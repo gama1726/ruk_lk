@@ -22,6 +22,8 @@ export type PassPhotoSubmission = {
   percoSyncedAt: string | null
   percoError: string | null
   hasImage: boolean
+  canResubmit?: boolean
+  nextResubmitAt?: string | null
 }
 
 export type PassPhotoAdminItem = {

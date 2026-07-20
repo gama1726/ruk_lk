@@ -198,6 +198,7 @@ function defaultMessage(status: number): string {
   if (status === 401) return 'Сессия истекла. Войдите снова.'
   if (status === 400) return 'Неверный запрос.'
   if (status === 403) return 'Недостаточно прав для этого действия.'
+  if (status === 429) return 'Слишком частые запросы. Попробуйте позже.'
   if (status >= 500) return 'Сервер временно недоступен. Попробуйте позже.'
   return 'Не удалось выполнить запрос.'
 }

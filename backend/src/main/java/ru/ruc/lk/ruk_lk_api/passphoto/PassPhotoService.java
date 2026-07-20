@@ -1,8 +1,13 @@
 package ru.ruc.lk.ruk_lk_api.passphoto;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
@@ -24,31 +29,38 @@ import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoValidationResultDto;
 public class PassPhotoService {
 
     private static final String SESSION_KEY = "STUDENT";
+    private static final ZoneId MOSCOW = ZoneId.of("Europe/Moscow");
+    private static final DateTimeFormatter RESUBMIT_FMT = DateTimeFormatter
+        .ofPattern("d MMMM yyyy, HH:mm", Locale.forLanguageTag("ru"))
+        .withZone(MOSCOW);
 
     private final PassPhotoSubmissionRepository repository;
     private final PassPhotoValidationService validationService;
     private final PassPhotoStorageService storageService;
     private final PercoClient percoClient;
     private final OneCClient oneCClient;
+    private final PassPhotoProperties properties;
 
     public PassPhotoService(
         PassPhotoSubmissionRepository repository,
         PassPhotoValidationService validationService,
         PassPhotoStorageService storageService,
         PercoClient percoClient,
-        OneCClient oneCClient
+        OneCClient oneCClient,
+        PassPhotoProperties properties
     ) {
         this.repository = repository;
         this.validationService = validationService;
         this.storageService = storageService;
         this.percoClient = percoClient;
         this.oneCClient = oneCClient;
+        this.properties = properties;
     }
 
     public PassPhotoSubmissionDto getCurrent(HttpSession session) {
         StudentSession student = requireStudent(session);
         return repository.findFirstByStudentIdOrderBySubmittedAtDesc(student.studentId())
-            .map(PassPhotoMapper::toDto)
+            .map(this::toStudentDto)
             .orElse(emptyDto());
     }
 
@@ -62,8 +74,29 @@ public class PassPhotoService {
     public PassPhotoSubmissionDto submit(HttpSession session, MultipartFile file) throws IOException {
         StudentSession student = requireStudent(session);
 
-        if (repository.findFirstByStudentIdAndStatus(student.studentId(), PassPhotoStatus.PENDING).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Фото уже на проверке. Дождитесь решения сотрудника.");
+        Optional<PassPhotoSubmission> latestOpt =
+            repository.findFirstByStudentIdOrderBySubmittedAtDesc(student.studentId());
+        if (latestOpt.isPresent()) {
+            PassPhotoSubmission latest = latestOpt.get();
+            if (latest.getStatus() == PassPhotoStatus.PENDING
+                || latest.getStatus() == PassPhotoStatus.PERCO_SYNCING) {
+                throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Фото уже на проверке. Дождитесь решения сотрудника."
+                );
+            }
+            if (latest.getStatus() == PassPhotoStatus.PERCO_SYNCED) {
+                Instant nextAt = nextResubmitAt(latest);
+                if (nextAt != null && Instant.now().isBefore(nextAt)) {
+                    throw new ResponseStatusException(
+                        HttpStatus.TOO_MANY_REQUESTS,
+                        "Повторная загрузка фото доступна раз в "
+                            + resubmitCooldownDays()
+                            + " дн. Следующая попытка: "
+                            + RESUBMIT_FMT.format(nextAt)
+                    );
+                }
+            }
         }
 
         byte[] bytes = file.getBytes();
@@ -99,7 +132,7 @@ public class PassPhotoService {
             PassPhotoMapper.warningsToJson(warnings)
         );
         repository.save(submission);
-        return PassPhotoMapper.toDto(submission);
+        return toStudentDto(submission);
     }
 
     public byte[] readImageForStudent(HttpSession session, UUID id) throws IOException {
@@ -197,7 +230,7 @@ public class PassPhotoService {
         submission.setReviewedAt(Instant.now());
         submission.setReviewedBy(reviewer);
         repository.save(submission);
-        return PassPhotoMapper.toDto(submission);
+        return toStudentDto(submission);
     }
 
     public PassPhotoSubmissionDto reject(UUID id, String reviewer, String reason) {
@@ -210,7 +243,7 @@ public class PassPhotoService {
         submission.setReviewedAt(Instant.now());
         submission.setReviewedBy(reviewer);
         repository.save(submission);
-        return PassPhotoMapper.toDto(submission);
+        return toStudentDto(submission);
     }
 
     /**
@@ -258,7 +291,45 @@ public class PassPhotoService {
         submission.setReviewedBy(reviewer);
         submission.setReviewedAt(Instant.now());
         repository.save(submission);
-        return PassPhotoMapper.toDto(submission);
+        return toStudentDto(submission);
+    }
+
+    private PassPhotoSubmissionDto toStudentDto(PassPhotoSubmission entity) {
+        ResubmitPolicy policy = resubmitPolicy(entity);
+        return PassPhotoMapper.toDto(entity, policy.canResubmit(), policy.nextResubmitAt());
+    }
+
+    private ResubmitPolicy resubmitPolicy(PassPhotoSubmission entity) {
+        PassPhotoStatus status = entity.getStatus();
+        if (status == PassPhotoStatus.PENDING || status == PassPhotoStatus.PERCO_SYNCING) {
+            return new ResubmitPolicy(false, null);
+        }
+        if (status == PassPhotoStatus.REJECTED || status == PassPhotoStatus.PERCO_FAILED) {
+            return new ResubmitPolicy(true, null);
+        }
+        if (status == PassPhotoStatus.PERCO_SYNCED) {
+            Instant nextAt = nextResubmitAt(entity);
+            if (nextAt == null || !Instant.now().isBefore(nextAt)) {
+                return new ResubmitPolicy(true, null);
+            }
+            return new ResubmitPolicy(false, nextAt);
+        }
+        return new ResubmitPolicy(false, null);
+    }
+
+    private Instant nextResubmitAt(PassPhotoSubmission synced) {
+        Instant anchor = synced.getPercoSyncedAt() != null
+            ? synced.getPercoSyncedAt()
+            : synced.getSubmittedAt();
+        if (anchor == null) {
+            return null;
+        }
+        return anchor.plus(Duration.ofDays(resubmitCooldownDays()));
+    }
+
+    private int resubmitCooldownDays() {
+        int days = properties.resubmitCooldownDays();
+        return days > 0 ? days : 3;
     }
 
     private String resolveZachetka(String studentId) {
@@ -273,7 +344,9 @@ public class PassPhotoService {
     }
 
     private static PassPhotoSubmissionDto emptyDto() {
-        return new PassPhotoSubmissionDto(null, null, null, List.of(), null, null, null, null, false);
+        return new PassPhotoSubmissionDto(
+            null, null, null, List.of(), null, null, null, null, false, true, null
+        );
     }
 
     private static StudentSession requireStudent(HttpSession session) {
@@ -283,4 +356,6 @@ public class PassPhotoService {
         }
         return student;
     }
+
+    private record ResubmitPolicy(boolean canResubmit, Instant nextResubmitAt) {}
 }
