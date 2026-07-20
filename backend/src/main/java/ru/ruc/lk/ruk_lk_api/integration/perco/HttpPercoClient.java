@@ -61,7 +61,8 @@ public class HttpPercoClient implements PercoClient {
 
         authenticate();
 
-        String staffId = findStaffIdByZachetka(zachetka.trim());
+        PercoStaffMember staff = findStaffByZachetka(zachetka.trim());
+        String staffId = requireStaffId(staff, zachetka.trim());
         byte[] resized = resizeToPercoFormat(jpeg);
         String base64 = Base64.getEncoder().encodeToString(resized);
         String photoWithPrefix = "data:image/jpeg;base64," + base64;
@@ -69,9 +70,7 @@ public class HttpPercoClient implements PercoClient {
         updateStaffPhoto(staffId, photoWithPrefix);
         updateBiometricPhoto(staffId, base64);
 
-        if (properties.divisionId() != null && properties.accessTemplateId() != null) {
-            updateDivisionAndAccess(staffId);
-        }
+        maybeUpdateDivisionAndAccess(staff, staffId);
 
         log.info("Фото загружено в Perco-Web для зачётки {}, staffId={}", zachetka, staffId);
     }
@@ -109,7 +108,7 @@ public class HttpPercoClient implements PercoClient {
         }
     }
 
-    private String findStaffIdByZachetka(String zachetka) throws PercoException {
+    private PercoStaffMember findStaffByZachetka(String zachetka) throws PercoException {
         // list?searchString=номер не ищет по табельному; нужен staff/table + filters
         String filtersJson = """
             {"type":"and","rows":[{"column":"tabel_number","value":"%s"}]}
@@ -154,7 +153,7 @@ public class HttpPercoClient implements PercoClient {
             );
         }
 
-        return requireStaffId(exact.getFirst(), zachetka);
+        return exact.getFirst();
     }
 
     private static String escapeJson(String value) {
@@ -192,6 +191,32 @@ public class HttpPercoClient implements PercoClient {
         } catch (ResourceAccessException e) {
             log.error("Perco bio I/O: {}", e.getMessage());
             throw new PercoException("Не удалось подключиться к Perco-Web: " + rootMessage(e), e);
+        }
+    }
+
+    /**
+     * Отдел/шаблон — только если в карточке ещё пусто. Ошибка этого шага
+     * не откатывает уже загруженное фото.
+     */
+    private void maybeUpdateDivisionAndAccess(PercoStaffMember staff, String staffId) {
+        if (properties.divisionId() == null || properties.accessTemplateId() == null) {
+            return;
+        }
+        if (staff.hasDivisionOrAccess()) {
+            log.info(
+                "Perco: у staffId={} отдел/шаблон уже заданы — пропускаем обновление",
+                staffId
+            );
+            return;
+        }
+        try {
+            updateDivisionAndAccess(staffId);
+        } catch (PercoException e) {
+            log.warn(
+                "Perco: не удалось обновить отдел/шаблон для staffId={} (фото уже загружено): {}",
+                staffId,
+                e.getMessage()
+            );
         }
     }
 

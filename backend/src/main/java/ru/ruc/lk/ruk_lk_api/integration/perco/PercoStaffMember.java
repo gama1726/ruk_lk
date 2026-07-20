@@ -10,7 +10,12 @@ public record PercoStaffMember(
     String name,
     @JsonProperty("tabel_number") String tabelNumber,
     @JsonProperty("tabelNumber") String tabelNumberAlt,
-    @JsonProperty("tab_number") String tabNumber
+    @JsonProperty("tab_number") String tabNumber,
+    Object division,
+    @JsonProperty("division_id") Object divisionId,
+    @JsonProperty("division_name") String divisionName,
+    @JsonProperty("access_template") Object accessTemplate,
+    @JsonProperty("template_name") String templateName
 ) {
     public String resolvedId() {
         if (id == null) {
@@ -31,5 +36,33 @@ public record PercoStaffMember(
             return tabNumber.trim();
         }
         return null;
+    }
+
+    /** Отдел или шаблон доступа уже заданы в карточке Perco — не перезаписываем. */
+    public boolean hasDivisionOrAccess() {
+        return isPresent(division)
+            || isPresent(divisionId)
+            || (divisionName != null && !divisionName.isBlank())
+            || isPresent(accessTemplate)
+            || (templateName != null && !templateName.isBlank());
+    }
+
+    private static boolean isPresent(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof String s) {
+            return !s.isBlank();
+        }
+        if (value instanceof Number n) {
+            return true;
+        }
+        if (value instanceof java.util.Collection<?> c) {
+            return !c.isEmpty();
+        }
+        if (value instanceof java.util.Map<?, ?> m) {
+            return !m.isEmpty();
+        }
+        return true;
     }
 }
