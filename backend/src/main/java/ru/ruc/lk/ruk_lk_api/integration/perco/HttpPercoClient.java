@@ -16,6 +16,7 @@ import java.util.Map;
 
 import javax.imageio.ImageIO;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
@@ -26,6 +27,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -100,6 +102,9 @@ public class HttpPercoClient implements PercoClient {
         } catch (RestClientResponseException e) {
             log.error("Perco auth HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new PercoException("Не удалось авторизоваться в Perco-Web", e);
+        } catch (ResourceAccessException e) {
+            log.error("Perco auth I/O: {}", e.getMessage());
+            throw new PercoException("Не удалось подключиться к Perco-Web: " + rootMessage(e), e);
         }
     }
 
@@ -117,6 +122,9 @@ public class HttpPercoClient implements PercoClient {
         } catch (RestClientResponseException e) {
             log.error("Perco search HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new PercoException("Ошибка поиска в Perco-Web", e);
+        } catch (ResourceAccessException e) {
+            log.error("Perco search I/O: {}", e.getMessage());
+            throw new PercoException("Не удалось подключиться к Perco-Web: " + rootMessage(e), e);
         }
 
         if (list == null || list.isEmpty()) {
@@ -164,6 +172,9 @@ public class HttpPercoClient implements PercoClient {
         } catch (RestClientResponseException e) {
             log.error("Perco bio HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new PercoException("Не удалось обновить биометрию в Perco-Web", e);
+        } catch (ResourceAccessException e) {
+            log.error("Perco bio I/O: {}", e.getMessage());
+            throw new PercoException("Не удалось подключиться к Perco-Web: " + rootMessage(e), e);
         }
     }
 
@@ -193,6 +204,9 @@ public class HttpPercoClient implements PercoClient {
         } catch (RestClientResponseException e) {
             log.error("Perco staff update ({}) HTTP {}: {}", what, e.getStatusCode(), e.getResponseBodyAsString());
             throw new PercoException("Не удалось обновить " + what + " в Perco-Web", e);
+        } catch (ResourceAccessException e) {
+            log.error("Perco staff update ({}) I/O: {}", what, e.getMessage());
+            throw new PercoException("Не удалось подключиться к Perco-Web: " + rootMessage(e), e);
         }
     }
 
@@ -238,10 +252,26 @@ public class HttpPercoClient implements PercoClient {
         return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 
+    private static String rootMessage(Throwable e) {
+        Throwable root = e;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        String message = root.getMessage();
+        return message == null || message.isBlank() ? e.getMessage() : message;
+    }
+
+    /**
+     * Как {@code curl -k} / Python {@code verify=False}: доверяем самоподписанному
+     * сертификату и не сверяем hostname (у Perco часто CN без SAN на IP).
+     */
     private static HttpClient buildHttpClient(boolean trustSelfSigned) {
         HttpClient.Builder builder = HttpClient.newBuilder();
         if (trustSelfSigned) {
             try {
+                // Иначе JDK HttpClient сверяет IP с CN/SAN даже при trust-all TrustManager
+                System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
+
                 TrustManager[] trustAll = new TrustManager[] {
                     new X509TrustManager() {
                         @Override
@@ -258,7 +288,9 @@ public class HttpPercoClient implements PercoClient {
                 };
                 SSLContext ssl = SSLContext.getInstance("TLS");
                 ssl.init(null, trustAll, new SecureRandom());
-                builder.sslContext(ssl);
+                SSLParameters sslParameters = ssl.getDefaultSSLParameters();
+                sslParameters.setEndpointIdentificationAlgorithm("");
+                builder.sslContext(ssl).sslParameters(sslParameters);
             } catch (Exception e) {
                 throw new IllegalStateException("Не удалось настроить SSL для Perco-Web", e);
             }
