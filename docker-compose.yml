@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./backend/application-local.properties:/app/application-local.properties:ro
+      - ./data:/app/data
     environment:
       SPRING_PROFILES_ACTIVE: onec,prod,docker
     networks:

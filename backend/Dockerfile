@@ -7,7 +7,9 @@ RUN mvn -B -q -DskipTests package
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-RUN adduser -D -u 1000 app
+RUN adduser -D -u 1000 app \
+ && mkdir -p /app/data/pass-photos \
+ && chown -R app:app /app
 USER app
 COPY --from=build /app/target/ruk-lk-api-*.jar app.jar
 EXPOSE 8080

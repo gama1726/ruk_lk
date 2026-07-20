@@ -116,6 +116,11 @@ public class PassPhotoService {
         return storageService.read(submission.getStoredFileName());
     }
 
+    private static final List<PassPhotoStatus> QUEUE_STATUSES = List.of(
+        PassPhotoStatus.PENDING,
+        PassPhotoStatus.PERCO_SYNCING
+    );
+
     private static final List<PassPhotoStatus> REVERTABLE_STATUSES = List.of(
         PassPhotoStatus.REJECTED,
         PassPhotoStatus.PERCO_SYNCED,
@@ -123,9 +128,35 @@ public class PassPhotoService {
     );
 
     public List<PassPhotoAdminItemDto> listPending() {
-        return repository.findByStatusOrderBySubmittedAtAsc(PassPhotoStatus.PENDING).stream()
+        return repository.findByStatusInOrderBySubmittedAtAsc(QUEUE_STATUSES).stream()
             .map(PassPhotoMapper::toAdminItem)
             .toList();
+    }
+
+    /**
+     * Зависшие PERCO_SYNCING после падения/рестарта API → PERCO_FAILED,
+     * чтобы снова были видны в истории и доступны для retry.
+     */
+    public int recoverStuckSyncing() {
+        List<PassPhotoSubmission> stuck = repository.findByStatus(PassPhotoStatus.PERCO_SYNCING);
+        if (stuck.isEmpty()) {
+            return 0;
+        }
+        Instant now = Instant.now();
+        int recovered = 0;
+        for (PassPhotoSubmission submission : stuck) {
+            submission.setStatus(PassPhotoStatus.PERCO_FAILED);
+            submission.setPercoError("Синхронизация с Perco прервана. Повторите загрузку из админки.");
+            if (submission.getReviewedAt() == null) {
+                submission.setReviewedAt(now);
+            }
+            if (submission.getReviewedBy() == null || submission.getReviewedBy().isBlank()) {
+                submission.setReviewedBy("system");
+            }
+            repository.save(submission);
+            recovered++;
+        }
+        return recovered;
     }
 
     public List<PassPhotoAdminItemDto> listProcessed(int limit) {

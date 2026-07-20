@@ -6,6 +6,7 @@ import {
   fetchAdminPassPhotoQueue,
   passPhotoStatusLabel,
   rejectPassPhoto,
+  retryPassPhotoPerco,
   revertPassPhoto,
   type PassPhotoAdminItem,
 } from '@/pass-photo'
@@ -21,6 +22,7 @@ function AdminPassPhotoCard({
   onApprove,
   onReject,
   onRevert,
+  onRetryPerco,
 }: {
   item: PassPhotoAdminItem
   token: string
@@ -28,7 +30,11 @@ function AdminPassPhotoCard({
   onApprove?: (id: string) => void
   onReject?: (id: string) => void
   onRevert?: (id: string) => void
+  onRetryPerco?: (id: string) => void
 }) {
+  const syncing = item.status === 'PERCO_SYNCING'
+  const failed = item.status === 'PERCO_FAILED'
+
   return (
     <Card padding="md" className={styles.card}>
       <div className={styles.meta}>
@@ -46,6 +52,11 @@ function AdminPassPhotoCard({
         {item.validationWarningsJson && (
           <span className={styles.warn}>⚠ {item.validationWarningsJson.replace(/\n/g, '; ')}</span>
         )}
+        {syncing && (
+          <span className={styles.warn}>
+            Идёт загрузка в Perco. Если зависло — обновите страницу после рестарта API или повторите из истории.
+          </span>
+        )}
       </div>
       <AdminPassPhotoThumb
         className={styles.photo}
@@ -54,7 +65,7 @@ function AdminPassPhotoCard({
         alt={item.studentFullName}
       />
       <div className={styles.actions}>
-        {onApprove && (
+        {onApprove && !syncing && (
           <Button
             type="button"
             disabled={busyId === item.id}
@@ -63,7 +74,7 @@ function AdminPassPhotoCard({
             Одобрить и в Perco
           </Button>
         )}
-        {onReject && (
+        {onReject && !syncing && (
           <Button
             type="button"
             variant="secondary"
@@ -71,6 +82,15 @@ function AdminPassPhotoCard({
             onClick={() => onReject(item.id)}
           >
             Отклонить
+          </Button>
+        )}
+        {onRetryPerco && failed && (
+          <Button
+            type="button"
+            disabled={busyId === item.id}
+            onClick={() => onRetryPerco(item.id)}
+          >
+            Повторить Perco
           </Button>
         )}
         {onRevert && (
@@ -154,6 +174,18 @@ export function AdminPassPhotos() {
     }
   }
 
+  const onRetryPerco = async (id: string) => {
+    setBusyId(id)
+    try {
+      await retryPassPhotoPerco(token, id)
+      await load(token)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Ошибка повторной загрузки в Perco')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   const onRevert = async (id: string) => {
     const ok = window.confirm(
       'Откатить заявку? Фото будет удалено, студент сможет загрузить новое.',
@@ -193,11 +225,14 @@ export function AdminPassPhotos() {
     )
   }
 
+  const pendingOnly = queue.filter((i) => i.status === 'PENDING')
+  const syncingOnly = queue.filter((i) => i.status === 'PERCO_SYNCING')
+
   return (
     <>
       <ScreenHeader
         title="Модерация фото для пропуска"
-        subtitle={`В очереди: ${queue.length}`}
+        subtitle={`На проверке: ${pendingOnly.length}${syncingOnly.length ? ` · загрузка в Perco: ${syncingOnly.length}` : ''}`}
       />
 
       {error && <p className={styles.error}>{error}</p>}
@@ -211,8 +246,8 @@ export function AdminPassPhotos() {
               item={item}
               token={token}
               busyId={busyId}
-              onApprove={onApprove}
-              onReject={onReject}
+              onApprove={item.status === 'PENDING' ? onApprove : undefined}
+              onReject={item.status === 'PENDING' ? onReject : undefined}
             />
           </li>
         ))}
@@ -226,7 +261,7 @@ export function AdminPassPhotos() {
 
       <h2 className={styles.sectionTitle}>Обработанные заявки</h2>
       <p className={styles.sectionHint}>
-        Откат удаляет заявку и файл — студент сможет загрузить фото заново.
+        При ошибке Perco можно повторить загрузку. Откат удаляет заявку и файл — студент сможет загрузить фото заново.
       </p>
       <ul className={styles.list}>
         {history.map((item) => (
@@ -235,6 +270,7 @@ export function AdminPassPhotos() {
               item={item}
               token={token}
               busyId={busyId}
+              onRetryPerco={item.status === 'PERCO_FAILED' ? onRetryPerco : undefined}
               onRevert={onRevert}
             />
           </li>

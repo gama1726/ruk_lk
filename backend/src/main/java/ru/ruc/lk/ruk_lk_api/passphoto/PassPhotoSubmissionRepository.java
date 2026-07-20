@@ -16,6 +16,10 @@ public interface PassPhotoSubmissionRepository extends JpaRepository<PassPhotoSu
 
     List<PassPhotoSubmission> findByStatusOrderBySubmittedAtAsc(PassPhotoStatus status);
 
+    List<PassPhotoSubmission> findByStatusInOrderBySubmittedAtAsc(Collection<PassPhotoStatus> statuses);
+
+    List<PassPhotoSubmission> findByStatus(PassPhotoStatus status);
+
     List<PassPhotoSubmission> findByStatusInOrderByReviewedAtDesc(
         Collection<PassPhotoStatus> statuses,
         Pageable pageable
