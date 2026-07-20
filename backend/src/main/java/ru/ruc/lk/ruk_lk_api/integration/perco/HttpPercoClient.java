@@ -25,7 +25,6 @@ import org.apache.hc.core5.ssl.SSLContexts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -111,41 +110,56 @@ public class HttpPercoClient implements PercoClient {
     }
 
     private String findStaffIdByZachetka(String zachetka) throws PercoException {
-        List<PercoStaffMember> list;
+        // list?searchString=номер не ищет по табельному; нужен staff/table + filters
+        String filtersJson = """
+            {"type":"and","rows":[{"column":"tabel_number","value":"%s"}]}
+            """.formatted(escapeJson(zachetka)).trim();
+
+        PercoStaffTableResponse table;
         try {
-            list = restClient.get()
+            table = restClient.get()
                 .uri(uriBuilder -> uriBuilder
-                    .path("/api/users/staff/list")
+                    .path("/api/users/staff/table")
                     .queryParam("token", token)
-                    .queryParam("searchString", zachetka)
+                    .queryParam("status", "active")
+                    .queryParam("filters", filtersJson)
                     .build())
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<PercoStaffMember>>() {});
+                .body(PercoStaffTableResponse.class);
         } catch (RestClientResponseException e) {
-            log.error("Perco search HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("Perco table search HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new PercoException("Ошибка поиска в Perco-Web", e);
         } catch (ResourceAccessException e) {
-            log.error("Perco search I/O: {}", e.getMessage());
+            log.error("Perco table search I/O: {}", e.getMessage());
             throw new PercoException("Не удалось подключиться к Perco-Web: " + rootMessage(e), e);
         }
 
-        if (list == null || list.isEmpty()) {
+        List<PercoStaffMember> rows = table == null || table.rows() == null ? List.of() : table.rows();
+        if (rows.isEmpty()) {
             throw new PercoException("Студент не найден в Perco-Web по зачётке " + zachetka);
         }
 
-        if (list.size() == 1) {
-            return requireStaffId(list.getFirst(), zachetka);
+        // filters ищет по вхождению — оставляем только точное совпадение табельного
+        List<PercoStaffMember> exact = rows.stream()
+            .filter(person -> zachetka.equals(person.resolvedTabelNumber()))
+            .toList();
+
+        if (exact.isEmpty()) {
+            throw new PercoException("Студент не найден в Perco-Web по зачётке " + zachetka);
+        }
+        if (exact.size() > 1) {
+            throw new PercoException(
+                "В Perco-Web найдено несколько записей с табельным номером " + zachetka
+            );
         }
 
-        for (PercoStaffMember person : list) {
-            if (zachetka.equals(person.resolvedTabelNumber())) {
-                return requireStaffId(person, zachetka);
-            }
-        }
+        return requireStaffId(exact.getFirst(), zachetka);
+    }
 
-        throw new PercoException(
-            "В Perco-Web найдено несколько записей, но ни одна не совпадает с зачёткой " + zachetka
-        );
+    private static String escapeJson(String value) {
+        return value
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"");
     }
 
     private void updateStaffPhoto(String staffId, String photoWithPrefix) throws PercoException {

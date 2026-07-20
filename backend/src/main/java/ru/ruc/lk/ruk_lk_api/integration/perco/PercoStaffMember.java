@@ -5,13 +5,19 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record PercoStaffMember(
-    String id,
+    Object id,
+    String fio,
+    String name,
     @JsonProperty("tabel_number") String tabelNumber,
     @JsonProperty("tabelNumber") String tabelNumberAlt,
     @JsonProperty("tab_number") String tabNumber
 ) {
     public String resolvedId() {
-        return id;
+        if (id == null) {
+            return null;
+        }
+        String value = String.valueOf(id).trim();
+        return value.isEmpty() || "null".equals(value) ? null : value;
     }
 
     public String resolvedTabelNumber() {
