@@ -143,6 +143,13 @@ export function apiPost<T>(path: string, json: unknown, init?: RequestInit): Pro
 }
 
 /**
+ * PUT-запрос с JSON-телом.
+ */
+export function apiPut<T>(path: string, json: unknown, init?: RequestInit): Promise<T> {
+  return apiRequest<T>(path, { ...init, method: 'PUT', json })
+}
+
+/**
  * POST multipart/form-data (загрузка файлов).
  */
 export async function apiPostFormData<T>(path: string, formData: FormData, init?: RequestInit): Promise<T> {

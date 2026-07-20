@@ -71,8 +71,10 @@ export function Profile() {
       try {
         const sub = await fetchPassPhotoSubmission()
         setPassPhotoStatus(sub.status ? passPhotoStatusLabel[sub.status] : null)
-        if (sub.status === 'PERCO_SYNCED' && sub.id) {
+        if (sub.status === 'PERCO_SYNCED' && sub.id && sub.useAsAvatar === true) {
           setPassPhotoSrc(passPhotoImageUrl(sub.id))
+        } else {
+          setPassPhotoSrc(null)
         }
       } catch {
         setPassPhotoSrc(null)

@@ -35,6 +35,7 @@ public class PassPhotoService {
         .withZone(MOSCOW);
 
     private final PassPhotoSubmissionRepository repository;
+    private final StudentPassPhotoPrefsRepository prefsRepository;
     private final PassPhotoValidationService validationService;
     private final PassPhotoStorageService storageService;
     private final PercoClient percoClient;
@@ -43,6 +44,7 @@ public class PassPhotoService {
 
     public PassPhotoService(
         PassPhotoSubmissionRepository repository,
+        StudentPassPhotoPrefsRepository prefsRepository,
         PassPhotoValidationService validationService,
         PassPhotoStorageService storageService,
         PercoClient percoClient,
@@ -50,6 +52,7 @@ public class PassPhotoService {
         PassPhotoProperties properties
     ) {
         this.repository = repository;
+        this.prefsRepository = prefsRepository;
         this.validationService = validationService;
         this.storageService = storageService;
         this.percoClient = percoClient;
@@ -60,8 +63,19 @@ public class PassPhotoService {
     public PassPhotoSubmissionDto getCurrent(HttpSession session) {
         StudentSession student = requireStudent(session);
         return repository.findFirstByStudentIdOrderBySubmittedAtDesc(student.studentId())
-            .map(this::toStudentDto)
-            .orElse(emptyDto());
+            .map(entity -> toStudentDto(entity, student.studentId()))
+            .orElseGet(() -> emptyDto(isUseAsAvatar(student.studentId())));
+    }
+
+    public PassPhotoSubmissionDto setUseAsAvatar(HttpSession session, boolean useAsAvatar) {
+        StudentSession student = requireStudent(session);
+        StudentPassPhotoPrefs prefs = prefsRepository.findById(student.studentId())
+            .orElseGet(() -> new StudentPassPhotoPrefs(student.studentId(), false));
+        prefs.setUseAsAvatar(useAsAvatar);
+        prefsRepository.save(prefs);
+        return repository.findFirstByStudentIdOrderBySubmittedAtDesc(student.studentId())
+            .map(entity -> toStudentDto(entity, student.studentId()))
+            .orElseGet(() -> emptyDto(useAsAvatar));
     }
 
     public PassPhotoValidationResultDto validatePreview(HttpSession session, MultipartFile file) throws IOException {
@@ -291,12 +305,27 @@ public class PassPhotoService {
         submission.setReviewedBy(reviewer);
         submission.setReviewedAt(Instant.now());
         repository.save(submission);
-        return toStudentDto(submission);
+        return toStudentDto(submission, submission.getStudentId());
     }
 
     private PassPhotoSubmissionDto toStudentDto(PassPhotoSubmission entity) {
+        return toStudentDto(entity, entity.getStudentId());
+    }
+
+    private PassPhotoSubmissionDto toStudentDto(PassPhotoSubmission entity, String studentId) {
         ResubmitPolicy policy = resubmitPolicy(entity);
-        return PassPhotoMapper.toDto(entity, policy.canResubmit(), policy.nextResubmitAt());
+        return PassPhotoMapper.toDto(
+            entity,
+            policy.canResubmit(),
+            policy.nextResubmitAt(),
+            isUseAsAvatar(studentId)
+        );
+    }
+
+    private boolean isUseAsAvatar(String studentId) {
+        return prefsRepository.findById(studentId)
+            .map(StudentPassPhotoPrefs::isUseAsAvatar)
+            .orElse(false);
     }
 
     private ResubmitPolicy resubmitPolicy(PassPhotoSubmission entity) {
@@ -343,9 +372,9 @@ public class PassPhotoService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Заявка не найдена"));
     }
 
-    private static PassPhotoSubmissionDto emptyDto() {
+    private static PassPhotoSubmissionDto emptyDto(boolean useAsAvatar) {
         return new PassPhotoSubmissionDto(
-            null, null, null, List.of(), null, null, null, null, false, true, null
+            null, null, null, List.of(), null, null, null, null, false, true, null, useAsAvatar
         );
     }
 

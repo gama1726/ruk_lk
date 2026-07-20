@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoAdminItemDto;
+import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoAvatarPreferenceRequest;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoIssueDto;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoRejectRequest;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoSubmissionDto;
@@ -39,6 +41,14 @@ public class PassPhotoController {
     @GetMapping
     public PassPhotoSubmissionDto current(HttpSession session) {
         return passPhotoService.getCurrent(session);
+    }
+
+    @PutMapping("/avatar-preference")
+    public PassPhotoSubmissionDto setAvatarPreference(
+        HttpSession session,
+        @RequestBody PassPhotoAvatarPreferenceRequest request
+    ) {
+        return passPhotoService.setUseAsAvatar(session, request.useAsAvatar());
     }
 
     @PostMapping(value = "/validate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

@@ -17,7 +17,8 @@ final class PassPhotoMapper {
     static PassPhotoSubmissionDto toDto(
         PassPhotoSubmission entity,
         boolean canResubmit,
-        Instant nextResubmitAt
+        Instant nextResubmitAt,
+        boolean useAsAvatar
     ) {
         return new PassPhotoSubmissionDto(
             entity.getId().toString(),
@@ -30,7 +31,8 @@ final class PassPhotoMapper {
             entity.getPercoError(),
             entity.getStoredFileName() != null && !entity.getStoredFileName().isBlank(),
             canResubmit,
-            formatInstant(nextResubmitAt)
+            formatInstant(nextResubmitAt),
+            useAsAvatar
         );
     }
 

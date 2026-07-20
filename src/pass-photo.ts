@@ -2,7 +2,7 @@
  * @file Клиент API «Фото для пропуска».
  */
 
-import { apiGet, apiPost, apiPostFormData, getApiBaseUrl, isApiConfigured } from '@/apiClient'
+import { apiGet, apiPost, apiPostFormData, apiPut, getApiBaseUrl, isApiConfigured } from '@/apiClient'
 import type { PassPhotoIssuePayload } from '@/apiClient'
 
 export type PassPhotoStatus =
@@ -24,6 +24,8 @@ export type PassPhotoSubmission = {
   hasImage: boolean
   canResubmit?: boolean
   nextResubmitAt?: string | null
+  /** Показывать фото пропуска как аватар в ЛК (по умолчанию false). */
+  useAsAvatar?: boolean
 }
 
 export type PassPhotoAdminItem = {
@@ -69,6 +71,10 @@ export async function uploadPassPhoto(file: File): Promise<PassPhotoSubmission> 
   const form = new FormData()
   form.append('file', file)
   return apiPostFormData<PassPhotoSubmission>('/api/student/pass-photo', form)
+}
+
+export async function setPassPhotoAsAvatar(useAsAvatar: boolean): Promise<PassPhotoSubmission> {
+  return apiPut<PassPhotoSubmission>('/api/student/pass-photo/avatar-preference', { useAsAvatar })
 }
 
 export async function fetchAdminPassPhotoQueue(token: string): Promise<PassPhotoAdminItem[]> {

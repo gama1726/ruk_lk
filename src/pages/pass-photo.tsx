@@ -7,6 +7,7 @@ import {
   isPassPhotoApiEnabled,
   passPhotoImageUrl,
   passPhotoStatusLabel,
+  setPassPhotoAsAvatar,
   uploadPassPhoto,
   validatePassPhoto,
   type PassPhotoSubmission,
@@ -36,6 +37,7 @@ export function PassPhoto() {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [consent, setConsent] = useState(false)
+  const [avatarSaving, setAvatarSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -126,6 +128,19 @@ export function PassPhoto() {
     }
   }
 
+  const onToggleAvatar = async (checked: boolean) => {
+    setAvatarSaving(true)
+    setError(null)
+    try {
+      const data = await setPassPhotoAsAvatar(checked)
+      setSubmission(data)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Не удалось сохранить настройку аватара')
+    } finally {
+      setAvatarSaving(false)
+    }
+  }
+
   const canUpload =
     !submission?.status ||
     submission.status === 'REJECTED' ||
@@ -189,6 +204,17 @@ export function PassPhoto() {
               src={passPhotoImageUrl(submission.id)}
               alt="Текущее загруженное фото"
             />
+          )}
+          {submission.status === 'PERCO_SYNCED' && submission.hasImage && (
+            <label className={styles.consent}>
+              <input
+                type="checkbox"
+                checked={submission.useAsAvatar === true}
+                disabled={avatarSaving}
+                onChange={(e) => void onToggleAvatar(e.target.checked)}
+              />
+              Использовать это фото как аватар в личном кабинете
+            </label>
           )}
         </Card>
       )}

@@ -17,5 +17,7 @@ public record PassPhotoSubmissionDto(
     /** Можно ли отправить новое фото сейчас (с учётом статуса и cooldown). */
     boolean canResubmit,
     /** Когда снова можно загрузить (ISO-8601), если canResubmit=false из‑за лимита. */
-    String nextResubmitAt
+    String nextResubmitAt,
+    /** Показывать ли фото пропуска как аватар в ЛК (по умолчанию false — коты). */
+    boolean useAsAvatar
 ) {}
