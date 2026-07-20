@@ -117,13 +117,14 @@ public class HttpPercoClient implements PercoClient {
 
         PercoStaffTableResponse table;
         try {
+            // filters JSON содержит { } — нельзя класть его в queryParam через UriBuilder
+            // (Spring воспринимает это как URI-шаблон). Значение передаём через {filters}.
             table = restClient.get()
-                .uri(uriBuilder -> uriBuilder
-                    .path("/api/users/staff/table")
-                    .queryParam("token", token)
-                    .queryParam("status", "active")
-                    .queryParam("filters", filtersJson)
-                    .build())
+                .uri(
+                    "/api/users/staff/table?token={token}&status=active&filters={filters}",
+                    token,
+                    filtersJson
+                )
                 .retrieve()
                 .body(PercoStaffTableResponse.class);
         } catch (RestClientResponseException e) {
