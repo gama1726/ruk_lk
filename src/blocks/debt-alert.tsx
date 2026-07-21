@@ -6,7 +6,7 @@ import { formatControlForm } from '@/record-book-format'
 import { useRecordBook } from '@/record-book-store'
 import { useCurrentProgram } from '@/study'
 import { paths } from '@/paths'
-import { Card, Loader } from '@/ui'
+import { Card } from '@/ui'
 import styles from './home.module.css'
 
 /**
