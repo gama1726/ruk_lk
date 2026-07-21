@@ -80,24 +80,39 @@ final class GradebookMapper {
     }
 
     private static String statusForGrade(String normalizedGrade) {
-        return switch (normalizedGrade) {
+        String key = normalizeGradeKey(normalizedGrade);
+        return switch (key) {
             case "зачтено" -> "passed";
             case "отлично" -> "excellent";
             case "хорошо" -> "good";
             case "удовлетворительно" -> "satisfactory";
-            case "не зачтено", "неявка" -> "failed";
+            case "не зачтено", "незачтено", "неявка", "неудовлетворительно" -> "failed";
             case "" -> "not_graded";
             default -> "not_graded";
         };
     }
 
     private static Integer pointsForGrade(String normalizedGrade) {
-        return switch (normalizedGrade) {
+        String key = normalizeGradeKey(normalizedGrade);
+        return switch (key) {
             case "отлично" -> 5;
             case "хорошо" -> 4;
             case "удовлетворительно" -> 3;
+            case "неудовлетворительно" -> 2;
             default -> null;
         };
+    }
+
+    /** Нижний регистр, ё→е, лишние пробелы — для «Не зачтено» / «незачтено». */
+    private static String normalizeGradeKey(String normalizedGrade) {
+        if (normalizedGrade == null || normalizedGrade.isBlank()) {
+            return "";
+        }
+        return normalizedGrade
+            .trim()
+            .toLowerCase(Locale.ROOT)
+            .replace('ё', 'е')
+            .replaceAll("\\s+", " ");
     }
 
     private static String safe(String value) {

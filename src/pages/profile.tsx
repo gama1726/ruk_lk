@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { NoticeCategoryIcon } from '@/blocks/notice-category-icon'
 import { ageWithBirthDate, courseLabel, maskPhone, noticeDate } from '@/mocks/format'
 import { notices } from '@/mocks/notices'
 import { mockStudentProfile } from '@/profile'
 import { useStudentProfile } from '@/student-profile-store'
+import { academicDebtsFromRows } from '@/debts'
+import { useRecordBook } from '@/record-book-store'
+import { useCurrentProgram } from '@/study'
 import { paths } from '@/paths'
 import { isApiConfigured } from '@/apiClient'
 import {
@@ -51,12 +54,15 @@ export function Profile() {
   const profile = useStudentProfile((s) => s.profile)
   const profileStatus = useStudentProfile((s) => s.status)
   const loadProfile = useStudentProfile((s) => s.load)
+  const program = useCurrentProgram()
+  const bookRows = useRecordBook((s) => s.rows)
+  const bookStatus = useRecordBook((s) => s.status)
+  const loadRecordBook = useRecordBook((s) => s.load)
 
   const [passPhotoSrc, setPassPhotoSrc] = useState<string | null>(null)
   const [passPhotoStatus, setPassPhotoStatus] = useState<string | null>(null)
 
-  // Задолженности и уведомления — моки до API; на профиле пока без долгов
-  const debts = [] as const
+  const debts = useMemo(() => academicDebtsFromRows(bookRows), [bookRows])
   const recentNotices = notices.slice(0, 5)
 
   useEffect(() => {
@@ -64,6 +70,12 @@ export function Profile() {
       void loadProfile()
     }
   }, [loadProfile, profileStatus])
+
+  useEffect(() => {
+    if (isApiConfigured() && bookStatus === 'idle') {
+      void loadRecordBook(program.id)
+    }
+  }, [bookStatus, loadRecordBook, program.id])
 
   useEffect(() => {
     if (!isPassPhotoApiEnabled()) return

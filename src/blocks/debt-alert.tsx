@@ -1,8 +1,12 @@
+import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { activeDebts, formatDebtDate } from '@/mocks/debts'
+import { isApiConfigured } from '@/apiClient'
+import { academicDebtsFromRows, debtGradeLabel } from '@/debts'
+import { formatControlForm } from '@/record-book-format'
+import { useRecordBook } from '@/record-book-store'
 import { useCurrentProgram } from '@/study'
 import { paths } from '@/paths'
-import { Card } from '@/ui'
+import { Card, Loader } from '@/ui'
 import styles from './home.module.css'
 
 /**
@@ -10,8 +14,20 @@ import styles from './home.module.css'
  */
 export function DebtAlert() {
   const program = useCurrentProgram()
-  const debts = activeDebts(program.id)
+  const rows = useRecordBook((s) => s.rows)
+  const bookStatus = useRecordBook((s) => s.status)
+  const loadRecordBook = useRecordBook((s) => s.load)
 
+  useEffect(() => {
+    if (isApiConfigured() && bookStatus === 'idle') {
+      void loadRecordBook(program.id)
+    }
+  }, [bookStatus, loadRecordBook, program.id])
+
+  const debts = useMemo(() => academicDebtsFromRows(rows), [rows])
+  const loading = isApiConfigured() && (bookStatus === 'loading' || bookStatus === 'idle')
+
+  if (loading) return null
   if (debts.length === 0) return null
 
   const debt = debts[0]
@@ -19,12 +35,12 @@ export function DebtAlert() {
   return (
     <Card title="Задолженность">
       <p className={styles.muted}>
-        <strong>{debt.subject}</strong> · {debt.controlForm}
+        <strong>{debt.subject}</strong> · {formatControlForm(debt.controlForm) || debt.controlForm || '—'}
       </p>
-      <p className={styles.muted}>{debt.teacher}</p>
-      <p className={styles.note}>Пересдача до {formatDebtDate(debt.retakeUntil)}</p>
+      <p className={styles.muted}>{debt.teacher || '—'}</p>
+      <p className={styles.note}>{debtGradeLabel(debt)}</p>
       <p className={styles.note}>
-        <Link to={paths.debts}>Все задолженности</Link>
+        <Link to={paths.debts}>Все задолженности ({debts.length})</Link>
       </p>
     </Card>
   )
