@@ -15,7 +15,7 @@ import styles from './public.module.css'
 export function Resources() {
   return (
     <>
-      <ScreenHeader title="Ресурсы" subtitle="Сервисы университета вне личного кабинета" />
+      <ScreenHeader title="Ресурсы (dev)" subtitle="Сервисы университета вне личного кабинета" />
 
       <ul className={styles.list}>
         {resourceLinks.map((r) => (

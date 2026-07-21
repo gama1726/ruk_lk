@@ -60,7 +60,7 @@ export function Requests() {
   return (
     <>
       <ScreenHeader
-        title="Заявления и справки"
+        title="Заявления и справки (dev)"
         subtitle="Справки, обращения в деканат"
         actions={
           <Button type="button" onClick={() => setOpen(true)}>

@@ -50,7 +50,7 @@ export function Portfolio() {
   return (
     <>
       <ScreenHeader
-        title="Портфолио"
+        title="Портфолио (dev)"
         subtitle="Достижения и подтверждающие документы"
         actions={
           <Button type="button" onClick={() => setOpen(true)}>

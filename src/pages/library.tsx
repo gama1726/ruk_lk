@@ -34,7 +34,7 @@ export function Library() {
 
   return (
     <>
-      <ScreenHeader title="Библиотека / ЭБС" subtitle="Читательский билет и электронные ресурсы" />
+      <ScreenHeader title="Библиотека / ЭБС (dev)" subtitle="Читательский билет и электронные ресурсы" />
 
       <div className={common.grid}>
         <div className={common.card}>

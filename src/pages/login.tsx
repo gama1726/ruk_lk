@@ -30,7 +30,7 @@ export function Login() {
       </Button>
 
       <p className={card.forgotRow}>
-        <Link to={paths.forgot}>Забыли пароль?</Link>
+        <Link to={paths.forgot}>Забыли пароль? (dev)</Link>
       </p>
 
       <div className={card.divider}>

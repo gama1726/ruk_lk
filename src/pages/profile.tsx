@@ -186,7 +186,7 @@ export function Profile() {
 
           <Card className={styles.noticesCard}>
             <div className={styles.noticesHeader}>
-              <h2 className={styles.noticesTitle}>Уведомления</h2>
+              <h2 className={styles.noticesTitle}>Уведомления (dev)</h2>
               <Link to={paths.news} className={styles.allLink}>
                 Все уведомления
               </Link>

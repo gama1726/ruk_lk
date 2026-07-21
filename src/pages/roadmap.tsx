@@ -29,7 +29,7 @@ export function Roadmap() {
 
   return (
     <>
-      <ScreenHeader title="Траектория" subtitle={programLabel(program)} />
+      <ScreenHeader title="Траектория (dev)" subtitle={programLabel(program)} />
 
       {track.size === 0 ? (
         <NoData title="Траектория не построена" />

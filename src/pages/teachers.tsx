@@ -26,7 +26,7 @@ export function Teachers() {
 
   return (
     <>
-      <ScreenHeader title="Преподаватели" subtitle={programLabel(program)} />
+      <ScreenHeader title="Преподаватели (dev)" subtitle={programLabel(program)} />
 
       <div className={styles.filters}>
         <Select label="Кафедра" options={deptOptions} value={department} onChange={(e) => setDepartment(e.target.value)} />

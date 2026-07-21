@@ -21,7 +21,7 @@ export type NavGroup = {
 /** Верхние пункты без группы — как у МИРЭА */
 export const sidebarTop: NavItem[] = [
   { to: paths.profile, label: 'Профиль' },
-  { to: paths.news, label: 'Новости и уведомления' },
+  { to: paths.news, label: 'Новости и уведомления (dev)' },
   { to: paths.schedule, label: 'Расписание' },
 ]
 
@@ -31,34 +31,34 @@ export const sidebarGroups: NavGroup[] = [
     id: 'study',
     label: 'Обучение',
     items: [
-      { to: paths.attendance, label: 'Посещаемость' },
+      { to: paths.attendance, label: 'Посещаемость (dev)' },
       { to: paths.recordBook, label: 'Электронная зачётная книжка' },
       { to: paths.grades, label: 'Успеваемость' },
-      { to: paths.debts, label: 'Академические задолженности' },
-      { to: paths.library, label: 'Читательский билет' },
-      { to: paths.teachers, label: 'Преподаватели' },
-      { to: paths.orders, label: 'Приказы' },
+      { to: paths.debts, label: 'Академические задолженности (dev)' },
+      { to: paths.library, label: 'Читательский билет (dev)' },
+      { to: paths.teachers, label: 'Преподаватели (dev)' },
+      { to: paths.orders, label: 'Приказы (dev)' },
     ],
   },
   {
     id: 'program',
     label: 'Образовательная программа',
     items: [
-      { to: paths.studyPlan, label: 'Учебный план' },
-      { to: paths.roadmap, label: 'Траектория' },
+      { to: paths.studyPlan, label: 'Учебный план (dev)' },
+      { to: paths.roadmap, label: 'Траектория (dev)' },
     ],
   },
   {
     id: 'services',
     label: 'Сервисы',
     items: [
-      { to: paths.requests, label: 'Заявления' },
-      { to: paths.payments, label: 'Оплата услуг' },
-      { to: paths.dormitory, label: 'Заявки по общежитиям' },
-      { to: paths.bypassList, label: 'Обходной лист' },
-      { to: paths.psychologist, label: 'Приём психолога' },
-      { to: paths.portfolio, label: 'Портфолио' },
-      { to: paths.settings, label: 'Настройки' },
+      { to: paths.requests, label: 'Заявления (dev)' },
+      { to: paths.payments, label: 'Оплата услуг (dev)' },
+      { to: paths.dormitory, label: 'Заявки по общежитиям (dev)' },
+      { to: paths.bypassList, label: 'Обходной лист (dev)' },
+      { to: paths.psychologist, label: 'Приём психолога (dev)' },
+      { to: paths.portfolio, label: 'Портфолио (dev)' },
+      { to: paths.settings, label: 'Настройки (dev)' },
       { to: paths.passPhoto, label: 'Фото для пропуска' },
     ],
   },
@@ -74,6 +74,6 @@ export const menu = [
 export const mobileTabs: NavItem[] = [
   { to: paths.profile, label: 'Профиль' },
   { to: paths.schedule, label: 'Расписание' },
-  { to: paths.news, label: 'Уведомления' },
+  { to: paths.news, label: 'Уведомления (dev)' },
   { to: paths.services, label: 'Сервисы' },
 ]

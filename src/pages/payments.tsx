@@ -25,7 +25,7 @@ export function Payments() {
 
   return (
     <>
-      <ScreenHeader title="Оплата и договоры" subtitle="Договор на обучение и платежи" />
+      <ScreenHeader title="Оплата и договоры (dev)" subtitle="Договор на обучение и платежи" />
 
       <p className={styles.warn}>
         Онлайн-оплата в этом кабинете пока недоступна. После подключения backend платежи будут проходить через

@@ -9,14 +9,14 @@ import { ScreenHeader, Card } from '@/ui'
 import styles from './services.module.css'
 
 const items = [
-  { to: paths.attendance, title: 'Посещаемость', note: 'Журнал и процент по дисциплинам' },
+  { to: paths.attendance, title: 'Посещаемость (dev)', note: 'Журнал и процент по дисциплинам' },
   { to: paths.recordBook, title: 'Зачётная книжка', note: 'Оценки, БРС, практика' },
   { to: paths.grades, title: 'Успеваемость', note: 'Сводка по семестрам' },
-  { to: paths.debts, title: 'Задолженности', note: 'Академические долги' },
-  { to: paths.studyPlan, title: 'Учебный план', note: 'Дисциплины и часы' },
-  { to: paths.roadmap, title: 'Траектория', note: 'Дорожная карта обучения' },
-  { to: paths.teachers, title: 'Преподаватели', note: 'Контакты и консультации' },
-  { to: paths.orders, title: 'Приказы и документы', note: 'Приказы для скачивания' },
+  { to: paths.debts, title: 'Задолженности (dev)', note: 'Академические долги' },
+  { to: paths.studyPlan, title: 'Учебный план (dev)', note: 'Дисциплины и часы' },
+  { to: paths.roadmap, title: 'Траектория (dev)', note: 'Дорожная карта обучения' },
+  { to: paths.teachers, title: 'Преподаватели (dev)', note: 'Контакты и консультации' },
+  { to: paths.orders, title: 'Приказы и документы (dev)', note: 'Приказы для скачивания' },
 ] as const
 
 /**

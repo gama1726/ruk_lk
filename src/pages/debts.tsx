@@ -13,7 +13,7 @@ export function Debts() {
 
   return (
     <>
-      <ScreenHeader title="Задолженности" subtitle={programLabel(program)} />
+      <ScreenHeader title="Задолженности (dev)" subtitle={programLabel(program)} />
 
       {items.length === 0 ? (
         <NoData title="Академических задолженностей нет" />

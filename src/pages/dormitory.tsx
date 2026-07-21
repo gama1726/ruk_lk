@@ -24,7 +24,7 @@ export function Dormitory() {
   if (d.status === 'none') {
     return (
       <>
-        <ScreenHeader title="Общежитие" subtitle="Проживание и бытовые вопросы" />
+        <ScreenHeader title="Общежитие (dev)" subtitle="Проживание и бытовые вопросы" />
         <NoData title="Вы не проживаете в общежитии" description="Подать заявку на заселение можно через деканат" />
       </>
     )
@@ -32,7 +32,7 @@ export function Dormitory() {
 
   return (
     <>
-      <ScreenHeader title="Общежитие" subtitle="Проживание и бытовые вопросы" />
+      <ScreenHeader title="Общежитие (dev)" subtitle="Проживание и бытовые вопросы" />
 
       <div className={styles.grid}>
         <div className={styles.card}>

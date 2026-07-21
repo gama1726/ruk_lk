@@ -11,7 +11,7 @@ import { LinkLoginForm } from './link-login-form'
 export function ContractLogin() {
   return (
     <LinkLoginForm
-      title="Вход для владельца договора"
+      title="Вход для владельца договора (dev)"
       hint="Для оплаты обучения и просмотра договора. Данные сверяются с учётной системой университета."
       fields={[
         { name: 'email', label: 'Ваш адрес электронной почты', placeholder: 'payer@mail.ru' },

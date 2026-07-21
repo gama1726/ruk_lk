@@ -42,7 +42,7 @@ export function SsoLogin() {
 
   return (
     <>
-      <h1 className={styles.title}>Вход в систему аутентификации</h1>
+      <h1 className={styles.title}>Вход в систему аутентификации (dev)</h1>
       <p className={styles.realm}>Российский университет кооперации</p>
 
       <form className={styles.form} onSubmit={handleSubmit}>

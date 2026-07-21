@@ -48,7 +48,7 @@ export function ForgotPassword() {
   return (
     <>
       <AuthCard>
-        <p className={card.sectionLabel}>Восстановление пароля</p>
+        <p className={card.sectionLabel}>Восстановление пароля (dev)</p>
 
         {done ? (
           <p className={styles.forgotOk}>

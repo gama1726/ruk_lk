@@ -4,14 +4,14 @@ import { ScreenHeader, Card } from '@/ui'
 import styles from './services.module.css'
 
 const items = [
-  { to: paths.requests, title: 'Заявления и справки', note: 'Справки, обращения в деканат' },
-  { to: paths.payments, title: 'Оплата и договоры', note: 'Платежи, договор на обучение' },
-  { to: paths.dormitory, title: 'Общежитие', note: 'Проживание, заявки, бытовые вопросы' },
-  { to: paths.bypassList, title: 'Обходной лист', note: 'Подписи подразделений' },
-  { to: paths.psychologist, title: 'Психолог', note: 'Запись на консультацию' },
-      { to: paths.portfolio, title: 'Портфолио', note: 'Достижения и модерация' },
-      { to: paths.passPhoto, title: 'Фото для пропуска', note: 'Загрузка фото для Perco-Web' },
-      { to: paths.library, title: 'Библиотека / ЭБС', note: 'Читательский билет, книги' },
+  { to: paths.requests, title: 'Заявления и справки (dev)', note: 'Справки, обращения в деканат' },
+  { to: paths.payments, title: 'Оплата и договоры (dev)', note: 'Платежи, договор на обучение' },
+  { to: paths.dormitory, title: 'Общежитие (dev)', note: 'Проживание, заявки, бытовые вопросы' },
+  { to: paths.bypassList, title: 'Обходной лист (dev)', note: 'Подписи подразделений' },
+  { to: paths.psychologist, title: 'Психолог (dev)', note: 'Запись на консультацию' },
+  { to: paths.portfolio, title: 'Портфолио (dev)', note: 'Достижения и модерация' },
+  { to: paths.passPhoto, title: 'Фото для пропуска', note: 'Загрузка фото для Perco-Web' },
+  { to: paths.library, title: 'Библиотека / ЭБС (dev)', note: 'Читательский билет, книги' },
 ] as const
 
 /**

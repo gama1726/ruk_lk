@@ -19,7 +19,7 @@ export function Orders() {
 
   return (
     <>
-      <ScreenHeader title="Приказы и документы" subtitle={programLabel(program)} />
+      <ScreenHeader title="Приказы и документы (dev)" subtitle={programLabel(program)} />
 
       {rows.length === 0 ? (
         <NoData title="Приказов нет" />

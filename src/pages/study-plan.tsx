@@ -14,7 +14,7 @@ export function StudyPlan() {
 
   return (
     <>
-      <ScreenHeader title="Учебный план" subtitle={programLabel(program)} />
+      <ScreenHeader title="Учебный план (dev)" subtitle={programLabel(program)} />
 
       {bySemester.size === 0 ? (
         <NoData title="План не загружен" />

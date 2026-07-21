@@ -67,7 +67,7 @@ export function Psychologist() {
   return (
     <>
       <ScreenHeader
-        title="Психологическая поддержка"
+        title="Психологическая поддержка (dev)"
         subtitle="Конфиденциальные консультации"
         actions={
           <Button type="button" onClick={() => setOpen(true)}>

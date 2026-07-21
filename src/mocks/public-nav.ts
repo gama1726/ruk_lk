@@ -11,10 +11,10 @@ export type PublicNavItem = {
 
 /** Верхнее меню как на портале */
 export const publicNav: PublicNavItem[] = [
-  { to: paths.resources, label: 'Ресурсы' },
-  { to: paths.resources, label: 'Дистанционное обучение' },
-  { to: paths.support, label: 'Техническая поддержка' },
-  { to: paths.support, label: 'Обращение в приёмную' },
+  { to: paths.resources, label: 'Ресурсы (dev)' },
+  { to: paths.resources, label: 'Дистанционное обучение (dev)' },
+  { to: paths.support, label: 'Техническая поддержка (dev)' },
+  { to: paths.support, label: 'Обращение в приёмную (dev)' },
 ]
 
 export type SocialLink = {

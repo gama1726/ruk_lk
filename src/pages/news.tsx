@@ -30,7 +30,7 @@ export function News() {
 
   return (
     <>
-      <ScreenHeader title="Новости и уведомления" subtitle="Объявления университета и личные сообщения" />
+      <ScreenHeader title="Новости и уведомления (dev)" subtitle="Объявления университета и личные сообщения" />
 
       <div className={styles.filters} role="tablist" aria-label="Фильтр уведомлений">
         {noticeFilters.map((f) => (

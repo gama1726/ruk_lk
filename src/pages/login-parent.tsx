@@ -11,7 +11,7 @@ import { LinkLoginForm } from './link-login-form'
 export function ParentLogin() {
   return (
     <LinkLoginForm
-      title="Вход для родителя"
+      title="Вход для родителя (dev)"
       hint="Укажите личную почту и номер студенческого билета ребёнка. Ссылка для входа придёт на почту после подключения backend."
       fields={[
         { name: 'email', label: 'Ваш адрес электронной почты', placeholder: 'ivanov@mail.ru' },
