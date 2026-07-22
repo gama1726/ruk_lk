@@ -12,12 +12,14 @@ import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
 import org.springframework.http.HttpStatus;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCGradebookResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCOrdersResponse;
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCPortfolioResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient;
@@ -147,6 +149,20 @@ public class StudentService {
             ));
 
         return PortfolioMapper.toResponse(portfolio);
+    }
+
+    public StudentPaymentsResponse getPayments(HttpSession session, LocalDate date) {
+        StudentSession student = requireStudent(session);
+        LocalDate asOf = date != null ? date : LocalDate.now();
+
+        OneCPaymentsResponse payments = onecClient
+            .fetchPayments(student.studentId(), asOf, true)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Данные об оплате не найдены"
+            ));
+
+        return PaymentsMapper.toResponse(payments, asOf);
     }
 
     public ScheduleResponse getSchedule(HttpSession session, LocalDate date) {

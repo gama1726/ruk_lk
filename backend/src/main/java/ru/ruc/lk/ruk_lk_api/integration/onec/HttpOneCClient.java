@@ -1,5 +1,6 @@
 package ru.ruc.lk.ruk_lk_api.integration.onec;
 
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.List;
 
@@ -122,6 +123,29 @@ public class HttpOneCClient implements OneCClient {
                 return Optional.empty();
             }
             return Optional.of(portfolio);
+        } catch (HttpClientErrorException e) {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public Optional<OneCPaymentsResponse> fetchPayments(String studentId, LocalDate asOfDate, boolean showAll) {
+        LocalDate date = asOfDate != null ? asOfDate : LocalDate.now();
+        try {
+            OneCPaymentsResponse payments = restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                    .path("/hs/student/payments")
+                    .queryParam("studentId", studentId)
+                    .queryParam("date", date.toString())
+                    .queryParam("showAll", showAll)
+                    .build())
+                .retrieve()
+                .body(OneCPaymentsResponse.class);
+
+            if (payments == null || !payments.studentFound()) {
+                return Optional.empty();
+            }
+            return Optional.of(payments);
         } catch (HttpClientErrorException e) {
             return Optional.empty();
         }

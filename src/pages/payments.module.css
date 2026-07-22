@@ -73,3 +73,16 @@
 .actions {
   margin-top: 1rem;
 }
+
+.error {
+  margin: 0 0 1rem;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.debtHint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+}

@@ -53,7 +53,7 @@ export const sidebarGroups: NavGroup[] = [
     label: 'Сервисы',
     items: [
       { to: paths.requests, label: 'Заявления (dev)' },
-      { to: paths.payments, label: 'Оплата услуг (dev)' },
+      { to: paths.payments, label: 'Оплата услуг' },
       { to: paths.dormitory, label: 'Заявки по общежитиям (dev)' },
       { to: paths.bypassList, label: 'Обходной лист (dev)' },
       { to: paths.psychologist, label: 'Приём психолога (dev)' },

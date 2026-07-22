@@ -15,4 +15,5 @@ public interface OneCClient {
     Optional<OneCGradebookResponse> fetchGradebook(String studentId);
     Optional<OneCOrdersResponse> fetchOrders(String studentId);
     Optional<OneCPortfolioResponse> fetchPortfolio(String studentId);
+    Optional<OneCPaymentsResponse> fetchPayments(String studentId, java.time.LocalDate asOfDate, boolean showAll);
 }

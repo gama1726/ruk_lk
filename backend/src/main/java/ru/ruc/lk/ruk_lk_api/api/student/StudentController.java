@@ -9,6 +9,7 @@ import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
 
 import jakarta.servlet.http.HttpSession;
@@ -43,6 +44,14 @@ public class StudentController{
     @GetMapping("/portfolio")
     public StudentPortfolioResponse portfolio(HttpSession session) {
         return studentService.getPortfolio(session);
+    }
+
+    @GetMapping("/payments")
+    public StudentPaymentsResponse payments(
+        HttpSession session,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return studentService.getPayments(session, date);
     }
 
     @GetMapping("/schedule")
