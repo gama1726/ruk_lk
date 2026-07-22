@@ -11,10 +11,12 @@ import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
 import org.springframework.http.HttpStatus;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCGradebookResponse;
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCOrdersResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupLookupResponse;
@@ -117,6 +119,19 @@ public class StudentService {
             ));
 
         return GradebookMapper.toResponse(gradebook);
+    }
+
+    public StudentOrdersResponse getOrders(HttpSession session) {
+        StudentSession student = requireStudent(session);
+
+        OneCOrdersResponse orders = onecClient
+            .fetchOrders(student.studentId())
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Приказы не найдены"
+            ));
+
+        return OrdersMapper.toResponse(orders);
     }
 
     public ScheduleResponse getSchedule(HttpSession session, LocalDate date) {

@@ -92,6 +92,23 @@ public class HttpOneCClient implements OneCClient {
         }
     }
 
+    @Override
+    public Optional<OneCOrdersResponse> fetchOrders(String studentId) {
+        try {
+            OneCOrdersResponse orders = restClient.get()
+                .uri("/hs/student/order?studentId={id}", studentId)
+                .retrieve()
+                .body(OneCOrdersResponse.class);
+
+            if (orders == null || !orders.found()) {
+                return Optional.empty();
+            }
+            return Optional.of(orders);
+        } catch (HttpClientErrorException e) {
+            return Optional.empty();
+        }
+    }
+
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
     }

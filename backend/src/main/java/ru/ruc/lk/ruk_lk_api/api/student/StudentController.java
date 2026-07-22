@@ -8,6 +8,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -31,6 +32,11 @@ public class StudentController{
     @GetMapping("/record-book")
     public RecordBookResponse recordBook(HttpSession session) {
         return studentService.getRecordBook(session);
+    }
+
+    @GetMapping("/orders")
+    public StudentOrdersResponse orders(HttpSession session) {
+        return studentService.getOrders(session);
     }
 
     @GetMapping("/schedule")

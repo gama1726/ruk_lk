@@ -16,7 +16,7 @@ const items = [
   { to: paths.studyPlan, title: 'Учебный план (dev)', note: 'Дисциплины и часы' },
   { to: paths.roadmap, title: 'Траектория (dev)', note: 'Дорожная карта обучения' },
   { to: paths.teachers, title: 'Преподаватели (dev)', note: 'Контакты и консультации' },
-  { to: paths.orders, title: 'Приказы и документы (dev)', note: 'Приказы для скачивания' },
+  { to: paths.orders, title: 'Приказы', note: 'Приказы из учебной системы' },
 ] as const
 
 /**

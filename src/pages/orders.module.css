@@ -26,6 +26,25 @@
   color: var(--color-text-secondary);
 }
 
+.titleCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.docHint {
+  margin: 0.35rem 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: 400;
+}
+
+.error {
+  margin: 0 0 1rem;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
 @media (min-width: 768px) {
   .cards {
     display: none;
