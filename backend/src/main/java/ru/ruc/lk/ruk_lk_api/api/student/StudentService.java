@@ -12,11 +12,13 @@ import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
 import org.springframework.http.HttpStatus;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCGradebookResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCOrdersResponse;
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCPortfolioResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupLookupResponse;
@@ -132,6 +134,19 @@ public class StudentService {
             ));
 
         return OrdersMapper.toResponse(orders);
+    }
+
+    public StudentPortfolioResponse getPortfolio(HttpSession session) {
+        StudentSession student = requireStudent(session);
+
+        OneCPortfolioResponse portfolio = onecClient
+            .fetchPortfolio(student.studentId())
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Портфолио студента не найдено"
+            ));
+
+        return PortfolioMapper.toResponse(portfolio);
     }
 
     public ScheduleResponse getSchedule(HttpSession session, LocalDate date) {

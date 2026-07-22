@@ -9,6 +9,7 @@ import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -37,6 +38,11 @@ public class StudentController{
     @GetMapping("/orders")
     public StudentOrdersResponse orders(HttpSession session) {
         return studentService.getOrders(session);
+    }
+
+    @GetMapping("/portfolio")
+    public StudentPortfolioResponse portfolio(HttpSession session) {
+        return studentService.getPortfolio(session);
     }
 
     @GetMapping("/schedule")

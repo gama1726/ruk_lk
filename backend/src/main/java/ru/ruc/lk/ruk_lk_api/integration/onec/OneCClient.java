@@ -14,4 +14,5 @@ public interface OneCClient {
     Optional<OneCProfileResponse> fetchProfile(String studentId);
     Optional<OneCGradebookResponse> fetchGradebook(String studentId);
     Optional<OneCOrdersResponse> fetchOrders(String studentId);
+    Optional<OneCPortfolioResponse> fetchPortfolio(String studentId);
 }

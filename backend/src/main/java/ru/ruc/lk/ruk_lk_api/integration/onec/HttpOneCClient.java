@@ -109,6 +109,24 @@ public class HttpOneCClient implements OneCClient {
         }
     }
 
+    @Override
+    public Optional<OneCPortfolioResponse> fetchPortfolio(String studentId) {
+        try {
+            OneCPortfolioResponse portfolio = restClient.get()
+                .uri("/hs/student/portfolio?studentId={id}", studentId)
+                .retrieve()
+                .body(OneCPortfolioResponse.class);
+
+            // studentFound=false → студента нет; portfolioFound=false при пустом списке — валидный ответ
+            if (portfolio == null || !portfolio.studentFound()) {
+                return Optional.empty();
+            }
+            return Optional.of(portfolio);
+        } catch (HttpClientErrorException e) {
+            return Optional.empty();
+        }
+    }
+
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
     }

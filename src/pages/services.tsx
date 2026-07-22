@@ -9,7 +9,7 @@ const items = [
   { to: paths.dormitory, title: 'Общежитие (dev)', note: 'Проживание, заявки, бытовые вопросы' },
   { to: paths.bypassList, title: 'Обходной лист (dev)', note: 'Подписи подразделений' },
   { to: paths.psychologist, title: 'Психолог (dev)', note: 'Запись на консультацию' },
-  { to: paths.portfolio, title: 'Портфолио (dev)', note: 'Достижения и модерация' },
+  { to: paths.portfolio, title: 'Портфолио', note: 'Достижения из учебной системы' },
   { to: paths.passPhoto, title: 'Фото для пропуска', note: 'Загрузка фото для Perco-Web' },
   { to: paths.library, title: 'Библиотека / ЭБС (dev)', note: 'Читательский билет, книги' },
 ] as const
