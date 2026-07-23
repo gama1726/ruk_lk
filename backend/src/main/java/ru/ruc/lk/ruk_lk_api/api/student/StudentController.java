@@ -8,6 +8,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentCurriculumResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
@@ -44,6 +45,11 @@ public class StudentController{
     @GetMapping("/portfolio")
     public StudentPortfolioResponse portfolio(HttpSession session) {
         return studentService.getPortfolio(session);
+    }
+
+    @GetMapping("/curriculum")
+    public StudentCurriculumResponse curriculum(HttpSession session) {
+        return studentService.getCurriculum(session);
     }
 
     @GetMapping("/payments")

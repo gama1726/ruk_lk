@@ -1,65 +1,190 @@
-.semester {
-  margin-bottom: 1.5rem;
+.page {
+  max-width: 1100px;
 }
 
-.semesterHead {
+.bread {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.semesterTitle {
-  margin: 0;
-  font-size: var(--font-size-md);
-  font-weight: 600;
-}
-
-.semesterMeta {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.tableWrap {
-  overflow-x: auto;
-}
-
-.cards {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.card {
-  padding: 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  font-size: var(--font-size-sm);
-}
-
-.cardRow {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 0.25rem;
-  color: var(--color-text-secondary);
-}
-
-.total {
+  align-items: center;
+  gap: 0.375rem;
   margin-bottom: 1rem;
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
-@media (min-width: 768px) {
-  .cards {
-    display: none;
+.bread a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.bread a:hover {
+  text-decoration: underline;
+}
+
+.breadSep {
+  color: var(--color-text-muted);
+}
+
+.meta {
+  margin-bottom: 1.25rem;
+}
+
+.metaLine {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.metaMuted {
+  margin: 0.25rem 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.sectionLabel {
+  margin: 0 0 0.75rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-bottom: 1.25rem;
+}
+
+.tab {
+  padding: 0.625rem 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.tabActive {
+  background: color-mix(in srgb, var(--color-primary) 22%, var(--color-surface-muted));
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.group + .group,
+.item + .item,
+.groupBody .item + .item {
+  border-top: 1px solid var(--color-border);
+}
+
+.groupHead,
+.itemHead {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.125rem;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+
+.groupHead {
+  background: var(--color-surface-muted);
+  font-weight: 600;
+}
+
+.itemHead:hover,
+.groupHead:hover {
+  background: color-mix(in srgb, var(--color-surface-muted) 80%, var(--color-primary));
+}
+
+.itemTitle {
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.groupBody {
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform var(--transition-fast);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.details {
+  display: grid;
+  gap: 1rem 1.5rem;
+  padding: 0 1.125rem 1.125rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 720px) {
+  .details {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 767px) {
-  .tableWrap {
-    display: none;
+@media (min-width: 960px) {
+  .details {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.detailLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.detailValue {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .tab {
+    text-align: left;
   }
 }

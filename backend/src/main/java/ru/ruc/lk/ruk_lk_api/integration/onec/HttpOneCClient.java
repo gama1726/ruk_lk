@@ -151,6 +151,23 @@ public class HttpOneCClient implements OneCClient {
         }
     }
 
+    @Override
+    public Optional<OneCCurriculumResponse> fetchCurriculum(String studentId) {
+        try {
+            OneCCurriculumResponse curriculum = restClient.get()
+                .uri("/hs/student/curriculum?studentId={id}", studentId)
+                .retrieve()
+                .body(OneCCurriculumResponse.class);
+
+            if (curriculum == null || (!curriculum.found() && !curriculum.curriculumFound())) {
+                return Optional.empty();
+            }
+            return Optional.of(curriculum);
+        } catch (HttpClientErrorException e) {
+            return Optional.empty();
+        }
+    }
+
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
     }

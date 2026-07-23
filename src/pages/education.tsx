@@ -13,7 +13,7 @@ const items = [
   { to: paths.recordBook, title: 'Зачётная книжка', note: 'Оценки, БРС, практика' },
   { to: paths.grades, title: 'Успеваемость', note: 'Оценки по семестрам' },
   { to: paths.debts, title: 'Задолженности', note: 'Академические долги' },
-  { to: paths.studyPlan, title: 'Учебный план (dev)', note: 'Дисциплины и часы' },
+  { to: paths.studyPlan, title: 'Учебный план', note: 'Дисциплины, практика и ГИА' },
   { to: paths.roadmap, title: 'Траектория (dev)', note: 'Дорожная карта обучения' },
   { to: paths.teachers, title: 'Преподаватели (dev)', note: 'Контакты и консультации' },
   { to: paths.orders, title: 'Приказы', note: 'Приказы из учебной системы' },
