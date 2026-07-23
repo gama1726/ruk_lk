@@ -88,10 +88,7 @@ public class StudentService {
 
             : profile.studentId();
 
-        String group = blankToEmpty(profile.group());
-        if (!group.isBlank()) {
-            scheduleContextService.warmQuietly(session, group);
-        }
+
 
         return new StudentProfileResponse(
 
@@ -121,7 +118,7 @@ public class StudentService {
 
             blankToEmpty(profile.educationForm()),
 
-            group,
+            blankToEmpty(profile.group()),
 
             blankToEmpty(profile.course())
 
