@@ -74,6 +74,34 @@
   margin-top: 1rem;
 }
 
+.payBox {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.payQuick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.65rem;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
 .error {
   margin: 0 0 1rem;
   color: var(--color-danger);

@@ -14,10 +14,12 @@ import {
 import {
   fetchStudentPayments,
   isPaymentsApiEnabled,
+  openPayGateway,
+  PAY_MIN_AMOUNT,
   rubMoney,
   type StudentPaymentsDto,
 } from '@/payments'
-import { ScreenHeader, Button, StatusBadge, Table, TableHead, TableBody, TableRow, TableHeader, TableCell, NoData } from '@/ui'
+import { ScreenHeader, Button, Input, StatusBadge, Table, TableHead, TableBody, TableRow, TableHeader, TableCell, NoData } from '@/ui'
 import styles from './payments.module.css'
 
 const payStatusLabel = { ok: 'Оплачено', due: 'Ожидается платёж', overdue: 'Просрочка' } as const
@@ -41,6 +43,12 @@ function displayDate(iso: string, display: string): string {
   return '—'
 }
 
+function defaultPayAmount(data: StudentPaymentsDto): number {
+  if (data.totals.totalToPay > 0) return Math.round(data.totals.totalToPay * 100) / 100
+  if (data.nextAmount > 0) return Math.round(data.nextAmount * 100) / 100
+  return PAY_MIN_AMOUNT
+}
+
 /**
  * Оплата обучения: договор, график начислений.
  */
@@ -49,6 +57,8 @@ export function Payments() {
   const [data, setData] = useState<StudentPaymentsDto | null>(null)
   const [loading, setLoading] = useState(apiEnabled)
   const [error, setError] = useState<string | null>(null)
+  const [payAmount, setPayAmount] = useState('')
+  const [payError, setPayError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!apiEnabled) {
@@ -61,7 +71,11 @@ export function Payments() {
     void (async () => {
       try {
         const result = await fetchStudentPayments()
-        if (!cancelled) setData(result)
+        if (!cancelled) {
+          setData(result)
+          setPayAmount(String(defaultPayAmount(result)))
+          setPayError(null)
+        }
       } catch (e) {
         if (!cancelled) {
           setData(null)
@@ -111,12 +125,19 @@ export function Payments() {
   const totals = data.totals
   const contract = data.contract
 
+  const onPay = () => {
+    const normalized = payAmount.replace(',', '.').trim()
+    const amount = Number(normalized)
+    const err = openPayGateway(contract?.number, amount)
+    setPayError(err)
+  }
+
   return (
     <>
       <ScreenHeader title="Оплата услуг" subtitle="Договор и график платежей из учебной системы" />
 
       <p className={styles.warn}>
-        Онлайн-оплата в кабинете пока недоступна. Ниже — актуальный график и задолженность из 1С.
+        Оплата проходит на защищённом сервисе университета (pay.ruc.su). Укажите сумму и перейдите к оплате картой.
       </p>
 
       <div className={styles.grid}>
@@ -164,10 +185,56 @@ export function Payments() {
               {totals.totalToPay > 0 ? ` · итого ${rubMoney(totals.totalToPay)}` : ''}
             </p>
           )}
-          <div className={styles.actions}>
-            <Button type="button" onClick={goToPayment}>
-              Перейти к оплате
-            </Button>
+
+          <div className={styles.payBox}>
+            <Input
+              label="Сумма к оплате, ₽"
+              type="number"
+              inputMode="decimal"
+              min={PAY_MIN_AMOUNT}
+              step="0.01"
+              value={payAmount}
+              error={payError ?? undefined}
+              hint={`Минимум ${PAY_MIN_AMOUNT} ₽. Можно оплатить любую сумму по договору.`}
+              onChange={(e) => {
+                setPayAmount(e.target.value)
+                setPayError(null)
+              }}
+            />
+            <div className={styles.payQuick}>
+              {totals.totalToPay > 0 && (
+                <button
+                  type="button"
+                  className={styles.chip}
+                  onClick={() => {
+                    setPayAmount(String(Math.round(totals.totalToPay * 100) / 100))
+                    setPayError(null)
+                  }}
+                >
+                  К оплате {rubMoney(totals.totalToPay)}
+                </button>
+              )}
+              {data.nextAmount > 0 && Math.abs(data.nextAmount - totals.totalToPay) > 0.01 && (
+                <button
+                  type="button"
+                  className={styles.chip}
+                  onClick={() => {
+                    setPayAmount(String(Math.round(data.nextAmount * 100) / 100))
+                    setPayError(null)
+                  }}
+                >
+                  Ближайший {rubMoney(data.nextAmount)}
+                </button>
+              )}
+            </div>
+            <div className={styles.actions}>
+              <Button type="button" onClick={onPay} disabled={!contract?.number}>
+                Перейти к оплате
+              </Button>
+            </div>
+            {!contract?.number && (
+              <p className={styles.error}>Нет номера договора — оплата недоступна</p>
+            )}
           </div>
         </div>
       </div>
