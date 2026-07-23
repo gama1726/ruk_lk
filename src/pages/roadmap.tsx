@@ -4,7 +4,6 @@ import { ApiError, isApiConfigured } from '@/apiClient'
 import {
   controlLabelForSemester,
   curriculumSemesters,
-  defaultCurriculumSemester,
   fetchStudentCurriculum,
   isCurriculumApiEnabled,
   itemsForSemester,
@@ -85,6 +84,39 @@ function ItemCard({
   )
 }
 
+function SemesterList({
+  semester,
+  items,
+  openItems,
+  onToggleItem,
+}: {
+  semester: number
+  items: CurriculumItemDto[]
+  openItems: Set<string>
+  onToggleItem: (key: string) => void
+}) {
+  if (items.length === 0) {
+    return <NoData title="В этом семестре дисциплин нет" />
+  }
+
+  return (
+    <div className={styles.list}>
+      {items.map((item) => {
+        const key = `${item.id}|${semester}`
+        return (
+          <ItemCard
+            key={key}
+            item={item}
+            semester={semester}
+            open={openItems.has(key)}
+            onToggle={() => onToggleItem(key)}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
 /**
  * Траектория обучения: дисциплины учебного плана по семестрам.
  */
@@ -93,7 +125,7 @@ export function Roadmap() {
   const [data, setData] = useState<StudentCurriculumDto | null>(null)
   const [loading, setLoading] = useState(apiEnabled)
   const [error, setError] = useState<string | null>(null)
-  const [semester, setSemester] = useState(1)
+  const [semester, setSemester] = useState<number | null>(null)
   const [openItems, setOpenItems] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
@@ -109,10 +141,8 @@ export function Roadmap() {
         const result = await fetchStudentCurriculum()
         if (cancelled) return
         setData(result)
-        const initial = defaultCurriculumSemester(result)
-        setSemester(initial)
-        const first = itemsForSemester(result, initial)[0]
-        setOpenItems(first ? new Set([`${first.id}|${initial}`]) : new Set())
+        setSemester(null)
+        setOpenItems(new Set())
       } catch (err) {
         if (cancelled) return
         setData(null)
@@ -128,25 +158,13 @@ export function Roadmap() {
 
   const semesters = useMemo(() => (data ? curriculumSemesters(data) : []), [data])
   const semesterItems = useMemo(
-    () => (data ? itemsForSemester(data, semester) : []),
+    () => (data && semester != null ? itemsForSemester(data, semester) : []),
     [data, semester],
   )
 
-  useEffect(() => {
-    if (semesters.length === 0) return
-    if (!semesters.includes(semester)) {
-      setSemester(semesters[semesters.length - 1])
-    }
-  }, [semester, semesters])
-
   const onSelectSemester = (n: number) => {
     setSemester(n)
-    if (!data) {
-      setOpenItems(new Set())
-      return
-    }
-    const first = itemsForSemester(data, n)[0]
-    setOpenItems(first ? new Set([`${first.id}|${n}`]) : new Set())
+    setOpenItems(new Set())
   }
 
   const toggleItem = (key: string) => {
@@ -194,24 +212,16 @@ export function Roadmap() {
             </div>
           </div>
 
-          {semesterItems.length === 0 ? (
-            <NoData title="В этом семестре дисциплин нет" />
-          ) : (
-            <div className={styles.list}>
-              {semesterItems.map((item) => {
-                const key = `${item.id}|${semester}`
-                return (
-                  <ItemCard
-                    key={key}
-                    item={item}
-                    semester={semester}
-                    open={openItems.has(key)}
-                    onToggle={() => toggleItem(key)}
-                  />
-                )
-              })}
-            </div>
-          )}
+          <div className={styles.content}>
+            {semester == null ? null : (
+              <SemesterList
+                semester={semester}
+                items={semesterItems}
+                openItems={openItems}
+                onToggleItem={toggleItem}
+              />
+            )}
+          </div>
         </>
       )}
     </div>
