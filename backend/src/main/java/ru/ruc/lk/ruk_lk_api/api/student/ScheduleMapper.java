@@ -4,11 +4,13 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleLessonResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleApiLesson;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleDateMeta;
@@ -37,6 +39,48 @@ final class ScheduleMapper {
             meta == null ? null : blankToNull(meta.next()),
             lessons
         );
+    }
+
+    static ScheduleMonthResponse toMonthResponse(
+        String groupName,
+        int year,
+        int month,
+        List<ScheduleWeekApiResponse> weeks
+    ) {
+        Map<String, ScheduleLessonResponse> byId = new LinkedHashMap<>();
+        for (ScheduleWeekApiResponse week : weeks) {
+            if (week == null) {
+                continue;
+            }
+            for (ScheduleLessonResponse lesson : flattenLessons(week.schedule())) {
+                LocalDate date = parseIso(lesson.date());
+                if (date == null || date.getYear() != year || date.getMonthValue() != month) {
+                    continue;
+                }
+                byId.putIfAbsent(lesson.id(), lesson);
+            }
+        }
+
+        List<ScheduleLessonResponse> lessons = new ArrayList<>(byId.values());
+        lessons.sort(Comparator
+            .comparing(ScheduleLessonResponse::date)
+            .thenComparing(ScheduleLessonResponse::start));
+
+        return new ScheduleMonthResponse(groupName, year, month, lessons);
+    }
+
+    /** Понедельники всех недель, пересекающих календарный месяц (month = 1..12). */
+    static List<LocalDate> weekAnchorsForMonth(int year, int month) {
+        LocalDate first = LocalDate.of(year, month, 1);
+        LocalDate last = first.withDayOfMonth(first.lengthOfMonth());
+        LocalDate monday = first.minusDays((first.getDayOfWeek().getValue() + 6) % 7);
+
+        List<LocalDate> anchors = new ArrayList<>();
+        while (!monday.isAfter(last)) {
+            anchors.add(monday);
+            monday = monday.plusDays(7);
+        }
+        return anchors;
     }
 
     private static List<ScheduleLessonResponse> flattenLessons(Map<String, List<ScheduleApiLesson>> schedule) {
@@ -87,6 +131,17 @@ final class ScheduleMapper {
             return LocalDate.now();
         }
         return LocalDate.of(meta.year(), meta.month(), meta.monday());
+    }
+
+    private static LocalDate parseIso(String isoDate) {
+        if (isoDate == null || isoDate.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(isoDate.trim(), ISO_DATE);
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private static String toIsoDate(String apiDate) {

@@ -129,6 +129,21 @@ export async function fetchSchedule(date?: string): Promise<ScheduleDto> {
   return apiGet<ScheduleDto>(`/api/student/schedule${query}`)
 }
 
+/** Месяц целиком: `month` — 0..11 как в JS Date. */
+export type ScheduleMonthDto = {
+  group: string
+  year: number
+  month: number
+  lessons: ScheduleLessonDto[]
+}
+
+export async function fetchScheduleMonth(year: number, monthIndex: number): Promise<ScheduleMonthDto> {
+  const month = monthIndex + 1
+  return apiGet<ScheduleMonthDto>(
+    `/api/student/schedule/month?year=${encodeURIComponent(String(year))}&month=${encodeURIComponent(String(month))}`,
+  )
+}
+
 export function isScheduleApiEnabled(): boolean {
   return isApiConfigured()
 }

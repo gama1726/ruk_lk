@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpSession;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentCurriculumResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
@@ -17,6 +18,7 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.ProgramSummary;
 import org.springframework.http.HttpStatus;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCCurriculumResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCGradebookResponse;
@@ -26,8 +28,14 @@ import ru.ruc.lk.ruk_lk_api.integration.onec.OneCPortfolioResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupLookupResponse;
+import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleWeekApiResponse;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 
@@ -184,16 +192,7 @@ public class StudentService {
         StudentSession student = requireStudent(session);
         LocalDate anchorDate = date != null ? date : LocalDate.now();
 
-        String groupName = onecClient
-            .fetchProfile(student.studentId())
-            .map(OneCProfileResponse::group)
-            .map(String::trim)
-            .filter(group -> !group.isBlank())
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Группа студента не найдена"
-            ));
-
+        String groupName = resolveGroupName(session, student);
         ScheduleSessionContext context = resolveScheduleContext(session, groupName);
 
         var week = scheduleClient
@@ -206,26 +205,115 @@ public class StudentService {
         return ScheduleMapper.toResponse(groupName, anchorDate, week);
     }
 
-    private ScheduleSessionContext resolveScheduleContext(HttpSession session, String groupName) {
-        Object raw = session.getAttribute(SCHEDULE_CONTEXT_KEY);
-        if (raw instanceof ScheduleSessionContext cached && groupName.equals(cached.groupName())) {
-            return cached;
+    /**
+     * Месяц целиком: один раз резолвим группу, недели тянем параллельно на сервере.
+     * @param month месяц 1..12
+     */
+    public ScheduleMonthResponse getScheduleMonth(HttpSession session, int year, int month) {
+        if (month < 1 || month > 12) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Месяц должен быть от 1 до 12");
+        }
+        if (year < 2000 || year > 2100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Некорректный год");
         }
 
-        ScheduleGroupLookupResponse lookup = scheduleClient
-            .lookupGroup(groupName)
+        StudentSession student = requireStudent(session);
+        String groupName = resolveGroupName(session, student);
+        ScheduleSessionContext context = resolveScheduleContext(session, groupName);
+
+        List<LocalDate> anchors = ScheduleMapper.weekAnchorsForMonth(year, month);
+        List<ScheduleWeekApiResponse> weeks = fetchWeeksParallel(context, anchors);
+
+        return ScheduleMapper.toMonthResponse(groupName, year, month, weeks);
+    }
+
+    private List<ScheduleWeekApiResponse> fetchWeeksParallel(
+        ScheduleSessionContext context,
+        List<LocalDate> anchors
+    ) {
+        if (anchors.isEmpty()) {
+            return List.of();
+        }
+        if (anchors.size() == 1) {
+            return scheduleClient
+                .fetchGroupWeek(context.branchGuid(), context.groupGuid(), anchors.get(0))
+                .map(List::of)
+                .orElse(List.of());
+        }
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(Math.min(anchors.size(), 6))) {
+            List<CompletableFuture<ScheduleWeekApiResponse>> futures = new ArrayList<>(anchors.size());
+            for (LocalDate anchor : anchors) {
+                futures.add(CompletableFuture.supplyAsync(
+                    () -> scheduleClient
+                        .fetchGroupWeek(context.branchGuid(), context.groupGuid(), anchor)
+                        .orElse(null),
+                    pool
+                ));
+            }
+            List<ScheduleWeekApiResponse> weeks = new ArrayList<>(anchors.size());
+            for (CompletableFuture<ScheduleWeekApiResponse> future : futures) {
+                ScheduleWeekApiResponse week = future.join();
+                if (week != null) {
+                    weeks.add(week);
+                }
+            }
+            return weeks;
+        }
+    }
+
+    /** Группа: из кэша сессии → из программ сессии → fallback в профиль 1С. */
+    private String resolveGroupName(HttpSession session, StudentSession student) {
+        Object raw = session.getAttribute(SCHEDULE_CONTEXT_KEY);
+        if (raw instanceof ScheduleSessionContext cached && cached.groupName() != null && !cached.groupName().isBlank()) {
+            return cached.groupName();
+        }
+
+        if (student.programs() != null) {
+            for (ProgramSummary program : student.programs()) {
+                if (program != null && program.group() != null && !program.group().isBlank()) {
+                    return program.group().trim();
+                }
+            }
+        }
+
+        return onecClient
+            .fetchProfile(student.studentId())
+            .map(OneCProfileResponse::group)
+            .map(String::trim)
+            .filter(group -> !group.isBlank())
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
-                "Группа не найдена в сервисе расписания"
+                "Группа студента не найдена"
             ));
+    }
 
-        ScheduleSessionContext context = new ScheduleSessionContext(
-            groupName,
-            lookup.group().guid().trim(),
-            lookup.branch().guid().trim()
-        );
-        session.setAttribute(SCHEDULE_CONTEXT_KEY, context);
-        return context;
+    private ScheduleSessionContext resolveScheduleContext(HttpSession session, String groupName) {
+        synchronized (scheduleContextLock(session)) {
+            Object raw = session.getAttribute(SCHEDULE_CONTEXT_KEY);
+            if (raw instanceof ScheduleSessionContext cached && groupName.equals(cached.groupName())) {
+                return cached;
+            }
+
+            ScheduleGroupLookupResponse lookup = scheduleClient
+                .lookupGroup(groupName)
+                .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Группа не найдена в сервисе расписания"
+                ));
+
+            ScheduleSessionContext context = new ScheduleSessionContext(
+                groupName,
+                lookup.group().guid().trim(),
+                lookup.branch().guid().trim()
+            );
+            session.setAttribute(SCHEDULE_CONTEXT_KEY, context);
+            return context;
+        }
+    }
+
+    private static Object scheduleContextLock(HttpSession session) {
+        return ("SCHEDULE_CTX:" + session.getId()).intern();
     }
 
     private static String formatDirection(String direction, String specialization) {

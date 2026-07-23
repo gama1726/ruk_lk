@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.format.annotation.DateTimeFormat;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentCurriculumResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
@@ -66,5 +67,14 @@ public class StudentController{
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         return studentService.getSchedule(session, date);
+    }
+
+    @GetMapping("/schedule/month")
+    public ScheduleMonthResponse scheduleMonth(
+        HttpSession session,
+        @RequestParam int year,
+        @RequestParam int month
+    ) {
+        return studentService.getScheduleMonth(session, year, month);
     }
 }

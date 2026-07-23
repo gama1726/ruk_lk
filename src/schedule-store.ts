@@ -1,5 +1,5 @@
 /**
- * @file Кэш расписания: загрузка всех недель месяца для календаря.
+ * @file Кэш расписания: месяц целиком одним запросом + кэш месяцев в памяти.
  */
 
 import { create } from 'zustand'
@@ -7,11 +7,12 @@ import { isApiConfigured } from '@/apiClient'
 import { lessonsInMonth } from '@/mocks/lessons'
 import type { Lesson } from '@/mocks/lesson-types'
 import { student } from '@/mocks/student'
-import {
-  fetchSchedule,
-  mapScheduleLesson,
-  weekAnchorsForMonth,
-} from '@/schedule'
+import { fetchScheduleMonth, mapScheduleLesson } from '@/schedule'
+
+type MonthCacheEntry = {
+  lessons: Lesson[]
+  group: string
+}
 
 type ScheduleState = {
   lessons: Lesson[]
@@ -19,35 +20,45 @@ type ScheduleState = {
   loadedYear: number | null
   loadedMonth: number | null
   status: 'idle' | 'loading' | 'ready'
+  /** Кэш уже загруженных месяцев: `YYYY-M` → данные */
+  monthCache: Record<string, MonthCacheEntry>
   loadMonth: (programId: string, year: number, month: number) => Promise<void>
   reset: () => void
 }
 
-function emptyState(): Pick<ScheduleState, 'lessons' | 'group' | 'loadedYear' | 'loadedMonth' | 'status'> {
+function monthKey(year: number, month: number): string {
+  return `${year}-${month}`
+}
+
+function emptyState(): Pick<
+  ScheduleState,
+  'lessons' | 'group' | 'loadedYear' | 'loadedMonth' | 'status' | 'monthCache'
+> {
   return {
     lessons: [],
     group: '',
     loadedYear: null,
     loadedMonth: null,
     status: isApiConfigured() ? 'idle' : 'ready',
+    monthCache: {},
   }
 }
 
 function mockMonthState(programId: string, year: number, month: number) {
+  const lessons = lessonsInMonth(programId || student.programs[0].id, year, month)
   return {
-    lessons: lessonsInMonth(programId || student.programs[0].id, year, month),
+    lessons,
     group: '',
     loadedYear: year,
     loadedMonth: month,
     status: 'ready' as const,
+    monthCache: { [monthKey(year, month)]: { lessons, group: '' } },
   }
 }
 
 export const useSchedule = create<ScheduleState>((set, get) => ({
   ...emptyState(),
-  ...(isApiConfigured()
-    ? {}
-    : mockMonthState(student.programs[0].id, 2026, 5)),
+  ...(isApiConfigured() ? {} : mockMonthState(student.programs[0].id, 2026, 5)),
 
   async loadMonth(programId, year, month) {
     const resolvedProgramId = programId || student.programs[0].id
@@ -58,47 +69,50 @@ export const useSchedule = create<ScheduleState>((set, get) => ({
     }
 
     const current = get()
-    if (
-      current.status === 'loading' ||
-      (current.loadedYear === year && current.loadedMonth === month && current.lessons.length > 0)
-    ) {
+    const key = monthKey(year, month)
+
+    if (current.status === 'loading' && current.loadedYear === year && current.loadedMonth === month) {
       return
     }
 
-    set({ status: 'loading' })
-
-    try {
-      const anchors = weekAnchorsForMonth(year, month)
-      const results = await Promise.all(anchors.map((anchor) => fetchSchedule(anchor)))
-
-      const byId = new Map<string, Lesson>()
-      let group = ''
-
-      for (const dto of results) {
-        if (!group && dto.group) group = dto.group
-        const pid = resolvedProgramId || dto.group
-        for (const row of dto.lessons) {
-          const lesson = mapScheduleLesson(row, pid)
-          const [ly, lm] = lesson.date.split('-').map(Number)
-          if (ly === year && lm - 1 === month) {
-            byId.set(lesson.id, lesson)
-          }
-        }
-      }
-
-      const lessons = [...byId.values()].sort(
-        (a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start),
-      )
-
+    const cached = current.monthCache[key]
+    if (cached) {
       set({
-        lessons,
-        group,
+        lessons: cached.lessons,
+        group: cached.group,
         loadedYear: year,
         loadedMonth: month,
         status: 'ready',
       })
+      return
+    }
+
+    set({ status: 'loading', loadedYear: year, loadedMonth: month })
+
+    try {
+      const dto = await fetchScheduleMonth(year, month)
+      const pid = resolvedProgramId || dto.group
+      const lessons = dto.lessons
+        .map((row) => mapScheduleLesson(row, pid))
+        .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
+
+      const entry: MonthCacheEntry = { lessons, group: dto.group }
+      set((state) => ({
+        lessons,
+        group: dto.group,
+        loadedYear: year,
+        loadedMonth: month,
+        status: 'ready',
+        monthCache: { ...state.monthCache, [key]: entry },
+      }))
     } catch {
-      set({ ...emptyState(), status: 'ready' })
+      set({
+        lessons: [],
+        group: '',
+        loadedYear: year,
+        loadedMonth: month,
+        status: 'ready',
+      })
     }
   },
 
