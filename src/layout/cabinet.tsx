@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom'
+import { PaymentDebtWarning } from '@/blocks/payment-debt-warning'
 import { Sidebar } from './sidebar'
 import { CabinetHeader } from './cabinet-header'
 import { Topbar } from './topbar'
@@ -17,6 +18,7 @@ export function CabinetShell() {
         </div>
       </div>
       <MobileNav />
+      <PaymentDebtWarning />
     </div>
   )
 }
