@@ -96,10 +96,6 @@ export function RecordBook() {
               <strong className={styles.summaryFail}>{meta.failedCount}</strong>
               <span>долги</span>
             </div>
-            <div className={styles.summaryItem}>
-              <strong>{meta.notGradedCount}</strong>
-              <span>без оценки</span>
-            </div>
           </div>
         </div>
       ) : null}

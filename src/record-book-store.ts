@@ -6,6 +6,7 @@ import { create } from 'zustand'
 import { isApiConfigured } from '@/apiClient'
 import {
   fetchRecordBook,
+  filterGradedRecordBook,
   mapRecordBookToRows,
   mockRecordBookRows,
   semestersFromRows,
@@ -27,7 +28,6 @@ export type RecordBookMeta = {
   asOfDate: string
   passedCount: number
   failedCount: number
-  notGradedCount: number
   itemsCount: number
 }
 
@@ -54,8 +54,17 @@ function metaFromDto(dto: RecordBookDto): RecordBookMeta {
     asOfDate: dto.asOfDate,
     passedCount: dto.passedCount,
     failedCount: dto.failedCount,
-    notGradedCount: dto.notGradedCount,
     itemsCount: dto.itemsCount,
+  }
+}
+
+function toVisibleState(rows: GradeRow[], meta: RecordBookMeta | null = null) {
+  const graded = filterGradedRecordBook(rows)
+  return {
+    rows: graded,
+    semesters: semestersFromRows(graded),
+    meta,
+    status: 'ready' as const,
   }
 }
 
@@ -63,18 +72,14 @@ function mockState(programId = student.programs[0].id): Pick<
   RecordBookState,
   'rows' | 'semesters' | 'meta' | 'status'
 > {
-  const rows = mockRecordBookRows(programId)
-  return {
-    rows,
-    semesters: semestersFromRows(rows),
-    meta: null,
-    status: 'ready',
-  }
+  return toVisibleState(mockRecordBookRows(programId))
 }
 
+const initialMock = mockState()
+
 export const useRecordBook = create<RecordBookState>((set, get) => ({
-  rows: isApiConfigured() ? [] : mockRecordBookRows(),
-  semesters: isApiConfigured() ? [] : semestersFromRows(mockRecordBookRows()),
+  rows: isApiConfigured() ? [] : initialMock.rows,
+  semesters: isApiConfigured() ? [] : initialMock.semesters,
   meta: null,
   status: isApiConfigured() ? 'idle' : 'ready',
 
@@ -93,12 +98,7 @@ export const useRecordBook = create<RecordBookState>((set, get) => ({
     try {
       const dto: RecordBookDto = await fetchRecordBook()
       const rows = mapRecordBookToRows(dto, dto.studentId || resolvedProgramId)
-      set({
-        rows,
-        semesters: dto.semesters.length > 0 ? dto.semesters : semestersFromRows(rows),
-        meta: metaFromDto(dto),
-        status: 'ready',
-      })
+      set(toVisibleState(rows, metaFromDto(dto)))
     } catch {
       set({ rows: [], semesters: [], meta: null, status: 'ready' })
     }

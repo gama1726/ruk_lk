@@ -86,6 +86,18 @@ export function mapRecordBookToRows(dto: RecordBookDto, programId: string): Grad
   }))
 }
 
+/** Есть ли выставленный результат (не «без оценки»). */
+export function hasGradedResult(row: GradeRow): boolean {
+  return row.status !== 'not_graded'
+}
+
+/**
+ * Только предметы с оценкой; семестры без таких предметов отбрасываются.
+ */
+export function filterGradedRecordBook(rows: GradeRow[]): GradeRow[] {
+  return rows.filter(hasGradedResult)
+}
+
 /** Мок-данные для режима без API. */
 export function mockRecordBookRows(programId = student.programs[0].id): GradeRow[] {
   const bySemester = gradesByProgram(programId)
