@@ -41,7 +41,9 @@ export function NavGroupBlock({ group }: Props) {
         <ul className={styles.list}>
           {group.items.map((item) => (
             <li key={item.to}>
-              <MenuLink to={item.to}>{item.label}</MenuLink>
+              <MenuLink to={item.to} icon={item.icon}>
+                {item.label}
+              </MenuLink>
             </li>
           ))}
         </ul>
