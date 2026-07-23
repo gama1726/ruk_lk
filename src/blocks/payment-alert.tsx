@@ -77,7 +77,11 @@ export function PaymentAlert() {
           <div className={styles.progressBar} style={{ width: `${data.totals.paidPercent}%` }} />
         </div>
         <p className={styles.note}>
-          Внесено {data.totals.paidPercent}% · к оплате {rubMoney(data.totals.totalToPay)}
+          По графику {rubMoney(data.totals.scheduled)} · внесено {data.totals.paidPercent}%
+          ({rubMoney(data.totals.paid)})
+        </p>
+        <p className={styles.muted}>
+          К оплате сейчас {rubMoney(data.totals.totalToPay)}
         </p>
         {data.nextAmount > 0 && (
           <p className={styles.muted}>

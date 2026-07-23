@@ -68,11 +68,9 @@ final class PaymentsMapper {
         if (t == null) {
             return new StudentPaymentTotalsResponse(0, 0, 0, 0, 0, 0, 0, 0);
         }
+        // Шкала «внесено» — доля от полной суммы графика за всё обучение.
         int paidPercent = 0;
-        if (t.scheduledDue() > 0) {
-            paidPercent = (int) Math.round(100.0 * t.paid() / t.scheduledDue());
-            paidPercent = Math.max(0, Math.min(100, paidPercent));
-        } else if (t.scheduled() > 0) {
+        if (t.scheduled() > 0) {
             paidPercent = (int) Math.round(100.0 * t.paid() / t.scheduled());
             paidPercent = Math.max(0, Math.min(100, paidPercent));
         }

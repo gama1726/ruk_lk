@@ -152,7 +152,10 @@ export function Payments() {
             <div className={styles.progressBar} style={{ width: `${totals.paidPercent}%` }} />
           </div>
           <p className={styles.meta}>
-            Внесено {totals.paidPercent}% · оплачено {rubMoney(totals.paid)}
+            По графику за обучение {rubMoney(totals.scheduled)}
+          </p>
+          <p className={styles.meta}>
+            Внесено {totals.paidPercent}% · {rubMoney(totals.paid)} из {rubMoney(totals.scheduled)}
           </p>
           {(totals.debt > 0 || totals.penalty > 0) && (
             <p className={styles.meta}>
