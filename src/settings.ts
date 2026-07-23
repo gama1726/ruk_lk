@@ -15,7 +15,7 @@ export type NotificationPrefs = Record<NotificationKey, boolean>
 export const notificationLabels: Record<NotificationKey, string> = {
   deanery: 'Сообщения деканата',
   grades: 'Оценки и зачёты',
-  payments: 'Платежи и договор',
+  payments: 'Оплата обучения',
   system: 'Системные уведомления',
 }
 

@@ -97,7 +97,7 @@ export function Payments() {
   if (loading) {
     return (
       <>
-        <ScreenHeader title="Оплата услуг" subtitle="Договор и график платежей" />
+        <ScreenHeader title="Оплата обучения" subtitle="Договор и график платежей" />
         <p>Загрузка…</p>
       </>
     )
@@ -106,7 +106,7 @@ export function Payments() {
   if (error) {
     return (
       <>
-        <ScreenHeader title="Оплата услуг" subtitle="Договор и график платежей" />
+        <ScreenHeader title="Оплата обучения" subtitle="Договор и график платежей" />
         <p className={styles.error}>{error}</p>
       </>
     )
@@ -115,7 +115,7 @@ export function Payments() {
   if (!data || !data.paymentFound) {
     return (
       <>
-        <ScreenHeader title="Оплата услуг" subtitle="Договор и график платежей" />
+        <ScreenHeader title="Оплата обучения" subtitle="Договор и график платежей" />
         <NoData title="Данных об оплате нет" />
       </>
     )
@@ -134,7 +134,7 @@ export function Payments() {
 
   return (
     <>
-      <ScreenHeader title="Оплата услуг" subtitle="Договор и график платежей из учебной системы" />
+      <ScreenHeader title="Оплата обучения" subtitle="Договор и график платежей из учебной системы" />
 
       <p className={styles.warn}>
         Оплата проходит на защищённом сервисе университета (pay.ruc.su). Укажите сумму и перейдите к оплате картой.
