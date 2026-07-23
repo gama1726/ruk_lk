@@ -32,8 +32,8 @@ function Chevron({ open }: { open: boolean }) {
   return (
     <svg
       className={[styles.chevron, open ? styles.chevronOpen : ''].filter(Boolean).join(' ')}
-      width="16"
-      height="16"
+      width="18"
+      height="18"
       viewBox="0 0 16 16"
       aria-hidden="true"
     >
@@ -42,7 +42,17 @@ function Chevron({ open }: { open: boolean }) {
   )
 }
 
-function ItemDetails({ item, semester }: { item: CurriculumItemDto; semester: number }) {
+function ItemCard({
+  item,
+  semester,
+  open,
+  onToggle,
+}: {
+  item: CurriculumItemDto
+  semester: number
+  open: boolean
+  onToggle: () => void
+}) {
   const fields = [
     { label: 'Всего часов', value: formatHours(item.totalHours) },
     { label: 'Самостоятельной работы', value: formatHours(item.independentHours) },
@@ -53,14 +63,25 @@ function ItemDetails({ item, semester }: { item: CurriculumItemDto; semester: nu
   ]
 
   return (
-    <div className={styles.details}>
-      {fields.map((field) => (
-        <div key={field.label} className={styles.detail}>
-          <span className={styles.detailLabel}>{field.label}</span>
-          <span className={styles.detailValue}>{field.value}</span>
+    <article className={[styles.card, open ? styles.cardOpen : ''].filter(Boolean).join(' ')}>
+      <button type="button" className={styles.cardHead} onClick={onToggle} aria-expanded={open}>
+        <span className={styles.cardTitle}>{item.title}</span>
+        <Chevron open={open} />
+      </button>
+
+      <div className={[styles.cardBody, open ? styles.cardBodyOpen : ''].filter(Boolean).join(' ')}>
+        <div className={styles.cardBodyInner}>
+          <div className={styles.details}>
+            {fields.map((field) => (
+              <div key={field.label} className={styles.detail}>
+                <span className={styles.detailLabel}>{field.label}</span>
+                <span className={styles.detailValue}>{field.value}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
-    </div>
+      </div>
+    </article>
   )
 }
 
@@ -142,7 +163,7 @@ export function Roadmap() {
       <nav className={styles.bread} aria-label="Навигация">
         <Link to={paths.education}>Обучение</Link>
         <span className={styles.breadSep}>/</span>
-        <span>Траектория обучения</span>
+        <span className={styles.breadCurrent}>Траектория обучения</span>
       </nav>
 
       {loading ? (
@@ -155,15 +176,6 @@ export function Roadmap() {
         <NoData title="Траектория не найдена" />
       ) : (
         <>
-          {(data.specialty || data.group) && (
-            <div className={styles.meta}>
-              {data.specialty ? <p className={styles.metaLine}>{data.specialty}</p> : null}
-              <p className={styles.metaMuted}>
-                {[data.group, data.currentCourse].filter(Boolean).join(' · ')}
-              </p>
-            </div>
-          )}
-
           <div className={styles.semesterPick}>
             <span className={styles.semesterLabel}>Выберите семестр:</span>
             <div className={styles.semesterBtns}>
@@ -182,34 +194,24 @@ export function Roadmap() {
             </div>
           </div>
 
-          <div className={styles.panel}>
-            {semesterItems.length === 0 ? (
-              <div className={styles.empty}>
-                <NoData title="В этом семестре дисциплин нет" />
-              </div>
-            ) : (
-              <div className={styles.list}>
-                {semesterItems.map((item) => {
-                  const key = `${item.id}|${semester}`
-                  const open = openItems.has(key)
-                  return (
-                    <div key={key} className={styles.item}>
-                      <button
-                        type="button"
-                        className={styles.itemHead}
-                        onClick={() => toggleItem(key)}
-                        aria-expanded={open}
-                      >
-                        <span className={styles.itemTitle}>{item.title}</span>
-                        <Chevron open={open} />
-                      </button>
-                      {open ? <ItemDetails item={item} semester={semester} /> : null}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          {semesterItems.length === 0 ? (
+            <NoData title="В этом семестре дисциплин нет" />
+          ) : (
+            <div className={styles.list}>
+              {semesterItems.map((item) => {
+                const key = `${item.id}|${semester}`
+                return (
+                  <ItemCard
+                    key={key}
+                    item={item}
+                    semester={semester}
+                    open={openItems.has(key)}
+                    onToggle={() => toggleItem(key)}
+                  />
+                )
+              })}
+            </div>
+          )}
         </>
       )}
     </div>
