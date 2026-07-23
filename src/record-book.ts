@@ -20,15 +20,33 @@ export type RecordBookEntryDto = {
   date: string | null
   displayDate: string
   status: string
+  statusTitle: string
   creditUnits: number
   studyYear: string
   course: string
   periodControl: string
+  practice: boolean
+  planned: boolean
 }
 
 /** Ответ `GET /api/student/record-book` */
 export type RecordBookDto = {
   studentId: string
+  studentFullName: string
+  recordBook: string
+  asOfDate: string
+  faculty: string
+  specialty: string
+  specialization: string
+  studyForm: string
+  group: string
+  currentCourse: string
+  studentState: string
+  currentStudyPlan: string
+  passedCount: number
+  failedCount: number
+  notGradedCount: number
+  itemsCount: number
   semesters: number[]
   items: RecordBookEntryDto[]
 }
@@ -61,7 +79,10 @@ export function mapRecordBookToRows(dto: RecordBookDto, programId: string): Grad
     points: item.points,
     teacher: item.teacher,
     date: item.date,
+    displayDate: item.displayDate || null,
     status: toGradeStatus(item.status),
+    creditUnits: item.creditUnits,
+    periodControl: item.periodControl || null,
   }))
 }
 

@@ -36,7 +36,11 @@ export type GradeRow = {
   points: number | null
   teacher: string
   date: string | null
+  /** Дата из 1С в формате ДД.ММ.ГГГГ, если есть */
+  displayDate?: string | null
   status: GradeStatus
+  creditUnits?: number
+  periodControl?: string | null
 }
 
 /** Запись БРС */

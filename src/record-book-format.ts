@@ -6,8 +6,10 @@ import type { GradeRow } from '@/mocks/record-book-types'
 
 /**
  * @param iso - `YYYY-MM-DD` или `null`
+ * @param displayDate - готовая дата из 1С (`ДД.ММ.ГГГГ`), если есть
  */
-export function formatRecordDate(iso: string | null): string {
+export function formatRecordDate(iso: string | null, displayDate?: string | null): string {
+  if (displayDate && displayDate.trim()) return displayDate.trim()
   if (!iso) return '—'
   const [y, m, d] = iso.split('-')
   return `${d}.${m}.${y}`

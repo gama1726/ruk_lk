@@ -16,6 +16,11 @@ import styles from './record-book.module.css'
 
 type ViewMode = 'standard' | 'gosuslugi'
 
+function formatCreditUnits(value: number | undefined): string {
+  if (value == null || value <= 0) return '—'
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(value)
+}
+
 /**
  * Электронная зачётная книжка в раскладке портала.
  */
@@ -23,6 +28,7 @@ export function RecordBook() {
   const program = useCurrentProgram()
   const rows = useRecordBook((s) => s.rows)
   const semesters = useRecordBook((s) => s.semesters)
+  const meta = useRecordBook((s) => s.meta)
   const bookStatus = useRecordBook((s) => s.status)
   const loadRecordBook = useRecordBook((s) => s.load)
 
@@ -66,6 +72,37 @@ export function RecordBook() {
           Подробнее →
         </Link>
       </div>
+
+      {meta && (meta.specialty || meta.group || meta.recordBook) ? (
+        <div className={styles.meta}>
+          <div className={styles.metaMain}>
+            {meta.recordBook ? (
+              <p className={styles.metaTitle}>Зачётная книжка № {meta.recordBook}</p>
+            ) : null}
+            {meta.specialty ? <p className={styles.metaLine}>{meta.specialty}</p> : null}
+            {meta.specialization ? (
+              <p className={styles.metaMuted}>{meta.specialization}</p>
+            ) : null}
+            <p className={styles.metaMuted}>
+              {[meta.group, meta.studyForm, meta.currentCourse].filter(Boolean).join(' · ')}
+            </p>
+          </div>
+          <div className={styles.summary}>
+            <div className={styles.summaryItem}>
+              <strong>{meta.passedCount}</strong>
+              <span>сдано</span>
+            </div>
+            <div className={styles.summaryItem}>
+              <strong className={styles.summaryFail}>{meta.failedCount}</strong>
+              <span>долги</span>
+            </div>
+            <div className={styles.summaryItem}>
+              <strong>{meta.notGradedCount}</strong>
+              <span>без оценки</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className={styles.toolbar}>
         <div className={styles.viewSwitch} role="tablist" aria-label="Вид зачётной книжки">
@@ -127,20 +164,22 @@ export function RecordBook() {
                   <th>Дата</th>
                   <th>Наименование дисциплины</th>
                   <th>Вид контроля</th>
-                  <th>Общее кол-во час.</th>
+                  <th>Часы</th>
+                  <th>ЗЕТ</th>
                   <th>Оценка (балл)</th>
                 </tr>
               </thead>
               <tbody>
                 {semesterRows.map((row) => (
-                  <tr key={row.id}>
-                    <td className={styles.date}>{formatRecordDate(row.date)}</td>
+                  <tr key={row.id} className={row.status === 'failed' ? styles.rowFailed : undefined}>
+                    <td className={styles.date}>{formatRecordDate(row.date, row.displayDate)}</td>
                     <td className={styles.subject}>
                       <strong>{row.subject}</strong>
-                      <span className={styles.teacher}>{row.teacher}</span>
+                      {row.teacher ? <span className={styles.teacher}>{row.teacher}</span> : null}
                     </td>
                     <td>{formatControlForm(row.controlForm)}</td>
-                    <td>{formatHours(row.hours)}</td>
+                    <td>{row.hours > 0 ? formatHours(row.hours) : '—'}</td>
+                    <td>{formatCreditUnits(row.creditUnits)}</td>
                     <td className={styles.grade}>{formatGradeCell(row)}</td>
                   </tr>
                 ))}

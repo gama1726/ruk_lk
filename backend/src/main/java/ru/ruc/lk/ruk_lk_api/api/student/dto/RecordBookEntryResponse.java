@@ -12,8 +12,11 @@ public record RecordBookEntryResponse(
     String date,
     String displayDate,
     String status,
-    int creditUnits,
+    String statusTitle,
+    double creditUnits,
     String studyYear,
     String course,
-    String periodControl
+    String periodControl,
+    boolean practice,
+    boolean planned
 ) {}

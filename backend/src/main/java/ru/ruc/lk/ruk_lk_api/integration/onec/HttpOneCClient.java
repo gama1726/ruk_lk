@@ -84,7 +84,7 @@ public class HttpOneCClient implements OneCClient {
                 .retrieve()
                 .body(OneCGradebookResponse.class);
 
-            if (gradebook == null || !gradebook.found()) {
+            if (gradebook == null || (!gradebook.found() && !gradebook.gradebookFound())) {
                 return Optional.empty();
             }
             return Optional.of(gradebook);
