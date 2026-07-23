@@ -18,7 +18,6 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
-import ru.ruc.lk.ruk_lk_api.api.auth.dto.ProgramSummary;
 import org.springframework.http.HttpStatus;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCCurriculumResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCGradebookResponse;
@@ -27,12 +26,12 @@ import ru.ruc.lk.ruk_lk_api.integration.onec.OneCPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCPortfolioResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient;
-import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupLookupResponse;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleWeekApiResponse;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,14 +45,19 @@ public class StudentService {
 
 
     private static final String SESSION_KEY = "STUDENT";
-    private static final String SCHEDULE_CONTEXT_KEY = "SCHEDULE_GROUP";
 
     private final OneCClient onecClient;
     private final ScheduleClient scheduleClient;
+    private final ScheduleContextService scheduleContextService;
 
-    public StudentService(OneCClient onecClient, ScheduleClient scheduleClient) {
+    public StudentService(
+        OneCClient onecClient,
+        ScheduleClient scheduleClient,
+        ScheduleContextService scheduleContextService
+    ) {
         this.onecClient = onecClient;
         this.scheduleClient = scheduleClient;
+        this.scheduleContextService = scheduleContextService;
     }
 
 
@@ -84,7 +88,10 @@ public class StudentService {
 
             : profile.studentId();
 
-
+        String group = blankToEmpty(profile.group());
+        if (!group.isBlank()) {
+            scheduleContextService.warmQuietly(session, group);
+        }
 
         return new StudentProfileResponse(
 
@@ -114,14 +121,13 @@ public class StudentService {
 
             blankToEmpty(profile.educationForm()),
 
-            blankToEmpty(profile.group()),
+            group,
 
             blankToEmpty(profile.course())
 
         );
 
     }
-
     public RecordBookResponse getRecordBook(HttpSession session) {
         StudentSession student = requireStudent(session);
 
@@ -192,8 +198,7 @@ public class StudentService {
         StudentSession student = requireStudent(session);
         LocalDate anchorDate = date != null ? date : LocalDate.now();
 
-        String groupName = resolveGroupName(session, student);
-        ScheduleSessionContext context = resolveScheduleContext(session, groupName);
+        ScheduleSessionContext context = scheduleContext(session, student);
 
         var week = scheduleClient
             .fetchGroupWeek(context.branchGuid(), context.groupGuid(), anchorDate)
@@ -202,11 +207,11 @@ public class StudentService {
                 "Расписание не найдено"
             ));
 
-        return ScheduleMapper.toResponse(groupName, anchorDate, week);
+        return ScheduleMapper.toResponse(context.groupName(), anchorDate, week);
     }
 
     /**
-     * Месяц целиком: один раз резолвим группу, недели тянем параллельно на сервере.
+     * Месяц целиком: GUID уже в сессии после логина → сразу параллельные get_schedule.
      * @param month месяц 1..12
      */
     public ScheduleMonthResponse getScheduleMonth(HttpSession session, int year, int month) {
@@ -218,13 +223,24 @@ public class StudentService {
         }
 
         StudentSession student = requireStudent(session);
-        String groupName = resolveGroupName(session, student);
-        ScheduleSessionContext context = resolveScheduleContext(session, groupName);
+        ScheduleSessionContext context = scheduleContext(session, student);
 
         List<LocalDate> anchors = ScheduleMapper.weekAnchorsForMonth(year, month);
         List<ScheduleWeekApiResponse> weeks = fetchWeeksParallel(context, anchors);
 
-        return ScheduleMapper.toMonthResponse(groupName, year, month, weeks);
+        return ScheduleMapper.toMonthResponse(context.groupName(), year, month, weeks);
+    }
+
+    private ScheduleSessionContext scheduleContext(HttpSession session, StudentSession student) {
+        return scheduleContextService.require(
+            session,
+            student,
+            () -> onecClient
+                .fetchProfile(student.studentId())
+                .map(OneCProfileResponse::group)
+                .map(String::trim)
+                .filter(group -> !group.isBlank())
+        );
     }
 
     private List<ScheduleWeekApiResponse> fetchWeeksParallel(
@@ -260,60 +276,6 @@ public class StudentService {
             }
             return weeks;
         }
-    }
-
-    /** Группа: из кэша сессии → из программ сессии → fallback в профиль 1С. */
-    private String resolveGroupName(HttpSession session, StudentSession student) {
-        Object raw = session.getAttribute(SCHEDULE_CONTEXT_KEY);
-        if (raw instanceof ScheduleSessionContext cached && cached.groupName() != null && !cached.groupName().isBlank()) {
-            return cached.groupName();
-        }
-
-        if (student.programs() != null) {
-            for (ProgramSummary program : student.programs()) {
-                if (program != null && program.group() != null && !program.group().isBlank()) {
-                    return program.group().trim();
-                }
-            }
-        }
-
-        return onecClient
-            .fetchProfile(student.studentId())
-            .map(OneCProfileResponse::group)
-            .map(String::trim)
-            .filter(group -> !group.isBlank())
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Группа студента не найдена"
-            ));
-    }
-
-    private ScheduleSessionContext resolveScheduleContext(HttpSession session, String groupName) {
-        synchronized (scheduleContextLock(session)) {
-            Object raw = session.getAttribute(SCHEDULE_CONTEXT_KEY);
-            if (raw instanceof ScheduleSessionContext cached && groupName.equals(cached.groupName())) {
-                return cached;
-            }
-
-            ScheduleGroupLookupResponse lookup = scheduleClient
-                .lookupGroup(groupName)
-                .orElseThrow(() -> new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Группа не найдена в сервисе расписания"
-                ));
-
-            ScheduleSessionContext context = new ScheduleSessionContext(
-                groupName,
-                lookup.group().guid().trim(),
-                lookup.branch().guid().trim()
-            );
-            session.setAttribute(SCHEDULE_CONTEXT_KEY, context);
-            return context;
-        }
-    }
-
-    private static Object scheduleContextLock(HttpSession session) {
-        return ("SCHEDULE_CTX:" + session.getId()).intern();
     }
 
     private static String formatDirection(String direction, String specialization) {

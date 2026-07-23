@@ -23,6 +23,7 @@ import ru.ruc.lk.ruk_lk_api.integration.max.MaxBindingService;
 import ru.ruc.lk.ruk_lk_api.integration.max.MaxSendException;
 import ru.ruc.lk.ruk_lk_api.integration.max.VerificationMaxSender;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
+import ru.ruc.lk.ruk_lk_api.api.student.ScheduleContextService;
 
 @Service
 public class AuthService {
@@ -36,6 +37,7 @@ public class AuthService {
     private final VerificationEmailSender emailSender;
     private final VerificationMaxSender maxSender;
     private final MaxBindingService maxBindingService;
+    private final ScheduleContextService scheduleContextService;
     private final String fixedCode;
 
     public AuthService(
@@ -43,12 +45,14 @@ public class AuthService {
         VerificationEmailSender emailSender,
         VerificationMaxSender maxSender,
         MaxBindingService maxBindingService,
+        ScheduleContextService scheduleContextService,
         @Value("${app.auth.fixed-code:}") String fixedCode
     ) {
         this.onecClient = onecClient;
         this.emailSender = emailSender;
         this.maxSender = maxSender;
         this.maxBindingService = maxBindingService;
+        this.scheduleContextService = scheduleContextService;
         this.fixedCode = fixedCode;
     }
 
@@ -187,6 +191,7 @@ public class AuthService {
         session.setAttribute(SESSION_KEY, student);
         session.removeAttribute(PENDING_KEY);
         session.removeAttribute(PENDING_IDENTIFICATION_KEY);
+        scheduleContextService.warmQuietly(session, student);
 
         return toMeResponse(student);
     }
