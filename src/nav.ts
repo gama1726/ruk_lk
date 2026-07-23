@@ -3,26 +3,29 @@
  * @see {@link sidebarTop}, {@link sidebarGroups}
  */
 
+import type { NavIconId } from '@/icons/nav'
 import { paths } from '@/paths'
 
 /** Пункт навигации */
 export type NavItem = {
   to: string
   label: string
+  icon?: NavIconId
 }
 
 /** Раскрывающаяся группа в сайдбаре */
 export type NavGroup = {
   id: string
   label: string
+  icon: NavIconId
   items: NavItem[]
 }
 
 /** Верхние пункты без группы — как у МИРЭА */
 export const sidebarTop: NavItem[] = [
-  { to: paths.profile, label: 'Профиль' },
-  { to: paths.news, label: 'Новости и уведомления (dev)' },
-  { to: paths.schedule, label: 'Расписание' },
+  { to: paths.profile, label: 'Профиль', icon: 'profile' },
+  { to: paths.news, label: 'Новости и уведомления (dev)', icon: 'news' },
+  { to: paths.schedule, label: 'Расписание', icon: 'schedule' },
 ]
 
 /** Раскрывающиеся разделы */
@@ -30,6 +33,7 @@ export const sidebarGroups: NavGroup[] = [
   {
     id: 'study',
     label: 'Обучение',
+    icon: 'study',
     items: [
       { to: paths.attendance, label: 'Посещаемость (dev)' },
       { to: paths.recordBook, label: 'Электронная зачётная книжка' },
@@ -43,6 +47,7 @@ export const sidebarGroups: NavGroup[] = [
   {
     id: 'program',
     label: 'Образовательная программа',
+    icon: 'program',
     items: [
       { to: paths.studyPlan, label: 'Учебный план' },
       { to: paths.roadmap, label: 'Траектория обучения' },
@@ -51,6 +56,7 @@ export const sidebarGroups: NavGroup[] = [
   {
     id: 'services',
     label: 'Сервисы',
+    icon: 'services',
     items: [
       { to: paths.requests, label: 'Заявления (dev)' },
       { to: paths.payments, label: 'Оплата обучения' },
@@ -72,8 +78,8 @@ export const menu = [
 
 /** Короткий набор вкладок внизу экрана на mobile */
 export const mobileTabs: NavItem[] = [
-  { to: paths.profile, label: 'Профиль' },
-  { to: paths.schedule, label: 'Расписание' },
-  { to: paths.news, label: 'Уведомления (dev)' },
-  { to: paths.services, label: 'Сервисы' },
+  { to: paths.profile, label: 'Профиль', icon: 'profile' },
+  { to: paths.schedule, label: 'Расписание', icon: 'schedule' },
+  { to: paths.news, label: 'Уведомления (dev)', icon: 'news' },
+  { to: paths.services, label: 'Сервисы', icon: 'services' },
 ]

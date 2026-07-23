@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
+import { NavIcon } from '@/icons/nav'
 import { paths } from '@/paths'
 import { menu, mobileTabs } from '@/nav'
 import { Drawer } from '@/ui/Drawer/Drawer'
@@ -26,11 +27,17 @@ export function MobileNav() {
             className={({ isActive }) => [styles.tab, isActive ? styles.tabActive : ''].filter(Boolean).join(' ')}
             end={tab.to === paths.profile}
           >
-            {tab.label}
+            {tab.icon ? <NavIcon id={tab.icon} className={styles.tabIcon} /> : null}
+            <span>{tab.label}</span>
           </NavLink>
         ))}
         <button type="button" className={styles.tab} onClick={() => setOpen(true)}>
-          Меню
+          <span className={styles.menuGlyph} aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span>Меню</span>
         </button>
       </nav>
 
@@ -42,7 +49,7 @@ export function MobileNav() {
               <ul className={styles.drawerList}>
                 {section.items.map((item) => (
                   <li key={item.to}>
-                    <MenuLink to={item.to} onClick={() => setOpen(false)}>
+                    <MenuLink to={item.to} icon={item.icon} onClick={() => setOpen(false)}>
                       {item.label}
                     </MenuLink>
                   </li>

@@ -6,6 +6,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   width: 100%;
   padding: 0.5rem 0.75rem;
   border: none;
@@ -17,14 +18,37 @@
   color: var(--color-text-primary);
   cursor: pointer;
   text-align: left;
-  transition: background-color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .toggle:hover {
   background-color: var(--color-surface-muted);
 }
 
+.toggleLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+
+.toggle:hover .icon {
+  color: var(--color-text-secondary);
+}
+
 .toggleOpen {
+  color: var(--color-primary);
+}
+
+.toggleOpen .icon {
   color: var(--color-primary);
 }
 

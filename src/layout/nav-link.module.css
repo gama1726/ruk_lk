@@ -1,11 +1,15 @@
 .link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
   padding: 0.5rem 0.75rem;
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
   text-decoration: none;
-  transition: background-color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .link:hover {
@@ -13,8 +17,22 @@
   text-decoration: none;
 }
 
+.icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+
+.link:hover .icon {
+  color: var(--color-text-secondary);
+}
+
 .active {
   background-color: var(--color-primary-muted);
   color: var(--color-primary);
   font-weight: 500;
+}
+
+.active .icon {
+  color: var(--color-primary);
 }
