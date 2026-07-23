@@ -83,3 +83,58 @@ export function flattenSectionItems(section: CurriculumSectionDto): CurriculumIt
   if (group.title.trim().toLowerCase() !== section.title.trim().toLowerCase()) return null
   return group.items
 }
+
+/** Все дисциплины плана (все разделы). */
+export function allCurriculumItems(dto: StudentCurriculumDto): CurriculumItemDto[] {
+  const items: CurriculumItemDto[] = []
+  for (const section of dto.sections) {
+    for (const group of section.groups) {
+      items.push(...group.items)
+    }
+  }
+  return items
+}
+
+/** Уникальные семестры из плана. */
+export function curriculumSemesters(dto: StudentCurriculumDto): number[] {
+  const set = new Set<number>()
+  for (const item of allCurriculumItems(dto)) {
+    for (const semester of item.semesters) {
+      if (semester > 0) set.add(semester)
+    }
+  }
+  return [...set].sort((a, b) => a - b)
+}
+
+/** Дисциплины, читаемые в выбранном семестре. */
+export function itemsForSemester(dto: StudentCurriculumDto, semester: number): CurriculumItemDto[] {
+  return allCurriculumItems(dto)
+    .filter((item) => item.semesters.includes(semester))
+    .sort((a, b) => a.title.localeCompare(b.title, 'ru'))
+}
+
+/** Форма контроля именно для семестра (иначе общая подпись). */
+export function controlLabelForSemester(item: CurriculumItemDto, semester: number): string {
+  const forSemester = item.controls.filter((c) => c.semester === semester)
+  if (forSemester.length === 0) {
+    return item.controlLabel || '—'
+  }
+  return forSemester
+    .map((control) => {
+      const type = control.type || 'Контроль'
+      return type
+    })
+    .join('; ')
+}
+
+/** Семестр по умолчанию: из текущего рабочего плана или последний с дисциплинами. */
+export function defaultCurriculumSemester(dto: StudentCurriculumDto): number {
+  const semesters = curriculumSemesters(dto)
+  if (semesters.length === 0) return 1
+  const currentPlan = dto.workingStudyPlans.find((p) => p.current)
+  if (currentPlan?.firstSemester) {
+    const preferred = currentPlan.firstSemester
+    if (semesters.includes(preferred)) return preferred
+  }
+  return semesters[semesters.length - 1]
+}

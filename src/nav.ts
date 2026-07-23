@@ -45,7 +45,7 @@ export const sidebarGroups: NavGroup[] = [
     label: 'Образовательная программа',
     items: [
       { to: paths.studyPlan, label: 'Учебный план' },
-      { to: paths.roadmap, label: 'Траектория (dev)' },
+      { to: paths.roadmap, label: 'Траектория обучения' },
     ],
   },
   {
