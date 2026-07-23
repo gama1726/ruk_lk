@@ -1,5 +1,6 @@
 package ru.ruc.lk.ruk_lk_api.api.student;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -18,8 +19,8 @@ import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupLookupResponse;
 
 /**
- * Резолв и кэш в HTTP-сессии GUID группы/филиала для сервиса расписания.
- * После логина контекст прогревается заранее — месяц грузится сразу в get_schedule.
+ * GUID группы/филиала: БД + кэш в HTTP-сессии.
+ * Lookup в сервис расписания только если в БД нет записи или сменилась группа.
  */
 @Service
 public class ScheduleContextService {
@@ -29,27 +30,36 @@ public class ScheduleContextService {
     private static final Logger log = LoggerFactory.getLogger(ScheduleContextService.class);
 
     private final ScheduleClient scheduleClient;
+    private final StudentScheduleContextRepository repository;
 
-    public ScheduleContextService(ScheduleClient scheduleClient) {
+    public ScheduleContextService(
+        ScheduleClient scheduleClient,
+        StudentScheduleContextRepository repository
+    ) {
         this.scheduleClient = scheduleClient;
+        this.repository = repository;
     }
 
-    /**
-     * Прогрев при логине: не роняет сессию, если сервис расписания недоступен.
-     */
+    /** Прогрев при логине: не роняет сессию при ошибке lookup. */
     public void warmQuietly(HttpSession session, StudentSession student) {
-        groupFromPrograms(student.programs()).ifPresent(group -> warmQuietly(session, group));
+        groupFromPrograms(student.programs()).ifPresent(group ->
+            warmQuietly(session, student.studentId(), group)
+        );
     }
 
-    /** Прогрев по известному имени группы (например из профиля 1С). */
-    public void warmQuietly(HttpSession session, String groupName) {
-        if (groupName == null || groupName.isBlank()) {
+    public void warmQuietly(HttpSession session, String studentId, String groupName) {
+        if (studentId == null || studentId.isBlank() || groupName == null || groupName.isBlank()) {
             return;
         }
         try {
-            resolve(session, groupName.trim());
+            resolve(session, studentId.trim(), groupName.trim());
         } catch (Exception ex) {
-            log.warn("Не удалось прогреть контекст расписания для группы {}: {}", groupName, ex.toString());
+            log.warn(
+                "Не удалось прогреть контекст расписания для {} / {}: {}",
+                studentId,
+                groupName,
+                ex.toString()
+            );
         }
     }
 
@@ -59,14 +69,20 @@ public class ScheduleContextService {
         Supplier<Optional<String>> groupFromProfile
     ) {
         Object raw = session.getAttribute(SESSION_KEY);
-        if (raw instanceof ScheduleSessionContext cached
-            && cached.groupGuid() != null && !cached.groupGuid().isBlank()
-            && cached.branchGuid() != null && !cached.branchGuid().isBlank()) {
-            return cached;
+        if (raw instanceof ScheduleSessionContext cached && hasGuids(cached)) {
+            String desired = currentGroupName(student, groupFromProfile).orElse(cached.groupName());
+            if (desired.equals(cached.groupName())) {
+                return cached;
+            }
         }
 
-        String groupName = resolveGroupName(session, student, groupFromProfile);
-        return resolve(session, groupName);
+        String groupName = currentGroupName(student, groupFromProfile)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Группа студента не найдена"
+            ));
+
+        return resolve(session, student.studentId(), groupName);
     }
 
     public String resolveGroupName(
@@ -74,28 +90,41 @@ public class ScheduleContextService {
         StudentSession student,
         Supplier<Optional<String>> groupFromProfile
     ) {
-        Object raw = session.getAttribute(SESSION_KEY);
-        if (raw instanceof ScheduleSessionContext cached
-            && cached.groupName() != null && !cached.groupName().isBlank()) {
-            return cached.groupName();
-        }
-
-        return groupFromPrograms(student.programs())
-            .or(() -> groupFromProfile == null ? Optional.empty() : groupFromProfile.get())
+        return currentGroupName(student, groupFromProfile)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
                 "Группа студента не найдена"
             ));
     }
 
-    private ScheduleSessionContext resolve(HttpSession session, String groupName) {
+    /** Актуальная группа: программы сессии → профиль 1С → сохранённая в БД. */
+    private Optional<String> currentGroupName(
+        StudentSession student,
+        Supplier<Optional<String>> groupFromProfile
+    ) {
+        return groupFromPrograms(student.programs())
+            .or(() -> groupFromProfile == null ? Optional.empty() : groupFromProfile.get())
+            .or(() -> repository.findById(student.studentId())
+                .map(StudentScheduleContext::getGroupName)
+                .filter(name -> name != null && !name.isBlank()));
+    }
+
+    ScheduleSessionContext resolve(HttpSession session, String studentId, String groupName) {
         synchronized (lock(session)) {
             Object raw = session.getAttribute(SESSION_KEY);
             if (raw instanceof ScheduleSessionContext cached
                 && groupName.equals(cached.groupName())
-                && cached.groupGuid() != null && !cached.groupGuid().isBlank()
-                && cached.branchGuid() != null && !cached.branchGuid().isBlank()) {
+                && hasGuids(cached)) {
                 return cached;
+            }
+
+            Optional<StudentScheduleContext> stored = repository.findById(studentId);
+            if (stored.isPresent()
+                && groupName.equals(stored.get().getGroupName())
+                && hasGuids(stored.get())) {
+                ScheduleSessionContext context = stored.get().toSessionContext();
+                session.setAttribute(SESSION_KEY, context);
+                return context;
             }
 
             ScheduleGroupLookupResponse lookup = scheduleClient
@@ -113,14 +142,34 @@ public class ScheduleContextService {
                 );
             }
 
-            ScheduleSessionContext context = new ScheduleSessionContext(
-                groupName,
-                lookup.group().guid().trim(),
-                lookup.branch().guid().trim()
+            String groupGuid = lookup.group().guid().trim();
+            String branchGuid = lookup.branch().guid().trim();
+            Instant now = Instant.now();
+
+            StudentScheduleContext row = stored.orElseGet(() ->
+                new StudentScheduleContext(studentId, groupName, groupGuid, branchGuid, now)
             );
+            if (stored.isPresent()) {
+                row.update(groupName, groupGuid, branchGuid, now);
+            }
+            repository.save(row);
+
+            ScheduleSessionContext context = new ScheduleSessionContext(groupName, groupGuid, branchGuid);
             session.setAttribute(SESSION_KEY, context);
             return context;
         }
+    }
+
+    private static boolean hasGuids(ScheduleSessionContext context) {
+        return context != null
+            && !isBlank(context.groupGuid())
+            && !isBlank(context.branchGuid());
+    }
+
+    private static boolean hasGuids(StudentScheduleContext row) {
+        return row != null
+            && !isBlank(row.getGroupGuid())
+            && !isBlank(row.getBranchGuid());
     }
 
     private static Optional<String> groupFromPrograms(List<ProgramSummary> programs) {
