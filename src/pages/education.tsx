@@ -11,7 +11,7 @@ import styles from './services.module.css'
 const items = [
   { to: paths.attendance, title: 'Посещаемость (dev)', note: 'Журнал и процент по дисциплинам' },
   { to: paths.recordBook, title: 'Зачётная книжка', note: 'Оценки, БРС, практика' },
-  { to: paths.grades, title: 'Успеваемость', note: 'Сводка по семестрам' },
+  { to: paths.grades, title: 'Успеваемость', note: 'Оценки по семестрам' },
   { to: paths.debts, title: 'Задолженности', note: 'Академические долги' },
   { to: paths.studyPlan, title: 'Учебный план (dev)', note: 'Дисциплины и часы' },
   { to: paths.roadmap, title: 'Траектория (dev)', note: 'Дорожная карта обучения' },
