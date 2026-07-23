@@ -52,7 +52,7 @@
   }
 }
 
-@media (min-width: 960px) {
+@media (min-width: 1024px) {
   .grid {
     grid-template-columns: repeat(4, 1fr);
   }

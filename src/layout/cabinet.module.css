@@ -14,12 +14,18 @@
 .content {
   flex: 1;
   padding: 1rem;
-  padding-bottom: calc(var(--mobile-nav-height) + 1rem);
+  padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 1rem);
+}
+
+@media (min-width: 768px) {
+  .content {
+    padding: 1.25rem 1.5rem;
+    padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 1.25rem);
+  }
 }
 
 @media (min-width: 1024px) {
   .content {
     padding: 1.5rem 2rem 2rem;
-    padding-bottom: 2rem;
   }
 }

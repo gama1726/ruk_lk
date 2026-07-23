@@ -50,4 +50,13 @@
   --focus-ring: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-primary);
 
   --transition-fast: 150ms ease;
+
+  /*
+   * Единая шкала breakpoints (в @media — только эти значения):
+   *  480  — xs: узкий телефон (max-width: 479)
+   *  640  — sm: крупный телефон / сетки 2 колонки
+   *  768  — md: планшет, table↔cards
+   * 1024  — lg: десктоп-оболочка (sidebar)
+   * 1280  — xl: широкие сетки (по необходимости)
+   */
 }

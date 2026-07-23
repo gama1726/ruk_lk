@@ -43,7 +43,7 @@
   gap: 0.75rem;
 }
 
-@media (min-width: 700px) {
+@media (min-width: 768px) {
   .card {
     grid-template-columns: 1fr 200px;
     grid-template-rows: auto auto;

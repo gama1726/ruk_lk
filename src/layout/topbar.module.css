@@ -5,8 +5,16 @@
   gap: 1rem;
   min-height: var(--topbar-height);
   padding: 0.75rem 1rem;
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
   border-bottom: 1px solid var(--color-border);
   background-color: var(--color-surface);
+}
+
+@media (min-width: 768px) {
+  .topbar {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
 }
 
 .brand {

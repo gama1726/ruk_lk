@@ -80,6 +80,6 @@ export const menu = [
 export const mobileTabs: NavItem[] = [
   { to: paths.profile, label: 'Профиль', icon: 'profile' },
   { to: paths.schedule, label: 'Расписание', icon: 'schedule' },
-  { to: paths.news, label: 'Уведомления (dev)', icon: 'news' },
+  { to: paths.news, label: 'Новости', icon: 'news' },
   { to: paths.services, label: 'Сервисы', icon: 'services' },
 ]

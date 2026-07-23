@@ -47,13 +47,13 @@
   color: var(--color-text-secondary);
 }
 
-@media (min-width: 900px) {
+@media (min-width: 768px) {
   .layout {
-    grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
   }
 }
 
-@media (max-width: 899px) {
+@media (max-width: 767px) {
   .title {
     font-size: var(--font-size-xl);
   }

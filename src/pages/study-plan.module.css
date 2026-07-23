@@ -147,13 +147,13 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .details {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (min-width: 960px) {
+@media (min-width: 1024px) {
   .details {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
@@ -178,7 +178,7 @@
   word-break: break-word;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .tabs {
     display: grid;
     grid-template-columns: 1fr;
