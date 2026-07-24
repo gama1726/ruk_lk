@@ -6,13 +6,22 @@
 app.onec.publication-user=
 app.onec.publication-password=
 
-# Фиксированный код для тестов (оставьте пустым в проде — код будет случайным)
+# Фиксированный код для тестов. В профиле prod — ЗАПРЕЩЁН (приложение не стартанет, если задан).
 app.auth.fixed-code=
+
+# OTP (опционально)
+# app.auth.otp-ttl-seconds=300
+# app.auth.otp-max-attempts=5
+# app.auth.send-code-cooldown-seconds=60
 
 # UniSender Go — отправка кода на email
 app.unisender.enabled=true
 app.unisender.api-key=
 app.unisender.from-email=
+
+# MAX: если app.max.enabled=true — обязателен webhook-secret
+# app.max.enabled=false
+# app.max.webhook-secret=
 
 # URL 1С — если на сервере другой адрес, чем в application.properties:
 # app.onec.base-url=http://10.10.31.13/universitet_masterkova1

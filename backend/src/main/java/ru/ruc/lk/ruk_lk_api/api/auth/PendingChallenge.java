@@ -1,5 +1,6 @@
 package ru.ruc.lk.ruk_lk_api.api.auth;
 
+import java.time.Instant;
 import java.util.List;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.ProgramSummary;
@@ -13,5 +14,22 @@ public record PendingChallenge(
     Long maxUserId,
     LoginCodeChannel channel,
     String code,
-    List<ProgramSummary> programs
-) {}
+    List<ProgramSummary> programs,
+    Instant createdAt,
+    int failedAttempts
+) {
+    public PendingChallenge withFailedAttempts(int attempts) {
+        return new PendingChallenge(
+            studentId,
+            fullName,
+            email,
+            phone,
+            maxUserId,
+            channel,
+            code,
+            programs,
+            createdAt,
+            attempts
+        );
+    }
+}

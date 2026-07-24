@@ -32,7 +32,13 @@ public class MaxWebhookController {
         @RequestBody MaxUpdate body
     ) {
         String expected = properties.getWebhookSecret() == null ? "" : properties.getWebhookSecret().trim();
-        if (!expected.isBlank() && !expected.equals(secret == null ? "" : secret.trim())) {
+        // Fail-closed: без secret webhook не принимаем
+        if (expected.isBlank()) {
+            log.warn("MAX webhook: app.max.webhook-secret не задан");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String provided = secret == null ? "" : secret.trim();
+        if (!constantTimeEquals(expected, provided)) {
             log.warn("MAX webhook: неверный secret");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -48,6 +54,12 @@ public class MaxWebhookController {
         }
 
         return ResponseEntity.ok().build();
+    }
+
+    private static boolean constantTimeEquals(String a, String b) {
+        byte[] left = a.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] right = b.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return java.security.MessageDigest.isEqual(left, right);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

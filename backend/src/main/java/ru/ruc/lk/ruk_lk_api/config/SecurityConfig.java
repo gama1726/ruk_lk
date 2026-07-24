@@ -5,31 +5,33 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
+    public SecurityFilterChain securityFilterChain(
+        HttpSecurity http,
+        StudentSessionAuthFilter studentSessionAuthFilter
+    ) throws Exception {
         http
-            //для rest-api пока отключим csrf
+            // Cookie-сессия + SameSite=lax; полный CSRF-токен для SPA — отдельно
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> {}) //подхватит бин CorsConfig.corsConfigurationSource()
-
-            //отключаем базово. форму для логина spring security
+            .cors(cors -> {})
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable())
             .authorizeHttpRequests(auth -> auth
-            // публичные эндпоинты
-            .requestMatchers("/api/health").permitAll()
-            // auth: сессия в HttpSession, не в Spring Security Authentication
-            .requestMatchers("/api/auth/**").permitAll()
-            // остальное API — позже; пока тоже через сессию в контроллерах
-            .anyRequest().permitAll()
-            );
+                .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/max/webhook").permitAll()
+                .requestMatchers("/api/admin/**").permitAll()
+                // /api/student/** — StudentSessionAuthFilter + requireStudent в сервисах
+                .anyRequest().permitAll()
+            )
+            .addFilterBefore(studentSessionAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
-     return http.build();
-
+        return http.build();
     }
 }

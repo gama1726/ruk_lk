@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.AuthChannelsDto;
@@ -61,8 +62,8 @@ public class AuthController {
 
     /** Шаг 3: код → сессия. */
     @PostMapping("/verify-code")
-    public MeResponse verifyCode(@RequestBody VerifyCodeRequest body, HttpSession session) {
-        return authService.verifyCode(body.code(), session);
+    public MeResponse verifyCode(@RequestBody VerifyCodeRequest body, HttpServletRequest request) {
+        return authService.verifyCode(body.code(), request);
     }
 
     @GetMapping("/me")

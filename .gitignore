@@ -30,3 +30,6 @@ backend/.mvn
 backend/.idea
 backend/.vscode
 backend/data/
+
+
+docs/security-remediation.md

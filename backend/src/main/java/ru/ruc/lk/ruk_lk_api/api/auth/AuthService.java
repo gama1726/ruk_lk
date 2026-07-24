@@ -1,6 +1,8 @@
 package ru.ruc.lk.ruk_lk_api.api.auth;
 
 import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -10,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.AuthChannelsDto;
@@ -31,6 +34,7 @@ public class AuthService {
     private static final String SESSION_KEY = "STUDENT";
     private static final String PENDING_IDENTIFICATION_KEY = "PENDING_IDENTIFICATION";
     private static final String PENDING_KEY = "PENDING_CHALLENGE";
+    private static final String LAST_SEND_AT_KEY = "AUTH_LAST_CODE_SENT_AT";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final OneCClient onecClient;
@@ -39,6 +43,9 @@ public class AuthService {
     private final MaxBindingService maxBindingService;
     private final ScheduleContextService scheduleContextService;
     private final String fixedCode;
+    private final Duration otpTtl;
+    private final int otpMaxAttempts;
+    private final Duration sendCooldown;
 
     public AuthService(
         OneCClient onecClient,
@@ -46,7 +53,10 @@ public class AuthService {
         VerificationMaxSender maxSender,
         MaxBindingService maxBindingService,
         ScheduleContextService scheduleContextService,
-        @Value("${app.auth.fixed-code:}") String fixedCode
+        @Value("${app.auth.fixed-code:}") String fixedCode,
+        @Value("${app.auth.otp-ttl-seconds:300}") long otpTtlSeconds,
+        @Value("${app.auth.otp-max-attempts:5}") int otpMaxAttempts,
+        @Value("${app.auth.send-code-cooldown-seconds:60}") long sendCooldownSeconds
     ) {
         this.onecClient = onecClient;
         this.emailSender = emailSender;
@@ -54,6 +64,9 @@ public class AuthService {
         this.maxBindingService = maxBindingService;
         this.scheduleContextService = scheduleContextService;
         this.fixedCode = fixedCode;
+        this.otpTtl = Duration.ofSeconds(Math.max(60, otpTtlSeconds));
+        this.otpMaxAttempts = Math.max(1, otpMaxAttempts);
+        this.sendCooldown = Duration.ofSeconds(Math.max(0, sendCooldownSeconds));
     }
 
     public AuthChannelsDto loginChannels() {
@@ -113,6 +126,8 @@ public class AuthService {
     public LoginChallengeResponse sendCode(LoginCodeChannel channel, HttpSession session) {
         LoginCodeChannel delivery = channel == null ? LoginCodeChannel.EMAIL : channel;
 
+        enforceSendCooldown(session);
+
         PendingIdentification pending = requirePendingIdentification(session);
         Long maxUserId = maxBindingService.findMaxUserId(pending.studentId()).orElse(null);
 
@@ -147,6 +162,7 @@ public class AuthService {
             deliveryHint = maskEmail(pending.email());
         }
 
+        Instant now = Instant.now();
         session.setAttribute(PENDING_KEY, new PendingChallenge(
             pending.studentId(),
             pending.fullName(),
@@ -155,20 +171,32 @@ public class AuthService {
             maxUserId,
             delivery,
             code,
-            pending.programs()
+            pending.programs(),
+            now,
+            0
         ));
+        session.setAttribute(LAST_SEND_AT_KEY, now);
         session.removeAttribute(PENDING_IDENTIFICATION_KEY);
 
+        // В ответе только маска — полный email не отдаём клиенту
         return new LoginChallengeResponse(
             pending.studentId(),
-            pending.email(),
+            deliveryHint,
             delivery,
             deliveryHint
         );
     }
 
-    /** Шаг 3: подтверждение кода, создание сессии. */
-    public MeResponse verifyCode(String code, HttpSession session) {
+    /** Шаг 3: подтверждение кода, создание сессии (с ротацией session id). */
+    public MeResponse verifyCode(String code, HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            throw new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Сначала войдите по номеру зачётки"
+            );
+        }
+
         Object raw = session.getAttribute(PENDING_KEY);
         if (!(raw instanceof PendingChallenge pending)) {
             throw new ResponseStatusException(
@@ -177,8 +205,33 @@ public class AuthService {
             );
         }
 
+        if (pending.createdAt() == null || Instant.now().isAfter(pending.createdAt().plus(otpTtl))) {
+            session.removeAttribute(PENDING_KEY);
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Код истёк. Запросите новый код входа"
+            );
+        }
+
+        if (pending.failedAttempts() >= otpMaxAttempts) {
+            session.removeAttribute(PENDING_KEY);
+            throw new ResponseStatusException(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "Слишком много неверных попыток. Запросите новый код"
+            );
+        }
+
         String digits = code == null ? "" : code.replaceAll("\\s", "");
         if (!pending.code().equals(digits)) {
+            int next = pending.failedAttempts() + 1;
+            if (next >= otpMaxAttempts) {
+                session.removeAttribute(PENDING_KEY);
+                throw new ResponseStatusException(
+                    HttpStatus.TOO_MANY_REQUESTS,
+                    "Слишком много неверных попыток. Запросите новый код"
+                );
+            }
+            session.setAttribute(PENDING_KEY, pending.withFailedAttempts(next));
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Неверный код подтверждения");
         }
 
@@ -188,10 +241,12 @@ public class AuthService {
             pending.email(),
             pending.programs()
         );
-        session.setAttribute(SESSION_KEY, student);
-        session.removeAttribute(PENDING_KEY);
-        session.removeAttribute(PENDING_IDENTIFICATION_KEY);
-        scheduleContextService.warmQuietly(session, student);
+
+        // Session fixation: новый id после успешного входа
+        session.invalidate();
+        HttpSession fresh = request.getSession(true);
+        fresh.setAttribute(SESSION_KEY, student);
+        scheduleContextService.warmQuietly(fresh, student);
 
         return toMeResponse(student);
     }
@@ -223,12 +278,16 @@ public class AuthService {
         if (!(raw instanceof PendingChallenge pending)) {
             return Optional.empty();
         }
+        if (pending.createdAt() != null && Instant.now().isAfter(pending.createdAt().plus(otpTtl))) {
+            session.removeAttribute(PENDING_KEY);
+            return Optional.empty();
+        }
         String deliveryHint = pending.channel() == LoginCodeChannel.MAX
             ? maskPhone(pending.phone())
             : maskEmail(pending.email());
         return Optional.of(new LoginChallengeResponse(
             pending.studentId(),
-            pending.email(),
+            deliveryHint,
             pending.channel(),
             deliveryHint
         ));
@@ -236,6 +295,24 @@ public class AuthService {
 
     public void logout(HttpSession session) {
         session.invalidate();
+    }
+
+    private void enforceSendCooldown(HttpSession session) {
+        if (sendCooldown.isZero() || sendCooldown.isNegative()) {
+            return;
+        }
+        Object raw = session.getAttribute(LAST_SEND_AT_KEY);
+        if (!(raw instanceof Instant lastSent)) {
+            return;
+        }
+        Instant allowedAt = lastSent.plus(sendCooldown);
+        if (Instant.now().isBefore(allowedAt)) {
+            long retryAfter = Duration.between(Instant.now(), allowedAt).toSeconds();
+            throw new ResponseStatusException(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "Подождите " + Math.max(1, retryAfter) + " с. перед повторной отправкой кода"
+            );
+        }
     }
 
     private PendingIdentification requirePendingIdentification(HttpSession session) {
