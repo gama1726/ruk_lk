@@ -64,7 +64,7 @@ export function Attendance() {
 
   return (
     <>
-      <ScreenHeader title="Посещаемость" subtitle={programLabel(program)} />
+      <ScreenHeader title="Посещаемость (dev)" subtitle={programLabel(program)} />
 
       <div className={styles.filters}>
         <Select label="Дисциплина" options={subjectOptions} value={subject} onChange={(e) => setSubject(e.target.value)} />

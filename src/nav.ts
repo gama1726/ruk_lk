@@ -24,7 +24,7 @@ export type NavGroup = {
 /** Верхние пункты без группы — как у МИРЭА */
 export const sidebarTop: NavItem[] = [
   { to: paths.profile, label: 'Профиль', icon: 'profile' },
-  { to: paths.news, label: 'Новости и уведомления', icon: 'news' },
+  { to: paths.news, label: 'Новости и уведомления (dev)', icon: 'news' },
   { to: paths.schedule, label: 'Расписание', icon: 'schedule' },
 ]
 
@@ -35,12 +35,12 @@ export const sidebarGroups: NavGroup[] = [
     label: 'Обучение',
     icon: 'study',
     items: [
-      { to: paths.attendance, label: 'Посещаемость', icon: 'attendance' },
+      { to: paths.attendance, label: 'Посещаемость (dev)', icon: 'attendance' },
       { to: paths.recordBook, label: 'Электронная зачётная книжка', icon: 'recordBook' },
       { to: paths.grades, label: 'Успеваемость', icon: 'grades' },
       { to: paths.debts, label: 'Академические задолженности', icon: 'debts' },
       { to: paths.library, label: 'Читательский билет', icon: 'library' },
-      { to: paths.teachers, label: 'Преподаватели', icon: 'teachers' },
+      { to: paths.teachers, label: 'Преподаватели (dev)', icon: 'teachers' },
       { to: paths.orders, label: 'Приказы', icon: 'orders' },
     ],
   },
@@ -58,13 +58,13 @@ export const sidebarGroups: NavGroup[] = [
     label: 'Сервисы',
     icon: 'services',
     items: [
-      { to: paths.requests, label: 'Заявления', icon: 'requests' },
+      { to: paths.requests, label: 'Заявления (dev)', icon: 'requests' },
       { to: paths.payments, label: 'Оплата обучения', icon: 'payments' },
-      { to: paths.dormitory, label: 'Заявки по общежитиям', icon: 'dormitory' },
-      { to: paths.bypassList, label: 'Обходной лист', icon: 'bypassList' },
+      { to: paths.dormitory, label: 'Заявки по общежитиям (dev)', icon: 'dormitory' },
+      { to: paths.bypassList, label: 'Обходной лист (dev)', icon: 'bypassList' },
       { to: paths.psychologist, label: 'Приём психолога', icon: 'psychologist' },
       { to: paths.portfolio, label: 'Портфолио', icon: 'portfolio' },
-      { to: paths.settings, label: 'Настройки', icon: 'settings' },
+      { to: paths.settings, label: 'Настройки (dev)', icon: 'settings' },
       { to: paths.passPhoto, label: 'Фото для пропуска', icon: 'passPhoto' },
     ],
   },

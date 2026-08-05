@@ -80,7 +80,7 @@ export function Settings() {
   return (
     <>
       <ScreenHeader
-        title="Настройки"
+        title="Настройки (dev)"
         subtitle="Контакты, безопасность и уведомления"
         actions={
           <Button variant="ghost" onClick={handleSignOut}>

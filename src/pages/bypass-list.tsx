@@ -24,7 +24,7 @@ export function BypassList() {
 
   return (
     <>
-      <ScreenHeader title="Обходной лист" subtitle={sheet.purpose} />
+      <ScreenHeader title="Обходной лист (dev)" subtitle={sheet.purpose} />
 
       <div className={styles.progress}>
         <p className={styles.progressLabel}>

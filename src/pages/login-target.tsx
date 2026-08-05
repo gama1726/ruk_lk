@@ -11,7 +11,7 @@ import { LinkLoginForm } from './link-login-form'
 export function TargetLogin() {
   return (
     <LinkLoginForm
-      title="Вход для заказчиков целевого обучения"
+      title="Вход для заказчиков целевого обучения (dev)"
       hint="Для организаций-партнёров, направляющих сотрудников на обучение в РУК."
       fields={[
         { name: 'email', label: 'Корпоративная почта', placeholder: 'hr@company.ru' },

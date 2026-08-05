@@ -17,7 +17,7 @@ export function Support() {
 
   return (
     <>
-      <ScreenHeader title="Техническая поддержка" subtitle="Помощь по работе личного кабинета" />
+      <ScreenHeader title="Техническая поддержка (dev)" subtitle="Помощь по работе личного кабинета" />
 
       <Card>
         <p className={styles.contacts}>
