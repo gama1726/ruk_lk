@@ -20,11 +20,6 @@ import styles from './record-book.module.css'
 
 type ViewMode = 'standard' | 'gosuslugi'
 
-function formatCreditUnits(value: number | undefined): string {
-  if (value == null || value <= 0) return '—'
-  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(value)
-}
-
 function formatGrade(grade: string | null): string {
   if (!grade) return '—'
   return grade.charAt(0).toUpperCase() + grade.slice(1)
@@ -217,7 +212,6 @@ export function RecordBook() {
                     <th>Наименование дисциплины</th>
                     <th>Вид контроля</th>
                     <th>Часы</th>
-                    <th>ЗЕТ</th>
                     <th>Оценка</th>
                     <th>Баллы</th>
                     <th>Статус</th>
@@ -233,7 +227,6 @@ export function RecordBook() {
                       </td>
                       <td>{formatControlForm(row.controlForm)}</td>
                       <td>{row.hours > 0 ? formatHours(row.hours) : '—'}</td>
-                      <td>{formatCreditUnits(row.creditUnits)}</td>
                       <td className={styles.grade}>{formatGrade(row.grade)}</td>
                       <td className={styles.points}>{row.points ?? '—'}</td>
                       <td>
