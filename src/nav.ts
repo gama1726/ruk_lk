@@ -63,7 +63,7 @@ export const sidebarGroups: NavGroup[] = [
       { to: paths.bypassList, label: 'Обходной лист (dev)', icon: 'bypassList' },
       { to: paths.psychologist, label: 'Приём психолога', icon: 'psychologist' },
       { to: paths.portfolio, label: 'Портфолио', icon: 'portfolio' },
-      { to: paths.settings, label: 'Настройки (dev)', icon: 'settings' },
+      { to: paths.settings, label: 'Настройки', icon: 'settings' },
       { to: paths.passPhoto, label: 'Фото для пропуска', icon: 'passPhoto' },
     ],
   },
