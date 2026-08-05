@@ -26,9 +26,11 @@ import ru.ruc.lk.ruk_lk_api.api.auth.dto.VerifyCodeRequest;
 public class AuthController {
 
     private final AuthService authService;
+    private final AuthIpRateLimiter authIpRateLimiter;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, AuthIpRateLimiter authIpRateLimiter) {
         this.authService = authService;
+        this.authIpRateLimiter = authIpRateLimiter;
     }
 
     @GetMapping("/channels")
@@ -38,7 +40,12 @@ public class AuthController {
 
     /** Шаг 1: зачётка → проверка в 1С. */
     @PostMapping("/identify")
-    public IdentifyResponse identify(@RequestBody IdentifyRequest body, HttpSession session) {
+    public IdentifyResponse identify(
+        @RequestBody IdentifyRequest body,
+        HttpServletRequest request,
+        HttpSession session
+    ) {
+        authIpRateLimiter.checkIdentifyAllowed(request);
         return authService.identify(body.studentId(), session);
     }
 

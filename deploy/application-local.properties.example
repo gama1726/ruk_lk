@@ -13,6 +13,8 @@ app.auth.fixed-code=
 # app.auth.otp-ttl-seconds=300
 # app.auth.otp-max-attempts=5
 # app.auth.send-code-cooldown-seconds=60
+# app.auth.identify-rate-limit-max=10
+# app.auth.identify-rate-limit-window-seconds=60
 
 # UniSender Go — отправка кода на email
 app.unisender.enabled=true

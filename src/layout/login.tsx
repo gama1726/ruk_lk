@@ -17,11 +17,23 @@ export function LoginShell() {
     <div className={styles.wrap}>
       <header className={styles.top}>
         <nav className={styles.topNav} aria-label="Публичное меню">
-          {publicNav.map((item) => (
-            <Link key={item.label} to={item.to} className={styles.topLink}>
-              {item.label}
-            </Link>
-          ))}
+          {publicNav.map((item) =>
+            item.href ? (
+              <a
+                key={item.label}
+                href={item.href}
+                className={styles.topLink}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {item.label}
+              </a>
+            ) : (
+              <Link key={item.label} to={item.to!} className={styles.topLink}>
+                {item.label}
+              </Link>
+            ),
+          )}
         </nav>
       </header>
 

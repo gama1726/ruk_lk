@@ -2,17 +2,21 @@
  * @file Публичная навигация и соцсети на экране входа.
  */
 
+import { moodleEostudUrl } from '@/mocks/public'
 import { paths } from '@/paths'
 
 export type PublicNavItem = {
-  to: string
   label: string
+  /** Внутренний маршрут */
+  to?: string
+  /** Внешняя ссылка */
+  href?: string
 }
 
 /** Верхнее меню как на портале */
 export const publicNav: PublicNavItem[] = [
   { to: paths.resources, label: 'Ресурсы (dev)' },
-  { to: paths.resources, label: 'Дистанционное обучение (dev)' },
+  { href: moodleEostudUrl, label: 'Дистанционное обучение' },
   { to: paths.support, label: 'Техническая поддержка (dev)' },
   { to: paths.support, label: 'Обращение в приёмную (dev)' },
 ]
