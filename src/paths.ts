@@ -15,7 +15,6 @@ export const paths = {
   loginTeacher: '/login/teacher',
   sso: '/login/sso',
   verify: '/verify-code',
-  forgot: '/forgot-password',
   resources: '/resources',
   support: '/support',
   profile: '/profile',

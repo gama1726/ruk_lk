@@ -1,6 +1,5 @@
 /**
  * @file Настройки профиля в памяти сессии.
- * @remarks Контакты и уведомления — mock UI до подключения backend.
  * @see {@link student} — начальные значения из мока
  */
 
@@ -38,14 +37,6 @@ type SettingsState = {
    * @param enabled - включено или нет
    */
   setNotification: (key: NotificationKey, enabled: boolean) => void
-  /**
-   * Mock-смена пароля: проверка полей без сохранения.
-   * @param current - текущий пароль (не логируем)
-   * @param next - новый пароль
-   * @param confirm - повтор нового пароля
-   * @returns текст ошибки или `null` при успехе
-   */
-  changePassword: (current: string, next: string, confirm: string) => string | null
 }
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -81,13 +72,5 @@ export const useSettings = create<SettingsState>((set) => ({
 
   setNotification(key, enabled) {
     set((s) => ({ notifications: { ...s.notifications, [key]: enabled } }))
-  },
-
-  changePassword(current, next, confirm) {
-    if (!current) return 'Введите текущий пароль'
-    if (current.length < 4) return 'Текущий пароль указан неверно'
-    if (!next || next.length < 6) return 'Новый пароль — не короче 6 символов'
-    if (next !== confirm) return 'Пароли не совпадают'
-    return null
   },
 }))

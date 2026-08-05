@@ -17,7 +17,7 @@ import { ScreenHeader, Button, Input, Checkbox, Card } from '@/ui'
 import styles from './settings.module.css'
 
 /**
- * Настройки: контакты, пароль, уведомления, выход.
+ * Настройки: контакты, уведомления, выход.
  */
 export function Settings() {
   const signOut = useAuth((s) => s.signOut)
@@ -28,7 +28,6 @@ export function Settings() {
   const setPersonalEmail = useSettings((s) => s.setPersonalEmail)
   const setPhone = useSettings((s) => s.setPhone)
   const setNotification = useSettings((s) => s.setNotification)
-  const changePassword = useSettings((s) => s.changePassword)
 
   const [emailDraft, setEmailDraft] = useState(personalEmail)
   const [phoneDraft, setPhoneDraft] = useState(phone)
@@ -36,15 +35,9 @@ export function Settings() {
   const [phoneError, setPhoneError] = useState<string>()
   const [emailSaved, setEmailSaved] = useState(false)
 
-  const [currentPwd, setCurrentPwd] = useState('')
-  const [newPwd, setNewPwd] = useState('')
-  const [confirmPwd, setConfirmPwd] = useState('')
-
   const handleSignOut = (_e: MouseEvent<HTMLButtonElement>) => {
     void signOut()
   }
-  const [pwdError, setPwdError] = useState<string>()
-  const [pwdSaved, setPwdSaved] = useState(false)
 
   const contactsFromApi = isApiConfigured()
   const displayEmail = contactsFromApi ? (profile?.email ?? '') : personalEmail
@@ -64,24 +57,11 @@ export function Settings() {
     setPhoneError(err ?? undefined)
   }
 
-  const handlePassword = (e: FormEvent) => {
-    e.preventDefault()
-    setPwdSaved(false)
-    const err = changePassword(currentPwd, newPwd, confirmPwd)
-    setPwdError(err ?? undefined)
-    if (!err) {
-      setPwdSaved(true)
-      setCurrentPwd('')
-      setNewPwd('')
-      setConfirmPwd('')
-    }
-  }
-
   return (
     <>
       <ScreenHeader
         title="Настройки (dev)"
-        subtitle="Контакты, безопасность и уведомления"
+        subtitle="Контакты и уведомления"
         actions={
           <Button variant="ghost" onClick={handleSignOut}>
             Выйти
@@ -131,41 +111,6 @@ export function Settings() {
               </form>
             </>
           )}
-        </Card>
-      </section>
-
-      <section className={styles.section} id="password">
-        <h2 className={styles.sectionTitle}>Безопасность</h2>
-        <Card>
-          <form className={styles.form} onSubmit={handlePassword}>
-            <Input
-              label="Текущий пароль"
-              type="password"
-              autoComplete="current-password"
-              value={currentPwd}
-              error={pwdError}
-              onChange={(e) => {
-                setCurrentPwd(e.target.value)
-                setPwdSaved(false)
-              }}
-            />
-            <Input
-              label="Новый пароль"
-              type="password"
-              autoComplete="new-password"
-              value={newPwd}
-              onChange={(e) => setNewPwd(e.target.value)}
-            />
-            <Input
-              label="Повторите новый пароль"
-              type="password"
-              autoComplete="new-password"
-              value={confirmPwd}
-              onChange={(e) => setConfirmPwd(e.target.value)}
-            />
-            <Button type="submit">Изменить пароль</Button>
-            {pwdSaved ? <p className={styles.success}>Пароль обновлён</p> : null}
-          </form>
         </Card>
       </section>
 

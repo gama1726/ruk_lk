@@ -10,7 +10,6 @@ import { StudentLogin } from '@/pages/login-student'
 import { LoginDelivery } from '@/pages/login-delivery'
 import { SsoLogin } from '@/pages/login-sso'
 import { Verify } from '@/pages/verify-code'
-import { ForgotPassword } from '@/pages/forgot-password'
 import { ParentLogin } from '@/pages/login-parent'
 import { ContractLogin } from '@/pages/login-contract'
 import { TargetLogin } from '@/pages/login-target'
@@ -58,7 +57,6 @@ export const router = createBrowserRouter([
           { path: paths.loginTarget, element: <TargetLogin /> },
           { path: paths.loginTeacher, element: <TeacherLogin /> },
           { path: paths.verify, element: <Verify /> },
-          { path: paths.forgot, element: <ForgotPassword /> },
         ],
       },
     ],

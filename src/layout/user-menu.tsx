@@ -22,12 +22,11 @@ function shortName(full: string) {
 type MenuItem = {
   to: string
   label: string
-  icon: 'mail' | 'lock' | 'phone' | 'logout'
+  icon: 'mail' | 'phone' | 'logout'
 }
 
 const items: MenuItem[] = [
   { to: `${paths.settings}#email`, label: 'Изменить e-mail', icon: 'mail' },
-  { to: `${paths.settings}#password`, label: 'Изменить пароль', icon: 'lock' },
   { to: `${paths.settings}#phone`, label: 'Изменить телефон', icon: 'phone' },
 ]
 
@@ -42,7 +41,6 @@ function MenuIcon({ kind }: { kind: MenuItem['icon'] | 'chevron' }) {
 
   const paths: Record<MenuItem['icon'], string> = {
     mail: 'M2.003 5.884 10 9.882l7.997-3.998A2 2 0 0 0 16 4H4a2 2 0 0 0-1.997 1.884z M18 8.118l-8 4-8-4V14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.118z',
-    lock: 'M5 9V7a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h1zm2 0h6V7a3 3 0 0 0-6 0v2z',
     phone:
       'M2 3a1 1 0 0 1 1-1h2.153a1 1 0 0 1 .986.836l.74 4.435a1 1 0 0 1-.54 1.06l-1.548.773a11.037 11.037 0 0 0 6.105 6.105l.774-1.548a1 1 0 0 1 1.059-.54l4.435.74a1 1 0 0 1 .836.986V17a1 1 0 0 1-1 1h-2C7.82 18 2 12.18 2 5V3z',
     logout:
