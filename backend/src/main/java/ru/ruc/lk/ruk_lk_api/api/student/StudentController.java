@@ -1,6 +1,8 @@
 package ru.ruc.lk.ruk_lk_api.api.student;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +16,8 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentLibraryResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.UpdateEmailRequest;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.UpdateEmailResponse;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -32,6 +36,11 @@ public class StudentController{
     @GetMapping("/profile")
     public StudentProfileResponse profile(HttpSession session) {
         return studentService.getProfile(session);
+    }
+
+    @PutMapping("/email")
+    public UpdateEmailResponse updateEmail(@RequestBody UpdateEmailRequest body, HttpSession session) {
+        return studentService.updateEmail(session, body != null ? body.email() : null);
     }
 
     @GetMapping("/record-book")

@@ -10,6 +10,7 @@ type StudentProfileState = {
   profile: StudentProfileDto | null
   status: 'idle' | 'loading' | 'ready'
   load: () => Promise<void>
+  patchEmail: (email: string) => void
   reset: () => void
 }
 
@@ -30,6 +31,12 @@ export const useStudentProfile = create<StudentProfileState>((set, get) => ({
     } catch {
       set({ profile: null, status: 'ready' })
     }
+  },
+
+  patchEmail(email) {
+    const current = get().profile
+    if (!current) return
+    set({ profile: { ...current, email } })
   },
 
   reset() {

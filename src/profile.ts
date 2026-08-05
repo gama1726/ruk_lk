@@ -2,7 +2,7 @@
  * @file Загрузка профиля студента с backend API.
  */
 
-import { apiGet, isApiConfigured } from '@/apiClient'
+import { apiGet, apiPut, isApiConfigured } from '@/apiClient'
 import { student } from '@/mocks/student'
 
 /** Ответ `GET /api/student/profile` */
@@ -23,6 +23,13 @@ export type StudentProfileDto = {
   educationForm: string
   group: string
   course: string
+}
+
+/** Ответ `PUT /api/student/email` */
+export type UpdateEmailDto = {
+  email: string
+  oldEmail: string
+  message: string
 }
 
 /** Мок-профиль для режима без API */
@@ -56,4 +63,11 @@ export async function fetchStudentProfile(): Promise<StudentProfileDto> {
     return mockStudentProfile()
   }
   return apiGet<StudentProfileDto>('/api/student/profile')
+}
+
+/**
+ * Смена личной почты в 1С через backend.
+ */
+export async function updateStudentEmail(email: string): Promise<UpdateEmailDto> {
+  return apiPut<UpdateEmailDto>('/api/student/email', { email })
 }

@@ -17,6 +17,7 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentLibraryResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.UpdateEmailResponse;
 import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaApiClient;
 import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaBookItem;
 import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaReaderRecord;
@@ -28,6 +29,7 @@ import ru.ruc.lk.ruk_lk_api.integration.onec.OneCGradebookResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCOrdersResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCPortfolioResponse;
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileEmailResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleWeekApiResponse;
@@ -49,6 +51,8 @@ public class StudentService {
 
 
     private static final String SESSION_KEY = "STUDENT";
+    private static final java.util.regex.Pattern EMAIL_PATTERN =
+        java.util.regex.Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 
     private final OneCClient onecClient;
     private final ScheduleClient scheduleClient;
@@ -132,6 +136,59 @@ public class StudentService {
         );
 
     }
+
+    /**
+     * Смена личной почты через 1С {@code POST /hs/student/profileEmail}.
+     */
+    public UpdateEmailResponse updateEmail(HttpSession session, String rawEmail) {
+        StudentSession student = requireStudent(session);
+        String email = normalizeEmail(rawEmail);
+
+        OneCProfileEmailResponse result = onecClient
+            .updateProfileEmail(student.studentId(), email)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Не удалось изменить почту"
+            ));
+
+        if (!result.success()) {
+            String message = result.message() != null && !result.message().isBlank()
+                ? result.message().trim()
+                : "Не удалось изменить почту";
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+        }
+
+        String newEmail = blankToEmpty(result.email());
+        if (newEmail.isEmpty()) {
+            newEmail = email;
+        }
+
+        session.setAttribute(
+            SESSION_KEY,
+            new StudentSession(student.studentId(), student.fullName(), newEmail, student.programs())
+        );
+
+        return new UpdateEmailResponse(
+            newEmail,
+            blankToEmpty(result.oldEmail()),
+            blankToEmpty(result.message()).isEmpty() ? "Почта обновлена" : result.message().trim()
+        );
+    }
+
+    private static String normalizeEmail(String rawEmail) {
+        if (rawEmail == null || rawEmail.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите почту");
+        }
+        String email = rawEmail.trim();
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Похоже, почта указана с ошибкой");
+        }
+        if (email.length() > 320) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Слишком длинный адрес почты");
+        }
+        return email;
+    }
+
     public RecordBookResponse getRecordBook(HttpSession session) {
         StudentSession student = requireStudent(session);
 

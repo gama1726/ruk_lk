@@ -168,6 +168,21 @@ public class HttpOneCClient implements OneCClient {
         }
     }
 
+    @Override
+    public Optional<OneCProfileEmailResponse> updateProfileEmail(String studentId, String email) {
+        try {
+            OneCProfileEmailResponse response = restClient.post()
+                .uri("/hs/student/profileEmail")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new OneCProfileEmailRequest(studentId, email))
+                .retrieve()
+                .body(OneCProfileEmailResponse.class);
+            return Optional.ofNullable(response);
+        } catch (HttpClientErrorException e) {
+            return Optional.empty();
+        }
+    }
+
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
