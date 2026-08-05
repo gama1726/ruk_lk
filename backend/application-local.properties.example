@@ -4,3 +4,9 @@ app.auth.fixed-code=
 app.unisender.enabled=true
 app.unisender.api-key=
 app.unisender.from-email=
+
+# МегаAPI (библиотека). Не коммитьте токен.
+# app.megaapi.enabled=true
+# app.megaapi.base-url=http://ilibrary.rucoop.ru/MegaApi
+# app.megaapi.auth-token=
+# app.megaapi.dbidx=0

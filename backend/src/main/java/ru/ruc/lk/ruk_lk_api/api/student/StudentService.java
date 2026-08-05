@@ -13,9 +13,13 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentCurriculumResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentLibraryResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
+import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaApiClient;
+import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaBookItem;
+import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaReaderRecord;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
 import org.springframework.http.HttpStatus;
@@ -49,15 +53,18 @@ public class StudentService {
     private final OneCClient onecClient;
     private final ScheduleClient scheduleClient;
     private final ScheduleContextService scheduleContextService;
+    private final MegaApiClient megaApiClient;
 
     public StudentService(
         OneCClient onecClient,
         ScheduleClient scheduleClient,
-        ScheduleContextService scheduleContextService
+        ScheduleContextService scheduleContextService,
+        MegaApiClient megaApiClient
     ) {
         this.onecClient = onecClient;
         this.scheduleClient = scheduleClient;
         this.scheduleContextService = scheduleContextService;
+        this.megaApiClient = megaApiClient;
     }
 
 
@@ -189,6 +196,32 @@ public class StudentService {
             ));
 
         return PaymentsMapper.toResponse(payments, asOf);
+    }
+
+    /**
+     * Читательский билет и книги из МегаAPI.
+     * {@code rdr_id} = номер зачётки из сессии.
+     */
+    public StudentLibraryResponse getLibrary(HttpSession session) {
+        StudentSession student = requireStudent(session);
+        String rdrId = student.studentId();
+
+        if (!megaApiClient.isEnabled()) {
+            return LibraryMapper.unavailable(rdrId);
+        }
+
+        Optional<MegaReaderRecord> reader = megaApiClient.getReader(rdrId);
+        List<MegaBookItem> onHand = megaApiClient.getHandBooks(rdrId);
+        List<MegaBookItem> debts = megaApiClient.getDebtBooks(rdrId);
+        List<MegaBookItem> orders = megaApiClient.getOrderBooks(rdrId);
+
+        return LibraryMapper.toResponse(
+            rdrId,
+            reader.orElse(null),
+            onHand,
+            debts,
+            orders
+        );
     }
 
     public ScheduleResponse getSchedule(HttpSession session, LocalDate date) {

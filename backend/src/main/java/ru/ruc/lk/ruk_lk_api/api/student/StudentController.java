@@ -10,6 +10,7 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentCurriculumResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentLibraryResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
@@ -59,6 +60,11 @@ public class StudentController{
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         return studentService.getPayments(session, date);
+    }
+
+    @GetMapping("/library")
+    public StudentLibraryResponse library(HttpSession session) {
+        return studentService.getLibrary(session);
     }
 
     @GetMapping("/schedule")

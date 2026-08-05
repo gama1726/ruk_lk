@@ -28,5 +28,11 @@ app.unisender.from-email=
 # URL 1С — если на сервере другой адрес, чем в application.properties:
 # app.onec.base-url=http://10.10.31.13/universitet_masterkova1
 
+# МегаAPI (читательский билет). IP хоста API — в whitelist ilibrary.
+# app.megaapi.enabled=true
+# app.megaapi.base-url=http://ilibrary.rucoop.ru/MegaApi
+# app.megaapi.auth-token=
+# app.megaapi.dbidx=0
+
 # CORS — только если фронт и API на разных origin (обычно не нужно за nginx)
 # app.cors.allowed-origins=https://lk.example.com
