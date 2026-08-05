@@ -20,8 +20,7 @@ import { Profile } from '@/pages/profile'
 import { News } from '@/pages/news'
 import { Schedule } from '@/pages/schedule'
 import { Education } from '@/pages/education'
-import { Grades } from '@/pages/grades'
-import { RecordBook } from '@/pages/record-book'
+import { RecordBook, GradesRedirect } from '@/pages/record-book'
 import { Attendance } from '@/pages/attendance'
 import { Debts } from '@/pages/debts'
 import { StudyPlan } from '@/pages/study-plan'
@@ -82,7 +81,7 @@ export const router = createBrowserRouter([
           { path: paths.news, element: <News /> },
           { path: paths.schedule, element: <Schedule /> },
           { path: paths.education, element: <Education /> },
-          { path: paths.grades, element: <Grades /> },
+          { path: paths.grades, element: <GradesRedirect /> },
           { path: paths.recordBook, element: <RecordBook /> },
           { path: paths.attendance, element: <Attendance /> },
           { path: paths.debts, element: <Debts /> },
