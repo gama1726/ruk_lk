@@ -81,7 +81,7 @@ export function Library() {
       {error && <p className={common.meta}>{error}</p>}
 
       {!loading && !error && unavailable && (
-        <p className={common.meta}>Подключение к библиотеке пока не настроено на сервере.</p>
+        <p className={common.meta}>Данные библиотеки временно недоступны.</p>
       )}
 
       {!loading && !error && missing && (

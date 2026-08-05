@@ -134,7 +134,7 @@ export function Payments() {
 
   return (
     <>
-      <ScreenHeader title="Оплата обучения" subtitle="Договор и график платежей из учебной системы" />
+      <ScreenHeader title="Оплата обучения" subtitle="Договор и график платежей" />
 
       <p className={styles.warn}>
         Оплата проходит на защищённом сервисе университета (pay.ruc.su). Укажите сумму и перейдите к оплате картой.
@@ -290,9 +290,9 @@ function PaymentsMock() {
   const p = paymentSummary
   return (
     <>
-      <ScreenHeader title="Оплата и договоры (dev)" subtitle="Демо без API" />
+      <ScreenHeader title="Оплата и договоры" subtitle="Договор и график платежей" />
       <p className={styles.warn}>
-        Онлайн-оплата в этом кабинете пока недоступна. Подключите API для данных из 1С.
+        Онлайн-оплата в этом кабинете пока недоступна.
       </p>
       <div className={styles.grid}>
         <div className={styles.card}>

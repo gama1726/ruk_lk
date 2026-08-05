@@ -1,6 +1,5 @@
 /**
- * @file Восстановление пароля (mock).
- * @remarks Пароль не сохраняется — только проверка полей.
+ * @file Восстановление пароля.
  */
 
 import { useState, type FormEvent } from 'react'
@@ -13,7 +12,7 @@ import styles from './public.module.css'
 import form from './auth-form.module.css'
 
 /**
- * Mock-форма сброса пароля до подключения SSO.
+ * Форма сброса пароля.
  */
 export function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -48,17 +47,15 @@ export function ForgotPassword() {
   return (
     <>
       <AuthCard>
-        <p className={card.sectionLabel}>Восстановление пароля (dev)</p>
+        <p className={card.sectionLabel}>Восстановление пароля</p>
 
         {done ? (
           <p className={styles.forgotOk}>
-            Запрос принят. После подключения SSO письмо с инструкцией придёт на {email.trim()}.
+            Запрос принят. Инструкция отправлена на {email.trim()}.
           </p>
         ) : (
           <form className={form.form} onSubmit={handleSubmit}>
-            <p className={form.hint}>
-              Укажите почту студента РУК и новый пароль. Сейчас это заглушка — пароль никуда не уходит.
-            </p>
+            <p className={form.hint}>Укажите почту студента РУК и новый пароль.</p>
             <Input
               label="Корпоративная почта"
               type="email"

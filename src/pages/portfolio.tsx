@@ -135,7 +135,7 @@ export function Portfolio() {
         title="Портфолио"
         subtitle={
           apiEnabled
-            ? 'Достижения из учебной системы'
+            ? 'Достижения'
             : 'Демо: достижения и модерация'
         }
         actions={
@@ -211,7 +211,7 @@ export function Portfolio() {
               error={errors.date}
               onChange={(e) => setDate(e.target.value)}
             />
-            <p className={common.meta}>Добавление в 1С пока недоступно — только просмотр из API.</p>
+            <p className={common.meta}>Добавление достижений пока недоступно — доступен только просмотр.</p>
           </form>
         </Modal>
       )}

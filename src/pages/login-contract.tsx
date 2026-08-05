@@ -1,5 +1,5 @@
 /**
- * @file Вход для владельца договора (mock).
+ * @file Вход для владельца договора.
  */
 
 import { checkEmail } from '@/mocks/login-roles'
@@ -11,8 +11,8 @@ import { LinkLoginForm } from './link-login-form'
 export function ContractLogin() {
   return (
     <LinkLoginForm
-      title="Вход для владельца договора (dev)"
-      hint="Для оплаты обучения и просмотра договора. Данные сверяются с учётной системой университета."
+      title="Вход для владельца договора"
+      hint="Для оплаты обучения и просмотра договора."
       fields={[
         { name: 'email', label: 'Ваш адрес электронной почты', placeholder: 'payer@mail.ru' },
         { name: 'contract', label: 'Номер договора', placeholder: 'ДГ-2023/0142-ИБ' },
@@ -25,7 +25,7 @@ export function ContractLogin() {
         return errors
       }}
       successText={(values) =>
-        `Ссылка отправлена на ${values.email.trim()} (mock). По договору ${values.contract.trim()}.`
+        `Ссылка отправлена на ${values.email.trim()}. По договору ${values.contract.trim()}.`
       }
     />
   )

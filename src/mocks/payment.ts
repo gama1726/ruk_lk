@@ -72,9 +72,6 @@ export function formatShortDate(iso: string): string {
   return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' }).format(new Date(y, m - 1, d))
 }
 
-/**
- * Заглушка перехода к оплате — реальный платёж подключится через backend.
- */
 export function goToPayment(): void {
-  window.alert('Оплата будет доступна после подключения платёжного сервиса университета.')
+  window.alert('Онлайн-оплата временно недоступна.')
 }

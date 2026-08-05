@@ -164,9 +164,9 @@ export function PassPhoto() {
   if (!isPassPhotoApiEnabled()) {
     return (
       <>
-        <ScreenHeader title="Фото для пропуска" subtitle="Доступно при подключённом API" />
+        <ScreenHeader title="Фото для пропуска" subtitle="Загрузка фото для пропуска в университет" />
         <Card padding="lg">
-          <p>Раздел работает с backend API. В демо-режиме загрузка недоступна.</p>
+          <p>Сейчас загрузка фото недоступна. Попробуйте позже.</p>
         </Card>
       </>
     )
@@ -184,7 +184,7 @@ export function PassPhoto() {
     <>
       <ScreenHeader
         title="Фото для пропуска"
-        subtitle="Загрузите фото для системы контроля доступа. После проверки сотрудником оно попадёт в Perco-Web."
+        subtitle="Загрузите фото для пропуска. После проверки сотрудником оно будет использовано для доступа."
       />
 
       {submission?.status && (

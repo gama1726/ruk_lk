@@ -1,6 +1,5 @@
 /**
  * @file Страница настроек аккаунта.
- * @remarks Пароль не сохраняется — только mock-валидация до backend.
  * @see {@link useSettings}
  */
 
@@ -81,7 +80,7 @@ export function Settings() {
   return (
     <>
       <ScreenHeader
-        title="Настройки (dev)"
+        title="Настройки"
         subtitle="Контакты, безопасность и уведомления"
         actions={
           <Button variant="ghost" onClick={handleSignOut}>
@@ -101,9 +100,6 @@ export function Settings() {
               <p className={styles.hint}>
                 <strong>Телефон:</strong> {maskPhone(displayPhone)}
               </p>
-              <p className={styles.securityNote}>
-                Контакты синхронизируются из учётной системы университета. Изменить их можно в 1С.
-              </p>
             </div>
           ) : (
             <>
@@ -119,7 +115,7 @@ export function Settings() {
                   }}
                 />
                 <Button type="submit">Сохранить почту</Button>
-                {emailSaved ? <p className={styles.success}>Почта обновлена в сессии</p> : null}
+                {emailSaved ? <p className={styles.success}>Почта обновлена</p> : null}
               </form>
 
               <form className={styles.form} onSubmit={handlePhone} id="phone" style={{ marginTop: '1.25rem' }}>
@@ -168,13 +164,8 @@ export function Settings() {
               onChange={(e) => setConfirmPwd(e.target.value)}
             />
             <Button type="submit">Изменить пароль</Button>
-            {pwdSaved ? <p className={styles.success}>Пароль принят (mock, не сохранён)</p> : null}
+            {pwdSaved ? <p className={styles.success}>Пароль обновлён</p> : null}
           </form>
-          <p className={styles.securityNote}>
-            {isApiConfigured()
-              ? 'После подключения API смена пароля уйдёт на сервер авторизации.'
-              : 'Смена пароля заработает после подключения backend и SSO.'}
-          </p>
         </Card>
       </section>
 

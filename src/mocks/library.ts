@@ -67,12 +67,8 @@ export const ebsResources: EbsResource[] = [
   },
 ]
 
-/**
- * Заглушка перехода в ЭБС — внешний сервис подключится позже.
- * @param name - название ресурса для сообщения
- */
 export function openEbsStub(name: string): void {
-  window.alert(`Доступ к «${name}» откроется после авторизации через библиотечный портал РУК.`)
+  window.alert(`Переход в «${name}» временно недоступен.`)
 }
 
 /**

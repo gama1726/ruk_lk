@@ -1,5 +1,5 @@
 /**
- * @file Вход для целевого обучения (mock).
+ * @file Вход для целевого обучения.
  */
 
 import { checkEmail, checkInn } from '@/mocks/login-roles'
@@ -11,7 +11,7 @@ import { LinkLoginForm } from './link-login-form'
 export function TargetLogin() {
   return (
     <LinkLoginForm
-      title="Вход для заказчиков целевого обучения (dev)"
+      title="Вход для заказчиков целевого обучения"
       hint="Для организаций-партнёров, направляющих сотрудников на обучение в РУК."
       fields={[
         { name: 'email', label: 'Корпоративная почта', placeholder: 'hr@company.ru' },
@@ -26,7 +26,7 @@ export function TargetLogin() {
         return errors
       }}
       successText={(values) =>
-        `Запрос принят. Ссылка для входа придёт на ${values.email.trim()} (mock).`
+        `Запрос принят. Ссылка для входа придёт на ${values.email.trim()}.`
       }
     />
   )

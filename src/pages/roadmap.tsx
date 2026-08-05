@@ -187,7 +187,7 @@ export function Roadmap() {
       {loading ? (
         <Loader />
       ) : !isApiConfigured() ? (
-        <NoData title="Подключите API, чтобы загрузить траекторию из учебного плана" />
+        <NoData title="Траектория обучения временно недоступна" />
       ) : error ? (
         <NoData title={error} />
       ) : !data || semesters.length === 0 ? (

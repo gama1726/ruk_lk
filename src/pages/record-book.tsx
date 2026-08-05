@@ -146,7 +146,7 @@ export function RecordBook() {
           <Loader />
         ) : view === 'gosuslugi' ? (
           <p className={styles.gosuslugiNote}>
-            Представление для Госуслуг подключится вместе с backend. Переключитесь на вкладку «Стандарт».
+            Представление для Госуслуг скоро появится. Переключитесь на вкладку «Стандарт».
           </p>
         ) : semesterRows.length === 0 ? (
           <div className={styles.empty}>

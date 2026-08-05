@@ -85,7 +85,7 @@ export function Orders() {
   }, [program.id])
 
   const subtitle = isApiConfigured()
-    ? 'Приказы из учебной системы'
+    ? 'Приказы'
     : `Демо · ${programLabel(program)}`
 
   return (

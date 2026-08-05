@@ -219,7 +219,7 @@ export function StudyPlan() {
       {loading ? (
         <Loader />
       ) : !isApiConfigured() ? (
-        <NoData title="Подключите API, чтобы загрузить учебный план из 1С" />
+        <NoData title="Учебный план временно недоступен" />
       ) : error ? (
         <NoData title={error} />
       ) : !data || data.sections.length === 0 ? (

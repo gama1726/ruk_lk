@@ -1,5 +1,5 @@
 /**
- * @file Вход для родителя (mock).
+ * @file Вход для родителя.
  */
 
 import { checkEmail } from '@/mocks/login-roles'
@@ -11,8 +11,8 @@ import { LinkLoginForm } from './link-login-form'
 export function ParentLogin() {
   return (
     <LinkLoginForm
-      title="Вход для родителя (dev)"
-      hint="Укажите личную почту и номер студенческого билета ребёнка. Ссылка для входа придёт на почту после подключения backend."
+      title="Вход для родителя"
+      hint="Укажите личную почту и номер студенческого билета ребёнка. Ссылка для входа придёт на указанную почту."
       fields={[
         { name: 'email', label: 'Ваш адрес электронной почты', placeholder: 'ivanov@mail.ru' },
         { name: 'studentId', label: 'Номер студенческого билета', placeholder: '0147823' },
@@ -25,7 +25,7 @@ export function ParentLogin() {
         return errors
       }}
       successText={(values) =>
-        `Ссылка для входа отправлена на ${values.email.trim()} (mock). Проверьте почту через несколько минут.`
+        `Ссылка для входа отправлена на ${values.email.trim()}. Проверьте почту через несколько минут.`
       }
     />
   )

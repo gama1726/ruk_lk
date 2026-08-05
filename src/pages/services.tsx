@@ -4,13 +4,13 @@ import { ScreenHeader, Card } from '@/ui'
 import styles from './services.module.css'
 
 const items = [
-  { to: paths.requests, title: 'Заявления и справки (dev)', note: 'Справки, обращения в деканат' },
+  { to: paths.requests, title: 'Заявления и справки', note: 'Справки, обращения в деканат' },
   { to: paths.payments, title: 'Оплата обучения', note: 'Договор и график платежей' },
-  { to: paths.dormitory, title: 'Общежитие (dev)', note: 'Проживание, заявки, бытовые вопросы' },
-  { to: paths.bypassList, title: 'Обходной лист (dev)', note: 'Подписи подразделений' },
+  { to: paths.dormitory, title: 'Общежитие', note: 'Проживание, заявки, бытовые вопросы' },
+  { to: paths.bypassList, title: 'Обходной лист', note: 'Подписи подразделений' },
   { to: paths.psychologist, title: 'Психолог', note: 'Консультации, кабинет 307' },
-  { to: paths.portfolio, title: 'Портфолио', note: 'Достижения из учебной системы' },
-  { to: paths.passPhoto, title: 'Фото для пропуска', note: 'Загрузка фото для Perco-Web' },
+  { to: paths.portfolio, title: 'Портфолио', note: 'Достижения и награды' },
+  { to: paths.passPhoto, title: 'Фото для пропуска', note: 'Загрузка фото для пропуска' },
   { to: paths.library, title: 'Библиотека / ЭБС', note: 'Читательский билет, книги' },
 ] as const
 
