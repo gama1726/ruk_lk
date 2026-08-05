@@ -3,7 +3,7 @@
  */
 
 import { Link } from 'react-router-dom'
-import { publicNav } from '@/mocks/public-nav'
+import { publicNav } from '@/data/public-nav'
 import { UserMenu } from './user-menu'
 import styles from './cabinet-header.module.css'
 

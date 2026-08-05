@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { SocialIcon } from '@/icons/social'
-import { publicNav, socialLinks } from '@/mocks/public-nav'
+import { publicNav } from '@/data/public-nav'
+import { socialLinks } from '@/mocks/public-nav'
 import { paths } from '@/paths'
 import styles from './login.module.css'
 

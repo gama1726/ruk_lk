@@ -4,7 +4,7 @@
  */
 
 import { Link } from 'react-router-dom'
-import { resourceLinks } from '@/mocks/public'
+import { resourceLinks } from '@/data/resources'
 import { paths } from '@/paths'
 import { ScreenHeader } from '@/ui'
 import styles from './public.module.css'
@@ -15,7 +15,7 @@ import styles from './public.module.css'
 export function Resources() {
   return (
     <>
-      <ScreenHeader title="Ресурсы (dev)" subtitle="Сервисы университета вне личного кабинета" />
+      <ScreenHeader title="Ресурсы" subtitle="Сервисы университета вне личного кабинета" />
 
       <ul className={styles.list}>
         {resourceLinks.map((r) => (
