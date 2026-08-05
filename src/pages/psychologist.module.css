@@ -1,4 +1,7 @@
 .info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.25rem;
   padding: 1rem;
   margin-bottom: 1.25rem;
   border: 1px solid var(--color-border);
@@ -7,18 +10,36 @@
   font-size: var(--font-size-sm);
 }
 
+.photo {
+  display: block;
+  width: min(100%, 18rem);
+  height: auto;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.infoBody {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
 .infoTitle {
   margin: 0 0 0.5rem;
   font-weight: 600;
 }
 
-.form {
-  display: grid;
-  gap: 1rem;
+.closing {
+  margin: 1rem 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted, inherit);
 }
 
-.formActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
+.source {
+  margin: 1rem 0 0;
+}
+
+.sourceLink {
+  font-size: var(--font-size-sm);
+  color: var(--color-link, inherit);
 }

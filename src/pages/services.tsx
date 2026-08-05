@@ -8,7 +8,7 @@ const items = [
   { to: paths.payments, title: 'Оплата обучения', note: 'Договор и график платежей' },
   { to: paths.dormitory, title: 'Общежитие (dev)', note: 'Проживание, заявки, бытовые вопросы' },
   { to: paths.bypassList, title: 'Обходной лист (dev)', note: 'Подписи подразделений' },
-  { to: paths.psychologist, title: 'Психолог (dev)', note: 'Запись на консультацию' },
+  { to: paths.psychologist, title: 'Психолог', note: 'Консультации, кабинет 307' },
   { to: paths.portfolio, title: 'Портфолио', note: 'Достижения из учебной системы' },
   { to: paths.passPhoto, title: 'Фото для пропуска', note: 'Загрузка фото для Perco-Web' },
   { to: paths.library, title: 'Библиотека / ЭБС', note: 'Читательский билет, книги' },
