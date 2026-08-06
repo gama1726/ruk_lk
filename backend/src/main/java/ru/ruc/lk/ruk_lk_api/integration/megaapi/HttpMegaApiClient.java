@@ -27,15 +27,16 @@ public class HttpMegaApiClient implements MegaApiClient {
     private final int dbidx;
 
     public HttpMegaApiClient(MegaApiProperties properties) {
-        if (properties.tokenGet() == null || properties.tokenGet().isBlank()) {
+        String token = properties.tokenGet();
+        if (token == null || token.isBlank()) {
             throw new IllegalStateException(
-                "app.megaapi.enabled=true, но app.megaapi.token-get пуст"
+                "app.megaapi.enabled=true, но app.megaapi.token-get (или auth-token) пуст"
             );
         }
         this.dbidx = properties.dbidx();
         this.restClient = RestClient.builder()
             .baseUrl(properties.baseUrl())
-            .defaultHeader("x-auth-token", properties.tokenGet())
+            .defaultHeader("x-auth-token", token)
             .defaultHeader("Accept", "application/json")
             .build();
     }
