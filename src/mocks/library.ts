@@ -1,5 +1,5 @@
 /**
- * @file Библиотека и ЭБС (мок).
+ * @file Библиотека (мок).
  */
 
 export type LibraryBook = {
@@ -9,13 +9,6 @@ export type LibraryBook = {
   takenAt: string
   dueDate: string
   status: 'on-hand' | 'overdue'
-}
-
-export type EbsResource = {
-  id: string
-  name: string
-  description: string
-  url: string
 }
 
 export type LibraryCard = {
@@ -45,31 +38,6 @@ export const booksOnHand: LibraryBook[] = [
 ]
 
 export const libraryDebts: LibraryBook[] = []
-
-export const ebsResources: EbsResource[] = [
-  {
-    id: 'ebs-1',
-    name: 'ЭБС «Лань»',
-    description: 'Учебники по экономике и менеджменту',
-    url: 'https://e.lanbook.com',
-  },
-  {
-    id: 'ebs-2',
-    name: 'ЭБС «Юрайт»',
-    description: 'Право, IT, гуманитарные дисциплины',
-    url: 'https://urait.ru',
-  },
-  {
-    id: 'ebs-3',
-    name: 'ЭБС IPR SMART',
-    description: 'Научные публикации и монографии',
-    url: 'https://www.iprbookshop.ru',
-  },
-]
-
-export function openEbsStub(name: string): void {
-  window.alert(`Переход в «${name}» временно недоступен.`)
-}
 
 /**
  * @param iso - `YYYY-MM-DD`

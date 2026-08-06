@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Заглушка, пока {@code app.megaapi.enabled=true} и задан токен.
+ * Заглушка, пока {@code app.megaapi.enabled=true} и задан {@code app.megaapi.token-get}.
  */
 @Component
 @ConditionalOnProperty(name = "app.megaapi.enabled", havingValue = "false", matchIfMissing = true)

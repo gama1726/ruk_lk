@@ -6,7 +6,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record MegaApiProperties(
     boolean enabled,
     String baseUrl,
-    String authToken,
+    /** tokenGet — чтение (GetReader, GetHandBooks, …) */
+    String tokenGet,
+    /** tokenPut — запись (AddReader, UpdateReader); для ЛК пока не используется */
+    String tokenPut,
     int dbidx
 ) {
     public MegaApiProperties {
@@ -15,10 +18,15 @@ public record MegaApiProperties(
         } else {
             baseUrl = baseUrl.trim().replaceAll("/+$", "");
         }
-        if (authToken == null) {
-            authToken = "";
+        if (tokenGet == null) {
+            tokenGet = "";
         } else {
-            authToken = authToken.trim();
+            tokenGet = tokenGet.trim();
+        }
+        if (tokenPut == null) {
+            tokenPut = "";
+        } else {
+            tokenPut = tokenPut.trim();
         }
         if (dbidx < 0) {
             dbidx = 0;

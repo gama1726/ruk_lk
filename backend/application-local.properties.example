@@ -5,8 +5,11 @@ app.unisender.enabled=true
 app.unisender.api-key=
 app.unisender.from-email=
 
-# МегаAPI (библиотека). Не коммитьте токен.
-# app.megaapi.enabled=true
-# app.megaapi.base-url=http://ilibrary.rucoop.ru/MegaApi
-# app.megaapi.auth-token=
-# app.megaapi.dbidx=0
+# МегаAPI (библиотека). Не коммитьте токены.
+app.megaapi.enabled=true
+app.megaapi.base-url=http://10.10.31.41/MegaApi
+# tokenGet — GetReader / GetHandBooks / GetDebtBooks / GetOrderBooks
+app.megaapi.token-get=
+# tokenPut — AddReader / UpdateReader (опционально)
+app.megaapi.token-put=
+app.megaapi.dbidx=0

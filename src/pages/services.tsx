@@ -11,7 +11,7 @@ const items = [
   { to: paths.psychologist, title: 'Психолог', note: 'Консультации, кабинет 307' },
   { to: paths.portfolio, title: 'Портфолио', note: 'Достижения и награды' },
   { to: paths.passPhoto, title: 'Фото для пропуска', note: 'Загрузка фото для пропуска' },
-  { to: paths.library, title: 'Библиотека / ЭБС', note: 'Читательский билет, книги' },
+  { to: paths.library, title: 'Библиотека', note: 'Читательский билет, книги' },
 ] as const
 
 /**

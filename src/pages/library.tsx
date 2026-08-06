@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import { ApiError } from '@/apiClient'
-import { ebsResources, formatLibraryDate, openEbsStub, type LibraryBook } from '@/mocks/library'
+import { formatLibraryDate, type LibraryBook } from '@/mocks/library'
 import {
   booksFromDto,
   fetchStudentLibrary,
@@ -15,7 +15,6 @@ import {
 } from '@/library'
 import {
   ScreenHeader,
-  Button,
   NoData,
   StatusBadge,
   Table,
@@ -29,7 +28,7 @@ import common from './service-common.module.css'
 import styles from './library.module.css'
 
 /**
- * Библиотека: читательский билет, книги на руках, ЭБС.
+ * Библиотека: читательский билет, книги на руках, задолженности.
  */
 export function Library() {
   const apiEnabled = isLibraryApiEnabled()
@@ -75,7 +74,7 @@ export function Library() {
 
   return (
     <>
-      <ScreenHeader title="Библиотека / ЭБС" subtitle="Читательский билет и электронные ресурсы" />
+      <ScreenHeader title="Библиотека" subtitle="Читательский билет и книги на руках" />
 
       {loading && <p className={common.meta}>Загрузка…</p>}
       {error && <p className={common.meta}>{error}</p>}
@@ -170,23 +169,6 @@ export function Library() {
           </section>
         </>
       )}
-
-      <section className={common.section}>
-        <h2 className={common.sectionTitle}>Электронные библиотечные системы</h2>
-        <ul className={styles.ebsList}>
-          {ebsResources.map((r) => (
-            <li key={r.id} className={styles.ebsItem}>
-              <div>
-                <p className={styles.ebsName}>{r.name}</p>
-                <p className={common.meta}>{r.description}</p>
-              </div>
-              <Button type="button" variant="secondary" size="sm" onClick={() => openEbsStub(r.name)}>
-                Открыть
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </section>
     </>
   )
 }
