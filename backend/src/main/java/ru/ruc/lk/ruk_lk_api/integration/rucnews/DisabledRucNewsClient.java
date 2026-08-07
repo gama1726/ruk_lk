@@ -18,4 +18,9 @@ public class DisabledRucNewsClient implements RucNewsClient {
     public List<RucNewsItem> fetchLatest() {
         return List.of();
     }
+
+    @Override
+    public boolean lastFetchOk() {
+        return false;
+    }
 }

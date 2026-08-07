@@ -270,6 +270,9 @@ public class StudentService {
             return new StudentNewsResponse("unavailable", List.of());
         }
         List<RucNewsItem> items = rucNewsClient.fetchLatest();
+        if (items.isEmpty() && !rucNewsClient.lastFetchOk()) {
+            return new StudentNewsResponse("unavailable", List.of());
+        }
         List<StudentNewsResponse.StudentNewsItemResponse> mapped = items.stream()
             .map(item -> new StudentNewsResponse.StudentNewsItemResponse(
                 blankToEmpty(item.id()),
