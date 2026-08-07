@@ -37,6 +37,7 @@ app.megaapi.token-put=
 app.megaapi.dbidx=0
 
 # Новости с new.ruc.su/blog (HTML-парсинг; по умолчанию уже включено в application.properties)
+# Если из контейнера таймаут — в docker-compose extra_hosts: new.ruc.su:10.10.21.7
 # app.ruc-news.enabled=true
 # app.ruc-news.list-url=https://new.ruc.su/blog/
 # app.ruc-news.base-url=https://new.ruc.su

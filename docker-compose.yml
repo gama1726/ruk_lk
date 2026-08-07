@@ -9,6 +9,9 @@ services:
       - ./data:/app/data
     environment:
       SPRING_PROFILES_ACTIVE: onec,prod,docker
+    # Внутренний DNS: new.ruc.su → 10.10.21.7 (публичный 195.x из Docker часто недоступен)
+    extra_hosts:
+      - "new.ruc.su:10.10.21.7"
     networks:
       - ruk-lk
 
