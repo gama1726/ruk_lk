@@ -14,6 +14,7 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentCurriculumResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentLibraryResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentNewsResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPortfolioResponse;
@@ -22,6 +23,8 @@ import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaApiClient;
 import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaBookItem;
 import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaReaderRecord;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
+import ru.ruc.lk.ruk_lk_api.integration.rucnews.RucNewsClient;
+import ru.ruc.lk.ruk_lk_api.integration.rucnews.RucNewsItem;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
 import org.springframework.http.HttpStatus;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCCurriculumResponse;
@@ -58,17 +61,20 @@ public class StudentService {
     private final ScheduleClient scheduleClient;
     private final ScheduleContextService scheduleContextService;
     private final MegaApiClient megaApiClient;
+    private final RucNewsClient rucNewsClient;
 
     public StudentService(
         OneCClient onecClient,
         ScheduleClient scheduleClient,
         ScheduleContextService scheduleContextService,
-        MegaApiClient megaApiClient
+        MegaApiClient megaApiClient,
+        RucNewsClient rucNewsClient
     ) {
         this.onecClient = onecClient;
         this.scheduleClient = scheduleClient;
         this.scheduleContextService = scheduleContextService;
         this.megaApiClient = megaApiClient;
+        this.rucNewsClient = rucNewsClient;
     }
 
 
@@ -253,6 +259,28 @@ public class StudentService {
             ));
 
         return PaymentsMapper.toResponse(payments, asOf);
+    }
+
+    /**
+     * Новости университета с new.ruc.su/blog (HTML-парсинг + кэш).
+     */
+    public StudentNewsResponse getNews(HttpSession session) {
+        requireStudent(session);
+        if (!rucNewsClient.isEnabled()) {
+            return new StudentNewsResponse("unavailable", List.of());
+        }
+        List<RucNewsItem> items = rucNewsClient.fetchLatest();
+        List<StudentNewsResponse.StudentNewsItemResponse> mapped = items.stream()
+            .map(item -> new StudentNewsResponse.StudentNewsItemResponse(
+                blankToEmpty(item.id()),
+                blankToEmpty(item.title()),
+                blankToEmpty(item.preview()),
+                blankToEmpty(item.date()),
+                blankToEmpty(item.url()),
+                blankToEmpty(item.imageUrl())
+            ))
+            .toList();
+        return new StudentNewsResponse("ok", mapped);
     }
 
     /**

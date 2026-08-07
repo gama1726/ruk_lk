@@ -1,55 +1,83 @@
-import { useState } from 'react'
-import {
-  filterNotices,
-  noticeCategoryLabel,
-  noticeFilters,
-  type NoticeFilter,
-} from '@/mocks/notices'
+/**
+ * @file Новости университета (new.ruc.su/blog).
+ */
+
+import { useEffect, useState } from 'react'
+import { ApiError } from '@/apiClient'
+import { fetchStudentNews, isNewsApiEnabled, type StudentNewsItemDto } from '@/news'
 import { useReadState } from '@/notice-read'
-import { ScreenHeader, Badge, NoData } from '@/ui'
+import { ScreenHeader, Badge, NoData, Button } from '@/ui'
 import styles from './news.module.css'
 
-/**
- * Форматирует дату уведомления.
- * @param iso - `YYYY-MM-DD`
- */
-function formatNoticeDate(iso: string): string {
+function formatNewsDate(iso: string): string {
+  if (!iso) return ''
   const [y, m, d] = iso.split('-').map(Number)
-  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' }).format(new Date(y, m - 1, d))
+  if (!y || !m || !d) return iso
+  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(
+    new Date(y, m - 1, d),
+  )
 }
 
 /**
- * Новости и уведомления: фильтры и статус прочитано/непрочитано.
+ * Лента новостей с сайта университета.
  */
 export function News() {
-  const [filter, setFilter] = useState<NoticeFilter>('all')
+  const apiEnabled = isNewsApiEnabled()
+  const [items, setItems] = useState<StudentNewsItemDto[]>([])
+  const [loading, setLoading] = useState(apiEnabled)
+  const [error, setError] = useState<string | null>(null)
+  const [unavailable, setUnavailable] = useState(false)
   const isRead = useReadState((s) => s.isRead)
   const setRead = useReadState((s) => s.setRead)
 
-  const items = filterNotices(filter).sort((a, b) => b.date.localeCompare(a.date))
+  useEffect(() => {
+    if (!apiEnabled) {
+      setLoading(false)
+      setUnavailable(true)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    fetchStudentNews()
+      .then((dto) => {
+        if (cancelled) return
+        if (dto.status === 'unavailable') {
+          setUnavailable(true)
+          setItems([])
+          return
+        }
+        setUnavailable(false)
+        setItems([...dto.items].sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setError(err instanceof ApiError ? err.message : 'Не удалось загрузить новости')
+        setItems([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [apiEnabled])
 
   return (
     <>
-      <ScreenHeader title="Новости и уведомления (dev)" subtitle="Объявления университета и личные сообщения" />
+      <ScreenHeader title="Новости" subtitle="Объявления с сайта университета" />
 
-      <div className={styles.filters} role="tablist" aria-label="Фильтр уведомлений">
-        {noticeFilters.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            role="tab"
-            aria-selected={filter === f.id}
-            className={[styles.filterBtn, filter === f.id ? styles.filterBtnActive : ''].filter(Boolean).join(' ')}
-            onClick={() => setFilter(f.id)}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {loading && <p className={styles.meta}>Загрузка…</p>}
+      {error && <p className={styles.meta}>{error}</p>}
+      {!loading && !error && unavailable && (
+        <p className={styles.meta}>Новости временно недоступны.</p>
+      )}
 
-      {items.length === 0 ? (
-        <NoData title="Нет уведомлений" description="В этой категории пока пусто." />
-      ) : (
+      {!loading && !error && !unavailable && items.length === 0 ? (
+        <NoData title="Нет новостей" description="Лента пока пуста." />
+      ) : null}
+
+      {!loading && !error && items.length > 0 ? (
         <ul className={styles.list}>
           {items.map((n) => {
             const read = isRead(n.id)
@@ -58,15 +86,45 @@ export function News() {
                 key={n.id}
                 className={[styles.item, !read ? styles.itemUnread : ''].filter(Boolean).join(' ')}
               >
+                {n.imageUrl ? (
+                  <a
+                    href={n.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.coverLink}
+                    onClick={() => setRead(n.id, true)}
+                  >
+                    <img src={n.imageUrl} alt="" className={styles.cover} loading="lazy" />
+                  </a>
+                ) : null}
                 <div className={styles.itemHead}>
-                  <h2 className={styles.title}>{n.title}</h2>
+                  <h2 className={styles.title}>
+                    <a
+                      href={n.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={styles.titleLink}
+                      onClick={() => setRead(n.id, true)}
+                    >
+                      {n.title}
+                    </a>
+                  </h2>
                   {!read ? <Badge variant="primary">новое</Badge> : null}
                 </div>
-                <p className={styles.meta}>
-                  {noticeCategoryLabel(n.category)} · {formatNoticeDate(n.date)}
-                </p>
-                <p className={styles.preview}>{n.preview}</p>
+                {n.date ? <p className={styles.meta}>{formatNewsDate(n.date)}</p> : null}
+                {n.preview ? <p className={styles.preview}>{n.preview}</p> : null}
                 <div className={styles.actions}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setRead(n.id, true)
+                      window.open(n.url, '_blank', 'noopener,noreferrer')
+                    }}
+                  >
+                    Читать на сайте
+                  </Button>
                   <button
                     type="button"
                     className={styles.markBtn}
@@ -79,7 +137,7 @@ export function News() {
             )
           })}
         </ul>
-      )}
+      ) : null}
     </>
   )
 }

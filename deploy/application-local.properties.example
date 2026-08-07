@@ -32,11 +32,15 @@ app.unisender.from-email=
 # IP хоста API (напр. 10.10.31.190) — в AllowedClientIPs на сервере МегаAPI.
 app.megaapi.enabled=true
 app.megaapi.base-url=http://10.10.31.41/MegaApi
-# tokenGet — чтение (GetReader, книги на руках, долги, заказы)
 app.megaapi.token-get=
-# tokenPut — запись (AddReader / UpdateReader); для ЛК не обязателен
 app.megaapi.token-put=
 app.megaapi.dbidx=0
+
+# Новости с new.ruc.su/blog (HTML-парсинг; по умолчанию уже включено в application.properties)
+# app.ruc-news.enabled=true
+# app.ruc-news.list-url=https://new.ruc.su/blog/
+# app.ruc-news.base-url=https://new.ruc.su
+# app.ruc-news.cache-ttl-seconds=900
 
 # CORS — только если фронт и API на разных origin (обычно не нужно за nginx)
 # app.cors.allowed-origins=https://lk.example.com

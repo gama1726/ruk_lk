@@ -1,41 +1,77 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { notices, noticeCategoryLabel } from '@/mocks/notices'
-import { useUnreadCount, useReadState } from '@/notice-read'
+import { fetchStudentNews, isNewsApiEnabled, type StudentNewsItemDto } from '@/news'
+import { countUnread, useReadState } from '@/notice-read'
 import { paths } from '@/paths'
 import { Card, Badge } from '@/ui'
 import styles from './home.module.css'
 
 /**
- * Важные уведомления на главной.
+ * Свежие новости университета на главной.
  */
 export function NoticesFeed() {
+  const apiEnabled = isNewsApiEnabled()
   const overrides = useReadState((s) => s.overrides)
-  const items = useMemo(
-    () => [...notices].sort((a, b) => Number(overrides[a.id]) - Number(overrides[b.id])).slice(0, 3),
-    [overrides],
+  const [items, setItems] = useState<StudentNewsItemDto[]>([])
+
+  useEffect(() => {
+    if (!apiEnabled) return
+    let cancelled = false
+    fetchStudentNews()
+      .then((dto) => {
+        if (cancelled || dto.status === 'unavailable') return
+        setItems([...dto.items].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 3))
+      })
+      .catch(() => {
+        if (!cancelled) setItems([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [apiEnabled])
+
+  const unread = useMemo(
+    () => countUnread(items.map((i) => i.id), overrides),
+    [items, overrides],
   )
-  const unread = useUnreadCount()
+
+  if (!apiEnabled) {
+    return (
+      <Card title="Новости">
+        <p className={styles.note}>Подключите API, чтобы видеть новости университета.</p>
+        <p className={styles.note}>
+          <Link to={paths.news}>Открыть раздел</Link>
+        </p>
+      </Card>
+    )
+  }
 
   return (
-    <Card title="Уведомления">
+    <Card title="Новости">
       {unread > 0 ? (
         <p className={styles.note}>
           <Badge variant="primary">{unread} непрочитанное</Badge>
         </p>
       ) : null}
-      <ul className={styles.noticeList}>
-        {items.map((n) => (
-          <li key={n.id} className={[styles.noticeItem, !overrides[n.id] ? styles.noticeItemUnread : ''].filter(Boolean).join(' ')}>
-            <div className={styles.noticeTitle}>{n.title}</div>
-            <div className={styles.noticePreview}>
-              {noticeCategoryLabel(n.category)} · {n.preview}
-            </div>
-          </li>
-        ))}
-      </ul>
+      {items.length === 0 ? (
+        <p className={styles.note}>Пока нет новостей.</p>
+      ) : (
+        <ul className={styles.noticeList}>
+          {items.map((n) => (
+            <li
+              key={n.id}
+              className={[styles.noticeItem, !overrides[n.id] ? styles.noticeItemUnread : '']
+                .filter(Boolean)
+                .join(' ')}
+            >
+              <div className={styles.noticeTitle}>{n.title}</div>
+              <div className={styles.noticePreview}>{n.date || 'Университет'}</div>
+            </li>
+          ))}
+        </ul>
+      )}
       <p className={styles.note}>
-        <Link to={paths.news}>Все уведомления</Link>
+        <Link to={paths.news}>Все новости</Link>
       </p>
     </Card>
   )

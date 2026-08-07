@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { NoticeCategoryIcon } from '@/blocks/notice-category-icon'
 import { ageWithBirthDate, courseLabel, maskPhone, noticeDate } from '@/mocks/format'
-import { notices } from '@/mocks/notices'
 import { mockStudentProfile } from '@/profile'
 import { useStudentProfile } from '@/student-profile-store'
 import { academicDebtsFromRows } from '@/debts'
@@ -10,6 +8,7 @@ import { useRecordBook } from '@/record-book-store'
 import { useCurrentProgram } from '@/study'
 import { paths } from '@/paths'
 import { isApiConfigured } from '@/apiClient'
+import { fetchStudentNews, isNewsApiEnabled, type StudentNewsItemDto } from '@/news'
 import {
   fetchPassPhotoSubmission,
   isPassPhotoApiEnabled,
@@ -61,9 +60,9 @@ export function Profile() {
 
   const [passPhotoSrc, setPassPhotoSrc] = useState<string | null>(null)
   const [passPhotoStatus, setPassPhotoStatus] = useState<string | null>(null)
+  const [recentNews, setRecentNews] = useState<StudentNewsItemDto[]>([])
 
   const debts = useMemo(() => academicDebtsFromRows(bookRows), [bookRows])
-  const recentNotices = notices.slice(0, 5)
 
   useEffect(() => {
     if (isApiConfigured() && profileStatus === 'idle') {
@@ -76,6 +75,24 @@ export function Profile() {
       void loadRecordBook(program.id)
     }
   }, [bookStatus, loadRecordBook, program.id])
+
+  useEffect(() => {
+    if (!isNewsApiEnabled()) return
+    let cancelled = false
+    fetchStudentNews()
+      .then((dto) => {
+        if (cancelled || dto.status === 'unavailable') return
+        setRecentNews(
+          [...dto.items].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 5),
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setRecentNews([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!isPassPhotoApiEnabled()) return
@@ -198,21 +215,28 @@ export function Profile() {
 
           <Card className={styles.noticesCard}>
             <div className={styles.noticesHeader}>
-              <h2 className={styles.noticesTitle}>Уведомления (dev)</h2>
+              <h2 className={styles.noticesTitle}>Новости</h2>
               <Link to={paths.news} className={styles.allLink}>
-                Все уведомления
+                Все новости
               </Link>
             </div>
             <ul className={styles.noticeList}>
-              {recentNotices.map((n) => (
-                <li key={n.id} className={styles.noticeItem}>
-                  <NoticeCategoryIcon category={n.category} />
+              {recentNews.length === 0 ? (
+                <li className={styles.noticeItem}>
                   <div className={styles.noticeBody}>
-                    <p className={styles.noticeTitle}>{n.title}</p>
-                    <p className={styles.noticeDate}>{noticeDate(n.date)}</p>
+                    <p className={styles.noticeTitle}>Пока нет новостей</p>
                   </div>
                 </li>
-              ))}
+              ) : (
+                recentNews.map((n) => (
+                  <li key={n.id} className={styles.noticeItem}>
+                    <div className={styles.noticeBody}>
+                      <p className={styles.noticeTitle}>{n.title}</p>
+                      <p className={styles.noticeDate}>{n.date ? noticeDate(n.date) : ''}</p>
+                    </div>
+                  </li>
+                ))
+              )}
             </ul>
           </Card>
         </div>

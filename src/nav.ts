@@ -24,7 +24,7 @@ export type NavGroup = {
 /** Верхние пункты без группы — как у МИРЭА */
 export const sidebarTop: NavItem[] = [
   { to: paths.profile, label: 'Профиль', icon: 'profile' },
-  { to: paths.news, label: 'Новости и уведомления (dev)', icon: 'news' },
+  { to: paths.news, label: 'Новости', icon: 'news' },
   { to: paths.schedule, label: 'Расписание', icon: 'schedule' },
 ]
 
