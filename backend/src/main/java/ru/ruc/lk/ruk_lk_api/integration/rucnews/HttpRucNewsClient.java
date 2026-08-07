@@ -30,6 +30,7 @@ public class HttpRucNewsClient implements RucNewsClient {
     private final AtomicBoolean lastOk = new AtomicBoolean(false);
 
     public HttpRucNewsClient(RucNewsProperties properties) {
+        RucNewsSsl.enableLegacyRsaCiphers();
         this.properties = properties;
         HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(8))
@@ -43,7 +44,7 @@ public class HttpRucNewsClient implements RucNewsClient {
             .defaultHeader("Accept-Language", "ru-RU,ru;q=0.9")
             .defaultHeader(
                 "User-Agent",
-                "Mozilla/5.0 (compatible; ruk-lk-api/1.0; +https://my.ruc.su)"
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
             .build();
     }
@@ -74,7 +75,6 @@ public class HttpRucNewsClient implements RucNewsClient {
             }
             LoadResult loaded = load();
             lastOk.set(loaded.ok());
-            // Не кэшируем долгий пустой провал — иначе 15 минут «Нет новостей»
             long ttl = loaded.ok() && !loaded.items().isEmpty()
                 ? properties.cacheTtlSeconds()
                 : Math.min(60, properties.cacheTtlSeconds());
