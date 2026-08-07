@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 @Component
@@ -47,6 +48,9 @@ public class HttpMaxSender implements VerificationMaxSender {
         } catch (RestClientResponseException e) {
             log.error("MAX HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new MaxSendException("Не удалось отправить сообщение в MAX", e);
+        } catch (RestClientException e) {
+            log.error("MAX request failed: {}", e.getMessage());
+            throw new MaxSendException("Не удалось отправить сообщение в MAX: " + e.getMessage(), e);
         }
     }
 

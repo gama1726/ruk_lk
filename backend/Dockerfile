@@ -7,7 +7,9 @@ RUN mvn -B -q -DskipTests package
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-RUN adduser -D -u 1000 app \
+# curl: new.ruc.su (старый nginx) — TLS_RSA_*; Java 21 их не берёт без ломки MAX.
+RUN apk add --no-cache curl \
+ && adduser -D -u 1000 app \
  && mkdir -p /app/data/pass-photos \
  && chown -R app:app /app
 USER app
