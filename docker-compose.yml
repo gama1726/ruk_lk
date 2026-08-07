@@ -7,8 +7,13 @@ services:
     volumes:
       - ./backend/application-local.properties:/app/application-local.properties:ro
       - ./data:/app/data
+      # Truststore с CA Минцифры для HTTPS к platform-api2.max.ru (см. certs/README.md)
+      - ./certs/cacerts-with-mincifry:/app/certs/cacerts-with-mincifry:ro
     environment:
       SPRING_PROFILES_ACTIVE: onec,prod,docker
+      JAVA_TOOL_OPTIONS: >-
+        -Djavax.net.ssl.trustStore=/app/certs/cacerts-with-mincifry
+        -Djavax.net.ssl.trustStorePassword=changeit
     # Внутренний DNS: new.ruc.su → 10.10.21.7 (публичный 195.x из Docker часто недоступен)
     extra_hosts:
       - "new.ruc.su:10.10.21.7"
