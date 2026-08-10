@@ -116,13 +116,14 @@
   margin: 0.9rem 0 0;
   font-size: 1.05rem;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.4;
   color: var(--color-text-primary);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 4.2em;
+  /* запас снизу — иначе line-clamp срезает последнюю строку по буквам */
+  padding-bottom: 0.15em;
 }
 
 .cardDate {
@@ -166,7 +167,6 @@
 
   .cardTitle {
     font-size: 1.125rem;
-    min-height: 4.5em;
   }
 
   .panel {

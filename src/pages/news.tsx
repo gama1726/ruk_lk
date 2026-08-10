@@ -171,7 +171,7 @@ export function News() {
 
   return (
     <>
-      <ScreenHeader title="Новости" subtitle="За текущий месяц с сайта университета" />
+      <ScreenHeader title="Новости" />
 
       {loading && <p className={styles.status}>Загрузка…</p>}
       {error && <p className={styles.status}>{error}</p>}
