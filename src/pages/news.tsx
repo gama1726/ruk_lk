@@ -1,21 +1,99 @@
 /**
- * @file Новости университета (new.ruc.su/blog).
+ * @file Новости университета (new.ruc.su/blog) — горизонтальная «живая лента».
  */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react'
 import { ApiError } from '@/apiClient'
 import { fetchStudentNews, isNewsApiEnabled, type StudentNewsItemDto } from '@/news'
 import { useReadState } from '@/notice-read'
-import { ScreenHeader, Badge, NoData, Button } from '@/ui'
+import { ScreenHeader, NoData } from '@/ui'
 import styles from './news.module.css'
 
 function formatNewsDate(iso: string): string {
   if (!iso) return ''
   const [y, m, d] = iso.split('-').map(Number)
   if (!y || !m || !d) return iso
-  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(
-    new Date(y, m - 1, d),
-  )
+  const dd = String(d).padStart(2, '0')
+  const mm = String(m).padStart(2, '0')
+  return `${dd}.${mm}.${y}`
+}
+
+/**
+ * Горизонтальный скролл с перетаскиванием мышью.
+ */
+function useDragScroll(ref: RefObject<HTMLDivElement | null>) {
+  const drag = useRef({ active: false, startX: 0, scrollLeft: 0, moved: false })
+  const [progress, setProgress] = useState(0)
+  const [thumbRatio, setThumbRatio] = useState(1)
+
+  const updateProgress = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    const max = el.scrollWidth - el.clientWidth
+    setProgress(max <= 0 ? 0 : el.scrollLeft / max)
+    setThumbRatio(el.scrollWidth <= 0 ? 1 : Math.min(1, el.clientWidth / el.scrollWidth))
+  }, [ref])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    updateProgress()
+    const onScroll = () => updateProgress()
+    el.addEventListener('scroll', onScroll, { passive: true })
+    const ro = new ResizeObserver(updateProgress)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      ro.disconnect()
+    }
+  }, [ref, updateProgress])
+
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return
+    const el = ref.current
+    if (!el) return
+    drag.current = {
+      active: true,
+      startX: e.clientX,
+      scrollLeft: el.scrollLeft,
+      moved: false,
+    }
+    el.setPointerCapture(e.pointerId)
+    el.classList.add(styles.trackDragging)
+  }
+
+  const onPointerMove = (e: PointerEvent) => {
+    if (!drag.current.active) return
+    const el = ref.current
+    if (!el) return
+    const dx = e.clientX - drag.current.startX
+    if (Math.abs(dx) > 4) drag.current.moved = true
+    el.scrollLeft = drag.current.scrollLeft - dx
+  }
+
+  const endDrag = (e: PointerEvent) => {
+    if (!drag.current.active) return
+    const el = ref.current
+    drag.current.active = false
+    el?.classList.remove(styles.trackDragging)
+    try {
+      el?.releasePointerCapture(e.pointerId)
+    } catch {
+      /* already released */
+    }
+  }
+
+  const wasDragged = () => drag.current.moved
+
+  return {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp: endDrag,
+    onPointerCancel: endDrag,
+    progress,
+    thumbRatio,
+    wasDragged,
+  }
 }
 
 /**
@@ -29,6 +107,8 @@ export function News() {
   const [unavailable, setUnavailable] = useState(false)
   const isRead = useReadState((s) => s.isRead)
   const setRead = useReadState((s) => s.setRead)
+  const trackRef = useRef<HTMLDivElement>(null)
+  const dragScroll = useDragScroll(trackRef)
 
   useEffect(() => {
     if (!apiEnabled) {
@@ -63,14 +143,23 @@ export function News() {
     }
   }, [apiEnabled])
 
+  const openNews = (n: StudentNewsItemDto) => {
+    if (dragScroll.wasDragged()) return
+    setRead(n.id, true)
+    window.open(n.url, '_blank', 'noopener,noreferrer')
+  }
+
+  const thumbWidthPct = Math.max(14, thumbPct(dragScroll.thumbRatio))
+  const thumbLeftPct = dragScroll.progress * (100 - thumbWidthPct)
+
   return (
     <>
       <ScreenHeader title="Новости" subtitle="Объявления с сайта университета" />
 
-      {loading && <p className={styles.meta}>Загрузка…</p>}
-      {error && <p className={styles.meta}>{error}</p>}
+      {loading && <p className={styles.status}>Загрузка…</p>}
+      {error && <p className={styles.status}>{error}</p>}
       {!loading && !error && unavailable && (
-        <p className={styles.meta}>Новости временно недоступны.</p>
+        <p className={styles.status}>Новости временно недоступны.</p>
       )}
 
       {!loading && !error && !unavailable && items.length === 0 ? (
@@ -78,66 +167,65 @@ export function News() {
       ) : null}
 
       {!loading && !error && items.length > 0 ? (
-        <ul className={styles.list}>
-          {items.map((n) => {
-            const read = isRead(n.id)
-            return (
-              <li
-                key={n.id}
-                className={[styles.item, !read ? styles.itemUnread : ''].filter(Boolean).join(' ')}
-              >
-                {n.imageUrl ? (
-                  <a
-                    href={n.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={styles.coverLink}
-                    onClick={() => setRead(n.id, true)}
-                  >
-                    <img src={n.imageUrl} alt="" className={styles.cover} loading="lazy" />
-                  </a>
-                ) : null}
-                <div className={styles.itemHead}>
-                  <h2 className={styles.title}>
-                    <a
-                      href={n.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={styles.titleLink}
-                      onClick={() => setRead(n.id, true)}
-                    >
-                      {n.title}
-                    </a>
-                  </h2>
-                  {!read ? <Badge variant="primary">новое</Badge> : null}
-                </div>
-                {n.date ? <p className={styles.meta}>{formatNewsDate(n.date)}</p> : null}
-                {n.preview ? <p className={styles.preview}>{n.preview}</p> : null}
-                <div className={styles.actions}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setRead(n.id, true)
-                      window.open(n.url, '_blank', 'noopener,noreferrer')
-                    }}
-                  >
-                    Читать на сайте
-                  </Button>
+        <section className={styles.panel} aria-label="Живая лента">
+          <h2 className={styles.panelTitle}>Живая лента</h2>
+
+          <div
+            ref={trackRef}
+            className={styles.track}
+            onPointerDown={dragScroll.onPointerDown}
+            onPointerMove={dragScroll.onPointerMove}
+            onPointerUp={dragScroll.onPointerUp}
+            onPointerCancel={dragScroll.onPointerCancel}
+          >
+            {items.map((n) => {
+              const read = isRead(n.id)
+              return (
+                <article
+                  key={n.id}
+                  className={[styles.card, !read ? styles.cardUnread : ''].filter(Boolean).join(' ')}
+                >
                   <button
                     type="button"
-                    className={styles.markBtn}
-                    onClick={() => setRead(n.id, !read)}
+                    className={styles.cardBtn}
+                    onClick={() => openNews(n)}
+                    aria-label={n.title}
                   >
-                    {read ? 'Пометить непрочитанным' : 'Пометить прочитанным'}
+                    <div className={styles.coverWrap}>
+                      {n.imageUrl ? (
+                        <img
+                          src={n.imageUrl}
+                          alt=""
+                          className={styles.cover}
+                          loading="lazy"
+                          draggable={false}
+                        />
+                      ) : (
+                        <div className={styles.coverPlaceholder} aria-hidden />
+                      )}
+                    </div>
+                    <h3 className={styles.cardTitle}>{n.title}</h3>
+                    {n.date ? <p className={styles.cardDate}>{formatNewsDate(n.date)}</p> : null}
                   </button>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+                </article>
+              )
+            })}
+          </div>
+
+          {dragScroll.thumbRatio < 0.98 ? (
+            <div className={styles.scrollBar} aria-hidden>
+              <div
+                className={styles.scrollThumb}
+                style={{ width: `${thumbWidthPct}%`, left: `${thumbLeftPct}%` }}
+              />
+            </div>
+          ) : null}
+        </section>
       ) : null}
     </>
   )
+}
+
+function thumbPct(ratio: number): number {
+  return Math.min(100, Math.max(14, ratio * 100))
 }
