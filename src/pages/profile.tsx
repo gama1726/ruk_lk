@@ -83,7 +83,7 @@ export function Profile() {
       .then((dto) => {
         if (cancelled || dto.status === 'unavailable') return
         setRecentNews(
-          [...dto.items].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 5),
+          [...dto.items].sort((a, b) => (b.date || '').localeCompare(a.date || '')),
         )
       })
       .catch(() => {

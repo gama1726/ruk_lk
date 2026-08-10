@@ -238,6 +238,10 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  max-height: 22rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .noticeItem {

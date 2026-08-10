@@ -32,7 +32,7 @@ export function isSupportedPassPhotoFormat(file: File): boolean {
 }
 
 /**
- * Формат и размер — без проверки лица и фона (это делает сервер).
+ * Формат и размер — быстрая проверка до запроса на сервер.
  */
 export function validatePassPhotoClientBasic(file: File): ClientValidationResult {
   const issues: ClientValidationIssue[] = []
