@@ -43,5 +43,11 @@ app.megaapi.dbidx=0
 # app.ruc-news.base-url=https://new.ruc.su
 # app.ruc-news.cache-ttl-seconds=900
 
+# Админки фото для пропуска (СПО / ВО). Логин/пароль задаются здесь и применяются при старте API.
+app.admin.spo.username=admin-spo
+app.admin.spo.password=CHANGE_ME_SPO
+app.admin.he.username=admin-he
+app.admin.he.password=CHANGE_ME_HE
+
 # CORS — только если фронт и API на разных origin (обычно не нужно за nginx)
 # app.cors.allowed-origins=https://lk.example.com

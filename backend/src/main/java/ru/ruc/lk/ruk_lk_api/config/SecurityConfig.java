@@ -4,6 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -12,12 +14,17 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(
         HttpSecurity http,
-        StudentSessionAuthFilter studentSessionAuthFilter
+        StudentSessionAuthFilter studentSessionAuthFilter,
+        AdminSessionAuthFilter adminSessionAuthFilter
     ) throws Exception {
         http
-            // Cookie-сессия + SameSite=lax; полный CSRF-токен для SPA — отдельно
             .csrf(csrf -> csrf.disable())
             .cors(cors -> {})
             .formLogin(form -> form.disable())
@@ -26,10 +33,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/max/webhook").permitAll()
+                .requestMatchers("/api/admin/auth/**").permitAll()
                 .requestMatchers("/api/admin/**").permitAll()
-                // /api/student/** — StudentSessionAuthFilter + requireStudent в сервисах
                 .anyRequest().permitAll()
             )
+            .addFilterBefore(adminSessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(studentSessionAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

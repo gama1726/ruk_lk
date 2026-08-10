@@ -25,6 +25,10 @@ public class PassPhotoSubmission {
 
     private String zachetka;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 8)
+    private EducationTrack educationTrack;
+
     @Column(nullable = false)
     private String storedFileName;
 
@@ -57,6 +61,7 @@ public class PassPhotoSubmission {
         String studentId,
         String studentFullName,
         String zachetka,
+        EducationTrack educationTrack,
         String storedFileName,
         PassPhotoStatus status,
         String validationWarningsJson
@@ -65,6 +70,7 @@ public class PassPhotoSubmission {
         this.studentId = studentId;
         this.studentFullName = studentFullName;
         this.zachetka = zachetka;
+        this.educationTrack = educationTrack;
         this.storedFileName = storedFileName;
         this.status = status;
         this.validationWarningsJson = validationWarningsJson;
@@ -85,6 +91,14 @@ public class PassPhotoSubmission {
 
     public String getZachetka() {
         return zachetka;
+    }
+
+    public EducationTrack getEducationTrack() {
+        return educationTrack;
+    }
+
+    public void setEducationTrack(EducationTrack educationTrack) {
+        this.educationTrack = educationTrack;
     }
 
     public String getStoredFileName() {

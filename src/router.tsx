@@ -37,7 +37,8 @@ import { Portfolio } from '@/pages/portfolio'
 import { Library } from '@/pages/library'
 import { Settings } from '@/pages/settings'
 import { PassPhoto } from '@/pages/pass-photo'
-import { AdminPassPhotos } from '@/pages/admin-pass-photos'
+import { AdminPassPhotosHe, AdminPassPhotosSpo } from '@/pages/admin-pass-photos'
+import { AdminPassPhotoLogin } from '@/pages/admin-pass-photo-login'
 
 export const router = createBrowserRouter([
   {
@@ -103,6 +104,10 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  { path: paths.adminPassPhotos, element: <AdminPassPhotos /> },
+  { path: paths.adminPassPhotos, element: <Navigate to={paths.adminPassPhotosHe} replace /> },
+  { path: paths.adminPassPhotosSpoLogin, element: <AdminPassPhotoLogin expectedRole="SPO" /> },
+  { path: paths.adminPassPhotosHeLogin, element: <AdminPassPhotoLogin expectedRole="HE" /> },
+  { path: paths.adminPassPhotosSpo, element: <AdminPassPhotosSpo /> },
+  { path: paths.adminPassPhotosHe, element: <AdminPassPhotosHe /> },
   { path: '*', element: <Navigate to={paths.login} replace /> },
 ])

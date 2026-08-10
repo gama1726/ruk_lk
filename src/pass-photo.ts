@@ -12,6 +12,8 @@ export type PassPhotoStatus =
   | 'PERCO_SYNCED'
   | 'PERCO_FAILED'
 
+export type EducationTrack = 'SPO' | 'HE'
+
 export type PassPhotoSubmission = {
   id: string | null
   status: PassPhotoStatus | null
@@ -41,15 +43,15 @@ export type PassPhotoAdminItem = {
   percoError: string | null
 }
 
-export function passPhotoImageUrl(id: string, adminToken?: string): string {
-  const base = adminToken
-    ? `${getApiBaseUrl()}/api/admin/pass-photos/${id}/image`
-    : `${getApiBaseUrl()}/api/student/pass-photo/${id}/image`
-  return base
+export type AdminMe = {
+  username: string
+  role: EducationTrack
 }
 
-export function adminPassPhotoHeaders(token: string): HeadersInit {
-  return { 'X-Admin-Token': token }
+export function passPhotoImageUrl(id: string, admin?: boolean): string {
+  return admin
+    ? `${getApiBaseUrl()}/api/admin/pass-photos/${id}/image`
+    : `${getApiBaseUrl()}/api/student/pass-photo/${id}/image`
 }
 
 export async function fetchPassPhotoSubmission(): Promise<PassPhotoSubmission> {
@@ -77,47 +79,40 @@ export async function setPassPhotoAsAvatar(useAsAvatar: boolean): Promise<PassPh
   return apiPut<PassPhotoSubmission>('/api/student/pass-photo/avatar-preference', { useAsAvatar })
 }
 
-export async function fetchAdminPassPhotoQueue(token: string): Promise<PassPhotoAdminItem[]> {
-  return apiGet<PassPhotoAdminItem[]>('/api/admin/pass-photos', {
-    headers: adminPassPhotoHeaders(token),
-  })
+export async function adminLogin(username: string, password: string): Promise<AdminMe> {
+  return apiPost<AdminMe>('/api/admin/auth/login', { username, password })
 }
 
-export async function fetchAdminPassPhotoHistory(
-  token: string,
-  limit = 30,
-): Promise<PassPhotoAdminItem[]> {
-  return apiGet<PassPhotoAdminItem[]>(`/api/admin/pass-photos/history?limit=${limit}`, {
-    headers: adminPassPhotoHeaders(token),
-  })
+export async function adminLogout(): Promise<void> {
+  await apiPost<{ ok: string }>('/api/admin/auth/logout', {})
 }
 
-export async function approvePassPhoto(token: string, id: string): Promise<PassPhotoSubmission> {
-  return apiPost<PassPhotoSubmission>(`/api/admin/pass-photos/${id}/approve`, {}, {
-    headers: adminPassPhotoHeaders(token),
-  })
+export async function fetchAdminMe(): Promise<AdminMe> {
+  return apiGet<AdminMe>('/api/admin/auth/me')
 }
 
-export async function rejectPassPhoto(
-  token: string,
-  id: string,
-  reason: string,
-): Promise<PassPhotoSubmission> {
-  return apiPost<PassPhotoSubmission>(`/api/admin/pass-photos/${id}/reject`, { reason }, {
-    headers: adminPassPhotoHeaders(token),
-  })
+export async function fetchAdminPassPhotoQueue(): Promise<PassPhotoAdminItem[]> {
+  return apiGet<PassPhotoAdminItem[]>('/api/admin/pass-photos')
 }
 
-export async function retryPassPhotoPerco(token: string, id: string): Promise<PassPhotoSubmission> {
-  return apiPost<PassPhotoSubmission>(`/api/admin/pass-photos/${id}/retry-perco`, {}, {
-    headers: adminPassPhotoHeaders(token),
-  })
+export async function fetchAdminPassPhotoHistory(limit = 30): Promise<PassPhotoAdminItem[]> {
+  return apiGet<PassPhotoAdminItem[]>(`/api/admin/pass-photos/history?limit=${limit}`)
 }
 
-export async function revertPassPhoto(token: string, id: string): Promise<void> {
-  await apiPost<{ ok: string }>(`/api/admin/pass-photos/${id}/revert`, {}, {
-    headers: adminPassPhotoHeaders(token),
-  })
+export async function approvePassPhoto(id: string): Promise<PassPhotoSubmission> {
+  return apiPost<PassPhotoSubmission>(`/api/admin/pass-photos/${id}/approve`, {})
+}
+
+export async function rejectPassPhoto(id: string, reason: string): Promise<PassPhotoSubmission> {
+  return apiPost<PassPhotoSubmission>(`/api/admin/pass-photos/${id}/reject`, { reason })
+}
+
+export async function retryPassPhotoPerco(id: string): Promise<PassPhotoSubmission> {
+  return apiPost<PassPhotoSubmission>(`/api/admin/pass-photos/${id}/retry-perco`, {})
+}
+
+export async function revertPassPhoto(id: string): Promise<void> {
+  await apiPost<{ ok: string }>(`/api/admin/pass-photos/${id}/revert`, {})
 }
 
 export function isPassPhotoApiEnabled(): boolean {
@@ -130,4 +125,9 @@ export const passPhotoStatusLabel: Record<PassPhotoStatus, string> = {
   PERCO_SYNCING: 'Загрузка в систему пропуска…',
   PERCO_SYNCED: 'Принято',
   PERCO_FAILED: 'Ошибка загрузки в Perco',
+}
+
+export const educationTrackLabel: Record<EducationTrack, string> = {
+  SPO: 'СПО',
+  HE: 'Высшее образование',
 }

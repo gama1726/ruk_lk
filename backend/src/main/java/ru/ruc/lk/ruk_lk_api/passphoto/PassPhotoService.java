@@ -146,6 +146,7 @@ public class PassPhotoService {
         }
 
         String zachetka = resolveZachetka(student.studentId());
+        EducationTrack track = resolveEducationTrack(student.studentId());
         UUID id = UUID.randomUUID();
         String stored = storageService.save(id, storedBytes);
 
@@ -158,6 +159,7 @@ public class PassPhotoService {
             student.studentId(),
             student.fullName(),
             zachetka,
+            track,
             stored,
             PassPhotoStatus.PENDING,
             PassPhotoMapper.warningsToJson(warnings)
@@ -176,8 +178,8 @@ public class PassPhotoService {
         return storageService.read(submission.getStoredFileName());
     }
 
-    public byte[] readImageForAdmin(UUID id) throws IOException {
-        PassPhotoSubmission submission = requireSubmission(id);
+    public byte[] readImageForAdmin(UUID id, EducationTrack track) throws IOException {
+        PassPhotoSubmission submission = requireSubmissionForTrack(id, track);
         return storageService.read(submission.getStoredFileName());
     }
 
@@ -197,8 +199,8 @@ public class PassPhotoService {
         PassPhotoStatus.PERCO_FAILED
     );
 
-    public List<PassPhotoAdminItemDto> listPending() {
-        return repository.findByStatusInOrderBySubmittedAtAsc(QUEUE_STATUSES).stream()
+    public List<PassPhotoAdminItemDto> listPending(EducationTrack track) {
+        return repository.findByStatusInAndEducationTrackOrderBySubmittedAtAsc(QUEUE_STATUSES, track).stream()
             .map(PassPhotoMapper::toAdminItem)
             .toList();
     }
@@ -229,18 +231,30 @@ public class PassPhotoService {
         return recovered;
     }
 
-    public List<PassPhotoAdminItemDto> listProcessed(int limit) {
+    public List<PassPhotoAdminItemDto> listProcessed(EducationTrack track, int limit) {
         int capped = Math.min(Math.max(limit, 1), 100);
-        return repository.findByStatusInOrderByReviewedAtDesc(
+        return repository.findByStatusInAndEducationTrackOrderByReviewedAtDesc(
             HISTORY_STATUSES,
+            track,
             PageRequest.of(0, capped)
         ).stream()
             .map(PassPhotoMapper::toAdminItem)
             .toList();
     }
 
-    public PassPhotoSubmissionDto approve(UUID id, String reviewer) throws IOException {
-        PassPhotoSubmission submission = requireSubmission(id);
+    public int backfillEducationTracks() {
+        List<PassPhotoSubmission> missing = repository.findByEducationTrackIsNull();
+        int updated = 0;
+        for (PassPhotoSubmission submission : missing) {
+            submission.setEducationTrack(resolveEducationTrack(submission.getStudentId()));
+            repository.save(submission);
+            updated++;
+        }
+        return updated;
+    }
+
+    public PassPhotoSubmissionDto approve(UUID id, String reviewer, EducationTrack track) throws IOException {
+        PassPhotoSubmission submission = requireSubmissionForTrack(id, track);
         if (submission.getStatus() != PassPhotoStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Заявка уже обработана");
         }
@@ -270,8 +284,8 @@ public class PassPhotoService {
         return toStudentDto(submission);
     }
 
-    public PassPhotoSubmissionDto reject(UUID id, String reviewer, String reason) {
-        PassPhotoSubmission submission = requireSubmission(id);
+    public PassPhotoSubmissionDto reject(UUID id, String reviewer, String reason, EducationTrack track) {
+        PassPhotoSubmission submission = requireSubmissionForTrack(id, track);
         if (submission.getStatus() != PassPhotoStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Заявка уже обработана");
         }
@@ -288,8 +302,8 @@ public class PassPhotoService {
      * Для принятых (PERCO_SYNCED) откат недоступен — фото уже в Perco;
      * студент может загрузить новое по cooldown.
      */
-    public void revert(UUID id) throws IOException {
-        PassPhotoSubmission submission = requireSubmission(id);
+    public void revert(UUID id, EducationTrack track) throws IOException {
+        PassPhotoSubmission submission = requireSubmissionForTrack(id, track);
         if (submission.getStatus() == PassPhotoStatus.PENDING
             || submission.getStatus() == PassPhotoStatus.PERCO_SYNCING) {
             throw new ResponseStatusException(
@@ -315,8 +329,8 @@ public class PassPhotoService {
         }
     }
 
-    public PassPhotoSubmissionDto retryPerco(UUID id, String reviewer) throws IOException {
-        PassPhotoSubmission submission = requireSubmission(id);
+    public PassPhotoSubmissionDto retryPerco(UUID id, String reviewer, EducationTrack track) throws IOException {
+        PassPhotoSubmission submission = requireSubmissionForTrack(id, track);
         if (submission.getStatus() != PassPhotoStatus.PERCO_FAILED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Повтор доступен только после ошибки Perco");
         }
@@ -399,9 +413,29 @@ public class PassPhotoService {
             .orElse(studentId);
     }
 
+    private EducationTrack resolveEducationTrack(String studentId) {
+        return oneCClient.fetchProfile(studentId)
+            .map(p -> EducationTrackClassifier.fromLevel(p.level()))
+            .orElse(EducationTrack.HE);
+    }
+
     private PassPhotoSubmission requireSubmission(UUID id) {
         return repository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Заявка не найдена"));
+    }
+
+    private PassPhotoSubmission requireSubmissionForTrack(UUID id, EducationTrack track) {
+        PassPhotoSubmission submission = requireSubmission(id);
+        EducationTrack actual = submission.getEducationTrack();
+        if (actual == null) {
+            actual = resolveEducationTrack(submission.getStudentId());
+            submission.setEducationTrack(actual);
+            repository.save(submission);
+        }
+        if (actual != track) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет доступа к этой заявке");
+        }
+        return submission;
     }
 
     private static PassPhotoSubmissionDto emptyDto(boolean useAsAvatar) {

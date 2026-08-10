@@ -1,8 +1,24 @@
-.auth {
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2.5rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.authCard {
+  max-width: 400px;
+}
+
+.authForm {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-width: 400px;
 }
 
 .label {
@@ -19,10 +35,8 @@
   font: inherit;
 }
 
-.list {
+.grid {
   margin: 1rem 0 0;
-  padding: 0;
-  list-style: none;
   display: grid;
   gap: 1rem;
 }
@@ -30,12 +44,6 @@
 .sectionTitle {
   margin: 2rem 0 0;
   font-size: var(--font-size-lg);
-}
-
-.sectionHint {
-  margin: 0.35rem 0 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
 }
 
 .card {
@@ -49,7 +57,7 @@
     grid-template-rows: auto auto;
   }
 
-  .photo {
+  .thumb {
     grid-row: 1 / span 2;
     grid-column: 2;
   }
@@ -71,7 +79,7 @@
   color: var(--color-warning);
 }
 
-.photo {
+.thumb {
   width: 100%;
   max-height: 280px;
   object-fit: contain;
@@ -88,10 +96,23 @@
 .error {
   color: var(--color-danger);
   font-size: var(--font-size-sm);
+  margin: 0;
 }
 
-.footer {
-  margin-top: 1.5rem;
+.info {
+  color: var(--color-success, #0a7a3e);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.switchTrack {
+  margin: 1rem 0 0;
   font-size: var(--font-size-sm);
 }
 
@@ -103,4 +124,5 @@
   font: inherit;
   cursor: pointer;
   text-decoration: underline;
+  align-self: flex-start;
 }

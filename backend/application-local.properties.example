@@ -13,3 +13,9 @@ app.megaapi.token-get=
 # tokenPut — AddReader / UpdateReader (опционально)
 app.megaapi.token-put=
 app.megaapi.dbidx=0
+
+# Админки фото для пропуска (СПО / ВО). Логин/пароль применяются при старте API.
+app.admin.spo.username=admin-spo
+app.admin.spo.password=CHANGE_ME_SPO
+app.admin.he.username=admin-he
+app.admin.he.password=CHANGE_ME_HE

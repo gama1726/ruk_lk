@@ -1,23 +1,27 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { AdminPassPhotoThumb } from '@/blocks/admin-pass-photo-thumb'
+import { ApiError } from '@/apiClient'
 import {
+  adminLogout,
   approvePassPhoto,
+  educationTrackLabel,
+  fetchAdminMe,
   fetchAdminPassPhotoHistory,
   fetchAdminPassPhotoQueue,
   passPhotoStatusLabel,
   rejectPassPhoto,
   retryPassPhotoPerco,
   revertPassPhoto,
+  type EducationTrack,
   type PassPhotoAdminItem,
 } from '@/pass-photo'
+import { paths } from '@/paths'
 import { Button, Card, ScreenHeader } from '@/ui'
 import styles from './admin-pass-photos.module.css'
 
-const TOKEN_KEY = 'ruk_lk_admin_token'
-
 function AdminPassPhotoCard({
   item,
-  token,
   busyId,
   onApprove,
   onReject,
@@ -25,7 +29,6 @@ function AdminPassPhotoCard({
   onRetryPerco,
 }: {
   item: PassPhotoAdminItem
-  token: string
   busyId: string | null
   onApprove?: (id: string) => void
   onReject?: (id: string) => void
@@ -50,31 +53,25 @@ function AdminPassPhotoCard({
         {item.rejectReason && <span className={styles.warn}>Причина: {item.rejectReason}</span>}
         {item.percoError && <span className={styles.warn}>Perco: {item.percoError}</span>}
         {item.validationWarningsJson && (
-          <span className={styles.warn}>⚠ {item.validationWarningsJson.replace(/\n/g, '; ')}</span>
-        )}
-        {syncing && (
-          <span className={styles.warn}>
-            Идёт загрузка в Perco. Если зависло — обновите страницу после рестарта API или повторите из истории.
-          </span>
+          <span className={styles.warn}>Предупреждения: {item.validationWarningsJson}</span>
         )}
       </div>
       <AdminPassPhotoThumb
-        className={styles.photo}
         id={item.id}
-        token={token}
-        alt={item.studentFullName}
+        alt={`Фото ${item.studentFullName}`}
+        className={styles.thumb}
       />
       <div className={styles.actions}>
-        {onApprove && !syncing && (
+        {onApprove && item.status === 'PENDING' && (
           <Button
             type="button"
             disabled={busyId === item.id}
             onClick={() => onApprove(item.id)}
           >
-            Одобрить и в Perco
+            Принять
           </Button>
         )}
-        {onReject && !syncing && (
+        {onReject && item.status === 'PENDING' && (
           <Button
             type="button"
             variant="secondary"
@@ -87,20 +84,20 @@ function AdminPassPhotoCard({
         {onRetryPerco && failed && (
           <Button
             type="button"
-            disabled={busyId === item.id}
+            disabled={busyId === item.id || syncing}
             onClick={() => onRetryPerco(item.id)}
           >
             Повторить Perco
           </Button>
         )}
-        {onRevert && (
+        {onRevert && (item.status === 'REJECTED' || item.status === 'PERCO_FAILED') && (
           <Button
             type="button"
-            variant="secondary"
+            variant="ghost"
             disabled={busyId === item.id}
             onClick={() => onRevert(item.id)}
           >
-            Сбросить
+            Удалить из ЛК
           </Button>
         )}
       </div>
@@ -108,23 +105,31 @@ function AdminPassPhotoCard({
   )
 }
 
-export function AdminPassPhotos() {
-  const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) ?? '')
-  const [tokenInput, setTokenInput] = useState('')
+type Props = {
+  expectedRole: EducationTrack
+}
+
+export function AdminPassPhotos({ expectedRole }: Props) {
+  const navigate = useNavigate()
+  const [ready, setReady] = useState(false)
+  const [authorized, setAuthorized] = useState(false)
+  const [username, setUsername] = useState('')
   const [queue, setQueue] = useState<PassPhotoAdminItem[]>([])
   const [history, setHistory] = useState<PassPhotoAdminItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
 
-  const load = useCallback(async (authToken: string) => {
-    if (!authToken) return
+  const loginPath =
+    expectedRole === 'SPO' ? paths.adminPassPhotosSpoLogin : paths.adminPassPhotosHeLogin
+
+  const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const [pending, processed] = await Promise.all([
-        fetchAdminPassPhotoQueue(authToken),
-        fetchAdminPassPhotoHistory(authToken),
+        fetchAdminPassPhotoQueue(),
+        fetchAdminPassPhotoHistory(),
       ])
       setQueue(pending)
       setHistory(processed)
@@ -132,27 +137,46 @@ export function AdminPassPhotos() {
       setError(e instanceof Error ? e.message : 'Не удалось загрузить заявки')
       setQueue([])
       setHistory([])
+      if (e instanceof ApiError && e.status === 401) {
+        setAuthorized(false)
+      }
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    if (token) void load(token)
-  }, [token, load])
-
-  const saveToken = () => {
-    const trimmed = tokenInput.trim()
-    sessionStorage.setItem(TOKEN_KEY, trimmed)
-    setToken(trimmed)
-    void load(trimmed)
-  }
+    let cancelled = false
+    void (async () => {
+      try {
+        const me = await fetchAdminMe()
+        if (cancelled) return
+        if (me.role !== expectedRole) {
+          setAuthorized(false)
+          setReady(true)
+          return
+        }
+        setUsername(me.username)
+        setAuthorized(true)
+        setReady(true)
+        await load()
+      } catch {
+        if (!cancelled) {
+          setAuthorized(false)
+          setReady(true)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [expectedRole, load])
 
   const onApprove = async (id: string) => {
     setBusyId(id)
     try {
-      await approvePassPhoto(token, id)
-      await load(token)
+      await approvePassPhoto(id)
+      await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка одобрения')
     } finally {
@@ -165,8 +189,8 @@ export function AdminPassPhotos() {
     if (!reason.trim()) return
     setBusyId(id)
     try {
-      await rejectPassPhoto(token, id, reason.trim())
-      await load(token)
+      await rejectPassPhoto(id, reason.trim())
+      await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка отклонения')
     } finally {
@@ -177,8 +201,8 @@ export function AdminPassPhotos() {
   const onRetryPerco = async (id: string) => {
     setBusyId(id)
     try {
-      await retryPassPhotoPerco(token, id)
-      await load(token)
+      await retryPassPhotoPerco(id)
+      await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка повторной загрузки в Perco')
     } finally {
@@ -187,112 +211,99 @@ export function AdminPassPhotos() {
   }
 
   const onRevert = async (id: string) => {
-    const ok = window.confirm(
-      'Сбросить заявку в ЛК? Файл будет удалён, студент сможет загрузить фото заново. Фото в Perco (если было) не меняется.',
-    )
-    if (!ok) return
+    if (!window.confirm('Удалить заявку из ЛК?')) return
     setBusyId(id)
     try {
-      await revertPassPhoto(token, id)
-      await load(token)
+      await revertPassPhoto(id)
+      await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка отката')
+      setError(e instanceof Error ? e.message : 'Ошибка удаления')
     } finally {
       setBusyId(null)
     }
   }
 
-  if (!token) {
+  const onLogout = async () => {
+    try {
+      await adminLogout()
+    } catch {
+      /* ignore */
+    }
+    navigate(loginPath, { replace: true })
+  }
+
+  if (!ready) {
     return (
-      <>
-        <ScreenHeader title="Модерация фото для пропуска" subtitle="Только для сотрудников" />
-        <Card padding="lg" className={styles.auth}>
-          <label className={styles.label}>
-            Токен администратора
-            <input
-              className={styles.input}
-              type="password"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="app.admin.api-token"
-            />
-          </label>
-          <Button type="button" onClick={saveToken}>
-            Войти
-          </Button>
-        </Card>
-      </>
+      <div className={styles.page}>
+        <p>Проверка сессии…</p>
+      </div>
     )
+  }
+
+  if (!authorized) {
+    return <Navigate to={loginPath} replace />
   }
 
   const pendingOnly = queue.filter((i) => i.status === 'PENDING')
   const syncingOnly = queue.filter((i) => i.status === 'PERCO_SYNCING')
 
   return (
-    <>
+    <div className={styles.page}>
       <ScreenHeader
-        title="Модерация фото для пропуска"
-        subtitle={`На проверке: ${pendingOnly.length}${syncingOnly.length ? ` · загрузка в Perco: ${syncingOnly.length}` : ''}`}
+        title={`Админка пропусков — ${educationTrackLabel[expectedRole]}`}
+        subtitle={`На проверке: ${pendingOnly.length}${syncingOnly.length ? ` · загрузка в Perco: ${syncingOnly.length}` : ''} · ${username}`}
       />
-
+      <div className={styles.toolbar}>
+        <Button type="button" variant="secondary" onClick={() => void load()} disabled={loading}>
+          Обновить
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => void onLogout()}>
+          Выйти
+        </Button>
+      </div>
       {error && <p className={styles.error}>{error}</p>}
       {loading && <p>Загрузка…</p>}
 
       <h2 className={styles.sectionTitle}>На проверке</h2>
-      <ul className={styles.list}>
-        {queue.map((item) => (
-          <li key={item.id}>
-            <AdminPassPhotoCard
-              item={item}
-              token={token}
-              busyId={busyId}
-              onApprove={item.status === 'PENDING' ? onApprove : undefined}
-              onReject={item.status === 'PENDING' ? onReject : undefined}
-            />
-          </li>
+      <div className={styles.grid}>
+        {pendingOnly.map((item) => (
+          <AdminPassPhotoCard
+            key={item.id}
+            item={item}
+            busyId={busyId}
+            onApprove={onApprove}
+            onReject={onReject}
+          />
         ))}
-      </ul>
-
-      {!loading && queue.length === 0 && (
-        <Card padding="lg">
+        {syncingOnly.map((item) => (
+          <AdminPassPhotoCard key={item.id} item={item} busyId={busyId} />
+        ))}
+        {!loading && pendingOnly.length === 0 && syncingOnly.length === 0 && (
           <p>Нет заявок на проверке.</p>
-        </Card>
-      )}
+        )}
+      </div>
 
-      <h2 className={styles.sectionTitle}>Обработанные заявки</h2>
-      <p className={styles.sectionHint}>
-        При ошибке Perco можно повторить загрузку. «Сбросить» доступен для отклонённых и ошибок Perco —
-        удаляет заявку в ЛК. Принятые (в Perco) сбросить нельзя: студент загрузит новое по лимиту 3 дня.
-      </p>
-      <ul className={styles.list}>
+      <h2 className={styles.sectionTitle}>Обработанные</h2>
+      <div className={styles.grid}>
         {history.map((item) => (
-          <li key={item.id}>
-            <AdminPassPhotoCard
-              item={item}
-              token={token}
-              busyId={busyId}
-              onRetryPerco={item.status === 'PERCO_FAILED' ? onRetryPerco : undefined}
-              onRevert={
-                item.status === 'REJECTED' || item.status === 'PERCO_FAILED'
-                  ? onRevert
-                  : undefined
-              }
-            />
-          </li>
+          <AdminPassPhotoCard
+            key={item.id}
+            item={item}
+            busyId={busyId}
+            onRetryPerco={onRetryPerco}
+            onRevert={onRevert}
+          />
         ))}
-      </ul>
-
-      {!loading && history.length === 0 && (
-        <Card padding="lg">
-          <p>Нет обработанных заявок.</p>
-        </Card>
-      )}
-
-      <p className={styles.footer}>
-        <button type="button" className={styles.linkBtn} onClick={() => { sessionStorage.removeItem(TOKEN_KEY); setToken('') }}>
-          Сменить токен
-        </button>
-      </p>
-    </>
+        {!loading && history.length === 0 && <p>История пуста.</p>}
+      </div>
+    </div>
   )
+}
+
+export function AdminPassPhotosSpo() {
+  return <AdminPassPhotos expectedRole="SPO" />
+}
+
+export function AdminPassPhotosHe() {
+  return <AdminPassPhotos expectedRole="HE" />
 }

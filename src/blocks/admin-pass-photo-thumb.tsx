@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react'
 import { getApiBaseUrl } from '@/apiClient'
-import { adminPassPhotoHeaders } from '@/pass-photo'
 
 type Props = {
   id: string
-  token: string
   alt: string
   className?: string
 }
 
-export function AdminPassPhotoThumb({ id, token, alt, className }: Props) {
+export function AdminPassPhotoThumb({ id, alt, className }: Props) {
   const [src, setSrc] = useState<string | null>(null)
 
   useEffect(() => {
@@ -18,7 +16,6 @@ export function AdminPassPhotoThumb({ id, token, alt, className }: Props) {
 
     void (async () => {
       const response = await fetch(`${getApiBaseUrl()}/api/admin/pass-photos/${id}/image`, {
-        headers: adminPassPhotoHeaders(token),
         credentials: 'include',
       })
       if (!response.ok || cancelled) return
@@ -31,7 +28,7 @@ export function AdminPassPhotoThumb({ id, token, alt, className }: Props) {
       cancelled = true
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [id, token])
+  }, [id])
 
   if (!src) {
     return <div className={className}>Загрузка…</div>

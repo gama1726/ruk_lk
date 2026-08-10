@@ -7,5 +7,5 @@ public interface VerificationEmailSender {
      * @param recipientName ФИО для to_name
      * @param code 6 цифр
      */
-    void sendLoginCode(String toEmail, String recipientName,String code);
+    void sendLoginCode(String toEmail, String recipientName, String code);
 }

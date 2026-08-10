@@ -13,13 +13,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpSession;
+import ru.ruc.lk.ruk_lk_api.admin.AdminAuthService;
+import ru.ruc.lk.ruk_lk_api.admin.AdminSession;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoAdminItemDto;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoAvatarPreferenceRequest;
 import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoRejectRequest;
@@ -80,75 +81,61 @@ public class PassPhotoController {
 class PassPhotoAdminController {
 
     private final PassPhotoService passPhotoService;
-    private final AdminTokenVerifier adminTokenVerifier;
 
-    PassPhotoAdminController(PassPhotoService passPhotoService, AdminTokenVerifier adminTokenVerifier) {
+    PassPhotoAdminController(PassPhotoService passPhotoService) {
         this.passPhotoService = passPhotoService;
-        this.adminTokenVerifier = adminTokenVerifier;
     }
 
     @GetMapping
-    public List<PassPhotoAdminItemDto> pending(@RequestHeader("X-Admin-Token") String token) {
-        adminTokenVerifier.verify(token);
-        return passPhotoService.listPending();
+    public List<PassPhotoAdminItemDto> pending(HttpSession session) {
+        AdminSession admin = AdminAuthService.requireAdmin(session);
+        return passPhotoService.listPending(admin.role());
     }
 
     @GetMapping("/history")
     public List<PassPhotoAdminItemDto> history(
-        @RequestHeader("X-Admin-Token") String token,
+        HttpSession session,
         @RequestParam(defaultValue = "30") int limit
     ) {
-        adminTokenVerifier.verify(token);
-        return passPhotoService.listProcessed(limit);
+        AdminSession admin = AdminAuthService.requireAdmin(session);
+        return passPhotoService.listProcessed(admin.role(), limit);
     }
 
     @GetMapping("/{id}/image")
-    public ResponseEntity<byte[]> image(
-        @RequestHeader("X-Admin-Token") String token,
-        @PathVariable UUID id
-    ) throws IOException {
-        adminTokenVerifier.verify(token);
-        byte[] bytes = passPhotoService.readImageForAdmin(id);
+    public ResponseEntity<byte[]> image(HttpSession session, @PathVariable UUID id) throws IOException {
+        AdminSession admin = AdminAuthService.requireAdmin(session);
+        byte[] bytes = passPhotoService.readImageForAdmin(id, admin.role());
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_JPEG_VALUE)
             .body(bytes);
     }
 
     @PostMapping("/{id}/approve")
-    public PassPhotoSubmissionDto approve(
-        @RequestHeader("X-Admin-Token") String token,
-        @PathVariable UUID id
-    ) throws IOException {
-        adminTokenVerifier.verify(token);
-        return passPhotoService.approve(id, "admin");
+    public PassPhotoSubmissionDto approve(HttpSession session, @PathVariable UUID id) throws IOException {
+        AdminSession admin = AdminAuthService.requireAdmin(session);
+        return passPhotoService.approve(id, admin.username(), admin.role());
     }
 
     @PostMapping("/{id}/reject")
     public PassPhotoSubmissionDto reject(
-        @RequestHeader("X-Admin-Token") String token,
+        HttpSession session,
         @PathVariable UUID id,
         @RequestBody PassPhotoRejectRequest body
     ) {
-        adminTokenVerifier.verify(token);
-        return passPhotoService.reject(id, "admin", body.reason());
+        AdminSession admin = AdminAuthService.requireAdmin(session);
+        return passPhotoService.reject(id, admin.username(), body.reason(), admin.role());
     }
 
     @PostMapping("/{id}/retry-perco")
-    public PassPhotoSubmissionDto retryPerco(
-        @RequestHeader("X-Admin-Token") String token,
-        @PathVariable UUID id
-    ) throws IOException {
-        adminTokenVerifier.verify(token);
-        return passPhotoService.retryPerco(id, "admin");
+    public PassPhotoSubmissionDto retryPerco(HttpSession session, @PathVariable UUID id) throws IOException {
+        AdminSession admin = AdminAuthService.requireAdmin(session);
+        return passPhotoService.retryPerco(id, admin.username(), admin.role());
     }
 
     @PostMapping("/{id}/revert")
-    public Map<String, String> revert(
-        @RequestHeader("X-Admin-Token") String token,
-        @PathVariable UUID id
-    ) throws IOException {
-        adminTokenVerifier.verify(token);
-        passPhotoService.revert(id);
+    public Map<String, String> revert(HttpSession session, @PathVariable UUID id) throws IOException {
+        AdminSession admin = AdminAuthService.requireAdmin(session);
+        passPhotoService.revert(id, admin.role());
         return Map.of("ok", "true");
     }
 }
