@@ -17,7 +17,8 @@ class RucNewsLiveFetchTest {
             true,
             "https://new.ruc.su/blog/",
             "https://new.ruc.su",
-            900
+            900,
+            12
         );
         HttpRucNewsClient client = new HttpRucNewsClient(props);
         List<RucNewsItem> items = client.fetchLatest();

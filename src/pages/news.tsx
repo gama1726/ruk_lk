@@ -2,7 +2,7 @@
  * @file Новости университета (new.ruc.su/blog) — горизонтальная «живая лента».
  */
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from 'react'
 import { ApiError } from '@/apiClient'
 import { fetchStudentNews, isNewsApiEnabled, type StudentNewsItemDto } from '@/news'
 import { useReadState } from '@/notice-read'
@@ -20,9 +20,16 @@ function formatNewsDate(iso: string): string {
 
 /**
  * Горизонтальный скролл с перетаскиванием мышью.
+ * Capture включается только после порога — обычный клик по ссылке работает.
  */
 function useDragScroll(ref: RefObject<HTMLDivElement | null>) {
-  const drag = useRef({ active: false, startX: 0, scrollLeft: 0, moved: false })
+  const drag = useRef({
+    active: false,
+    dragging: false,
+    startX: 0,
+    scrollLeft: 0,
+    suppressClick: false,
+  })
   const [progress, setProgress] = useState(0)
   const [thumbRatio, setThumbRatio] = useState(1)
 
@@ -54,12 +61,11 @@ function useDragScroll(ref: RefObject<HTMLDivElement | null>) {
     if (!el) return
     drag.current = {
       active: true,
+      dragging: false,
       startX: e.clientX,
       scrollLeft: el.scrollLeft,
-      moved: false,
+      suppressClick: false,
     }
-    el.setPointerCapture(e.pointerId)
-    el.classList.add(styles.trackDragging)
   }
 
   const onPointerMove = (e: PointerEvent) => {
@@ -67,32 +73,49 @@ function useDragScroll(ref: RefObject<HTMLDivElement | null>) {
     const el = ref.current
     if (!el) return
     const dx = e.clientX - drag.current.startX
-    if (Math.abs(dx) > 4) drag.current.moved = true
-    el.scrollLeft = drag.current.scrollLeft - dx
+    if (!drag.current.dragging && Math.abs(dx) > 6) {
+      drag.current.dragging = true
+      drag.current.suppressClick = true
+      el.setPointerCapture(e.pointerId)
+      el.classList.add(styles.trackDragging)
+    }
+    if (drag.current.dragging) {
+      el.scrollLeft = drag.current.scrollLeft - dx
+    }
   }
 
   const endDrag = (e: PointerEvent) => {
     if (!drag.current.active) return
     const el = ref.current
+    const wasDragging = drag.current.dragging
     drag.current.active = false
+    drag.current.dragging = false
     el?.classList.remove(styles.trackDragging)
-    try {
-      el?.releasePointerCapture(e.pointerId)
-    } catch {
-      /* already released */
+    if (wasDragging) {
+      try {
+        el?.releasePointerCapture(e.pointerId)
+      } catch {
+        /* already released */
+      }
     }
   }
 
-  const wasDragged = () => drag.current.moved
+  const onCardClick = (e: MouseEvent) => {
+    if (drag.current.suppressClick) {
+      e.preventDefault()
+      e.stopPropagation()
+      drag.current.suppressClick = false
+    }
+  }
 
   return {
     onPointerDown,
     onPointerMove,
     onPointerUp: endDrag,
     onPointerCancel: endDrag,
+    onCardClick,
     progress,
     thumbRatio,
-    wasDragged,
   }
 }
 
@@ -143,18 +166,12 @@ export function News() {
     }
   }, [apiEnabled])
 
-  const openNews = (n: StudentNewsItemDto) => {
-    if (dragScroll.wasDragged()) return
-    setRead(n.id, true)
-    window.open(n.url, '_blank', 'noopener,noreferrer')
-  }
-
   const thumbWidthPct = Math.max(14, thumbPct(dragScroll.thumbRatio))
   const thumbLeftPct = dragScroll.progress * (100 - thumbWidthPct)
 
   return (
     <>
-      <ScreenHeader title="Новости" subtitle="Объявления с сайта университета" />
+      <ScreenHeader title="Новости" subtitle="За текущий месяц с сайта университета" />
 
       {loading && <p className={styles.status}>Загрузка…</p>}
       {error && <p className={styles.status}>{error}</p>}
@@ -163,7 +180,7 @@ export function News() {
       )}
 
       {!loading && !error && !unavailable && items.length === 0 ? (
-        <NoData title="Нет новостей" description="Лента пока пуста." />
+        <NoData title="Нет новостей" description="За этот месяц пока нет публикаций." />
       ) : null}
 
       {!loading && !error && items.length > 0 ? (
@@ -185,11 +202,15 @@ export function News() {
                   key={n.id}
                   className={[styles.card, !read ? styles.cardUnread : ''].filter(Boolean).join(' ')}
                 >
-                  <button
-                    type="button"
-                    className={styles.cardBtn}
-                    onClick={() => openNews(n)}
-                    aria-label={n.title}
+                  <a
+                    href={n.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.cardLink}
+                    onClick={(e) => {
+                      dragScroll.onCardClick(e)
+                      if (!e.defaultPrevented) setRead(n.id, true)
+                    }}
                   >
                     <div className={styles.coverWrap}>
                       {n.imageUrl ? (
@@ -206,7 +227,7 @@ export function News() {
                     </div>
                     <h3 className={styles.cardTitle}>{n.title}</h3>
                     {n.date ? <p className={styles.cardDate}>{formatNewsDate(n.date)}</p> : null}
-                  </button>
+                  </a>
                 </article>
               )
             })}

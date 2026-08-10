@@ -49,18 +49,19 @@
   max-width: 260px;
 }
 
-.cardBtn {
+.cardLink {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   width: 100%;
-  padding: 0;
-  border: none;
-  background: transparent;
   text-align: left;
-  cursor: pointer;
+  text-decoration: none;
   color: inherit;
-  font: inherit;
+  cursor: pointer;
+}
+
+.cardLink:hover .cardTitle {
+  color: var(--color-primary);
 }
 
 .coverWrap {
