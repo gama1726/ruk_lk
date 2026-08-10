@@ -242,11 +242,14 @@ public class AuthService {
             pending.programs()
         );
 
-        // Session fixation: новый id после успешного входа
-        session.invalidate();
-        HttpSession fresh = request.getSession(true);
-        fresh.setAttribute(SESSION_KEY, student);
-        scheduleContextService.warmQuietly(fresh, student);
+        // Не invalidate(): иначе сбросятся параллельные сессии админок пропусков.
+        // Session fixation — смена id сессии с сохранением атрибутов.
+        session.removeAttribute(PENDING_KEY);
+        session.removeAttribute(PENDING_IDENTIFICATION_KEY);
+        session.removeAttribute(LAST_SEND_AT_KEY);
+        session.setAttribute(SESSION_KEY, student);
+        request.changeSessionId();
+        scheduleContextService.warmQuietly(session, student);
 
         return toMeResponse(student);
     }
@@ -294,7 +297,15 @@ public class AuthService {
     }
 
     public void logout(HttpSession session) {
-        session.invalidate();
+        if (session == null) {
+            return;
+        }
+        // Только студенческая часть — админки СПО/ВО в той же cookie остаются
+        session.removeAttribute(SESSION_KEY);
+        session.removeAttribute(PENDING_KEY);
+        session.removeAttribute(PENDING_IDENTIFICATION_KEY);
+        session.removeAttribute(LAST_SEND_AT_KEY);
+        session.removeAttribute(ScheduleContextService.SESSION_KEY);
     }
 
     private void enforceSendCooldown(HttpSession session) {

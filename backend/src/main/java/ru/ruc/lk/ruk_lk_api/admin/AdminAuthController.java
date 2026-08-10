@@ -6,12 +6,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.admin.dto.AdminLoginRequest;
 import ru.ruc.lk.ruk_lk_api.admin.dto.AdminMeResponse;
+import ru.ruc.lk.ruk_lk_api.passphoto.EducationTrack;
 
 @RestController
 @RequestMapping("/api/admin/auth")
@@ -29,13 +31,19 @@ public class AdminAuthController {
     }
 
     @PostMapping("/logout")
-    public Map<String, String> logout(HttpSession session) {
-        authService.logout(session);
+    public Map<String, String> logout(
+        HttpSession session,
+        @RequestParam EducationTrack role
+    ) {
+        authService.logout(session, role);
         return Map.of("ok", "true");
     }
 
     @GetMapping("/me")
-    public AdminMeResponse me(HttpSession session) {
-        return authService.me(session);
+    public AdminMeResponse me(
+        HttpSession session,
+        @RequestParam EducationTrack role
+    ) {
+        return authService.me(session, role);
     }
 }

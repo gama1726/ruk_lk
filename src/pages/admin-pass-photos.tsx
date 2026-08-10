@@ -22,6 +22,7 @@ import styles from './admin-pass-photos.module.css'
 
 function AdminPassPhotoCard({
   item,
+  role,
   busyId,
   onApprove,
   onReject,
@@ -29,6 +30,7 @@ function AdminPassPhotoCard({
   onRetryPerco,
 }: {
   item: PassPhotoAdminItem
+  role: EducationTrack
   busyId: string | null
   onApprove?: (id: string) => void
   onReject?: (id: string) => void
@@ -58,6 +60,7 @@ function AdminPassPhotoCard({
       </div>
       <AdminPassPhotoThumb
         id={item.id}
+        role={role}
         alt={`Фото ${item.studentFullName}`}
         className={styles.thumb}
       />
@@ -128,8 +131,8 @@ export function AdminPassPhotos({ expectedRole }: Props) {
     setError(null)
     try {
       const [pending, processed] = await Promise.all([
-        fetchAdminPassPhotoQueue(),
-        fetchAdminPassPhotoHistory(),
+        fetchAdminPassPhotoQueue(expectedRole),
+        fetchAdminPassPhotoHistory(expectedRole),
       ])
       setQueue(pending)
       setHistory(processed)
@@ -143,19 +146,14 @@ export function AdminPassPhotos({ expectedRole }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [expectedRole])
 
   useEffect(() => {
     let cancelled = false
     void (async () => {
       try {
-        const me = await fetchAdminMe()
+        const me = await fetchAdminMe(expectedRole)
         if (cancelled) return
-        if (me.role !== expectedRole) {
-          setAuthorized(false)
-          setReady(true)
-          return
-        }
         setUsername(me.username)
         setAuthorized(true)
         setReady(true)
@@ -175,7 +173,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const onApprove = async (id: string) => {
     setBusyId(id)
     try {
-      await approvePassPhoto(id)
+      await approvePassPhoto(expectedRole, id)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка одобрения')
@@ -189,7 +187,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
     if (!reason.trim()) return
     setBusyId(id)
     try {
-      await rejectPassPhoto(id, reason.trim())
+      await rejectPassPhoto(expectedRole, id, reason.trim())
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка отклонения')
@@ -201,7 +199,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const onRetryPerco = async (id: string) => {
     setBusyId(id)
     try {
-      await retryPassPhotoPerco(id)
+      await retryPassPhotoPerco(expectedRole, id)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка повторной загрузки в Perco')
@@ -214,7 +212,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
     if (!window.confirm('Удалить заявку из ЛК?')) return
     setBusyId(id)
     try {
-      await revertPassPhoto(id)
+      await revertPassPhoto(expectedRole, id)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка удаления')
@@ -225,7 +223,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
 
   const onLogout = async () => {
     try {
-      await adminLogout()
+      await adminLogout(expectedRole)
     } catch {
       /* ignore */
     }
@@ -270,13 +268,14 @@ export function AdminPassPhotos({ expectedRole }: Props) {
           <AdminPassPhotoCard
             key={item.id}
             item={item}
+            role={expectedRole}
             busyId={busyId}
             onApprove={onApprove}
             onReject={onReject}
           />
         ))}
         {syncingOnly.map((item) => (
-          <AdminPassPhotoCard key={item.id} item={item} busyId={busyId} />
+          <AdminPassPhotoCard key={item.id} item={item} role={expectedRole} busyId={busyId} />
         ))}
         {!loading && pendingOnly.length === 0 && syncingOnly.length === 0 && (
           <p>Нет заявок на проверке.</p>
@@ -289,6 +288,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
           <AdminPassPhotoCard
             key={item.id}
             item={item}
+            role={expectedRole}
             busyId={busyId}
             onRetryPerco={onRetryPerco}
             onRevert={onRevert}

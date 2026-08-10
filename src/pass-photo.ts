@@ -48,6 +48,12 @@ export type AdminMe = {
   role: EducationTrack
 }
 
+const ADMIN_ROLE_HEADER = 'X-Admin-Role'
+
+export function adminRoleHeaders(role: EducationTrack): HeadersInit {
+  return { [ADMIN_ROLE_HEADER]: role }
+}
+
 export function passPhotoImageUrl(id: string, admin?: boolean): string {
   return admin
     ? `${getApiBaseUrl()}/api/admin/pass-photos/${id}/image`
@@ -83,36 +89,66 @@ export async function adminLogin(username: string, password: string): Promise<Ad
   return apiPost<AdminMe>('/api/admin/auth/login', { username, password })
 }
 
-export async function adminLogout(): Promise<void> {
-  await apiPost<{ ok: string }>('/api/admin/auth/logout', {})
+export async function adminLogout(role: EducationTrack): Promise<void> {
+  await apiPost<{ ok: string }>(`/api/admin/auth/logout?role=${role}`, {})
 }
 
-export async function fetchAdminMe(): Promise<AdminMe> {
-  return apiGet<AdminMe>('/api/admin/auth/me')
+export async function fetchAdminMe(role: EducationTrack): Promise<AdminMe> {
+  return apiGet<AdminMe>(`/api/admin/auth/me?role=${role}`)
 }
 
-export async function fetchAdminPassPhotoQueue(): Promise<PassPhotoAdminItem[]> {
-  return apiGet<PassPhotoAdminItem[]>('/api/admin/pass-photos')
+export async function fetchAdminPassPhotoQueue(role: EducationTrack): Promise<PassPhotoAdminItem[]> {
+  return apiGet<PassPhotoAdminItem[]>('/api/admin/pass-photos', {
+    headers: adminRoleHeaders(role),
+  })
 }
 
-export async function fetchAdminPassPhotoHistory(limit = 30): Promise<PassPhotoAdminItem[]> {
-  return apiGet<PassPhotoAdminItem[]>(`/api/admin/pass-photos/history?limit=${limit}`)
+export async function fetchAdminPassPhotoHistory(
+  role: EducationTrack,
+  limit = 30,
+): Promise<PassPhotoAdminItem[]> {
+  return apiGet<PassPhotoAdminItem[]>(`/api/admin/pass-photos/history?limit=${limit}`, {
+    headers: adminRoleHeaders(role),
+  })
 }
 
-export async function approvePassPhoto(id: string): Promise<PassPhotoSubmission> {
-  return apiPost<PassPhotoSubmission>(`/api/admin/pass-photos/${id}/approve`, {})
+export async function approvePassPhoto(role: EducationTrack, id: string): Promise<PassPhotoSubmission> {
+  return apiPost<PassPhotoSubmission>(
+    `/api/admin/pass-photos/${id}/approve`,
+    {},
+    { headers: adminRoleHeaders(role) },
+  )
 }
 
-export async function rejectPassPhoto(id: string, reason: string): Promise<PassPhotoSubmission> {
-  return apiPost<PassPhotoSubmission>(`/api/admin/pass-photos/${id}/reject`, { reason })
+export async function rejectPassPhoto(
+  role: EducationTrack,
+  id: string,
+  reason: string,
+): Promise<PassPhotoSubmission> {
+  return apiPost<PassPhotoSubmission>(
+    `/api/admin/pass-photos/${id}/reject`,
+    { reason },
+    { headers: adminRoleHeaders(role) },
+  )
 }
 
-export async function retryPassPhotoPerco(id: string): Promise<PassPhotoSubmission> {
-  return apiPost<PassPhotoSubmission>(`/api/admin/pass-photos/${id}/retry-perco`, {})
+export async function retryPassPhotoPerco(
+  role: EducationTrack,
+  id: string,
+): Promise<PassPhotoSubmission> {
+  return apiPost<PassPhotoSubmission>(
+    `/api/admin/pass-photos/${id}/retry-perco`,
+    {},
+    { headers: adminRoleHeaders(role) },
+  )
 }
 
-export async function revertPassPhoto(id: string): Promise<void> {
-  await apiPost<{ ok: string }>(`/api/admin/pass-photos/${id}/revert`, {})
+export async function revertPassPhoto(role: EducationTrack, id: string): Promise<void> {
+  await apiPost<{ ok: string }>(
+    `/api/admin/pass-photos/${id}/revert`,
+    {},
+    { headers: adminRoleHeaders(role) },
+  )
 }
 
 export function isPassPhotoApiEnabled(): boolean {

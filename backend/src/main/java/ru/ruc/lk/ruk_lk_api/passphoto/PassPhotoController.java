@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.admin.AdminAuthService;
 import ru.ruc.lk.ruk_lk_api.admin.AdminSession;
@@ -87,23 +88,28 @@ class PassPhotoAdminController {
     }
 
     @GetMapping
-    public List<PassPhotoAdminItemDto> pending(HttpSession session) {
-        AdminSession admin = AdminAuthService.requireAdmin(session);
+    public List<PassPhotoAdminItemDto> pending(HttpServletRequest request, HttpSession session) {
+        AdminSession admin = AdminAuthService.requireRole(session, AdminAuthService.parseRoleHeader(request));
         return passPhotoService.listPending(admin.role());
     }
 
     @GetMapping("/history")
     public List<PassPhotoAdminItemDto> history(
+        HttpServletRequest request,
         HttpSession session,
         @RequestParam(defaultValue = "30") int limit
     ) {
-        AdminSession admin = AdminAuthService.requireAdmin(session);
+        AdminSession admin = AdminAuthService.requireRole(session, AdminAuthService.parseRoleHeader(request));
         return passPhotoService.listProcessed(admin.role(), limit);
     }
 
     @GetMapping("/{id}/image")
-    public ResponseEntity<byte[]> image(HttpSession session, @PathVariable UUID id) throws IOException {
-        AdminSession admin = AdminAuthService.requireAdmin(session);
+    public ResponseEntity<byte[]> image(
+        HttpServletRequest request,
+        HttpSession session,
+        @PathVariable UUID id
+    ) throws IOException {
+        AdminSession admin = AdminAuthService.requireRole(session, AdminAuthService.parseRoleHeader(request));
         byte[] bytes = passPhotoService.readImageForAdmin(id, admin.role());
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_JPEG_VALUE)
@@ -111,30 +117,43 @@ class PassPhotoAdminController {
     }
 
     @PostMapping("/{id}/approve")
-    public PassPhotoSubmissionDto approve(HttpSession session, @PathVariable UUID id) throws IOException {
-        AdminSession admin = AdminAuthService.requireAdmin(session);
+    public PassPhotoSubmissionDto approve(
+        HttpServletRequest request,
+        HttpSession session,
+        @PathVariable UUID id
+    ) throws IOException {
+        AdminSession admin = AdminAuthService.requireRole(session, AdminAuthService.parseRoleHeader(request));
         return passPhotoService.approve(id, admin.username(), admin.role());
     }
 
     @PostMapping("/{id}/reject")
     public PassPhotoSubmissionDto reject(
+        HttpServletRequest request,
         HttpSession session,
         @PathVariable UUID id,
         @RequestBody PassPhotoRejectRequest body
     ) {
-        AdminSession admin = AdminAuthService.requireAdmin(session);
+        AdminSession admin = AdminAuthService.requireRole(session, AdminAuthService.parseRoleHeader(request));
         return passPhotoService.reject(id, admin.username(), body.reason(), admin.role());
     }
 
     @PostMapping("/{id}/retry-perco")
-    public PassPhotoSubmissionDto retryPerco(HttpSession session, @PathVariable UUID id) throws IOException {
-        AdminSession admin = AdminAuthService.requireAdmin(session);
+    public PassPhotoSubmissionDto retryPerco(
+        HttpServletRequest request,
+        HttpSession session,
+        @PathVariable UUID id
+    ) throws IOException {
+        AdminSession admin = AdminAuthService.requireRole(session, AdminAuthService.parseRoleHeader(request));
         return passPhotoService.retryPerco(id, admin.username(), admin.role());
     }
 
     @PostMapping("/{id}/revert")
-    public Map<String, String> revert(HttpSession session, @PathVariable UUID id) throws IOException {
-        AdminSession admin = AdminAuthService.requireAdmin(session);
+    public Map<String, String> revert(
+        HttpServletRequest request,
+        HttpSession session,
+        @PathVariable UUID id
+    ) throws IOException {
+        AdminSession admin = AdminAuthService.requireRole(session, AdminAuthService.parseRoleHeader(request));
         passPhotoService.revert(id, admin.role());
         return Map.of("ok", "true");
     }

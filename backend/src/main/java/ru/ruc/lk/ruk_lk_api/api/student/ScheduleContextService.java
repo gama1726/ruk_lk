@@ -25,7 +25,7 @@ import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupLookupResponse;
 @Service
 public class ScheduleContextService {
 
-    static final String SESSION_KEY = "SCHEDULE_GROUP";
+    public static final String SESSION_KEY = "SCHEDULE_GROUP";
 
     private static final Logger log = LoggerFactory.getLogger(ScheduleContextService.class);
 

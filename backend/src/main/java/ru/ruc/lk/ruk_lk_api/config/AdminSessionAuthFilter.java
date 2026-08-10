@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -12,11 +13,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.admin.AdminAuthService;
-import ru.ruc.lk.ruk_lk_api.admin.AdminSession;
+import ru.ruc.lk.ruk_lk_api.passphoto.EducationTrack;
 
 /**
- * /api/admin/pass-photos/** — только при сессии ADMIN.
- * /api/admin/auth/** — открыт (login / reset).
+ * /api/admin/pass-photos/** — нужна сессия админа выбранной роли ({@code X-Admin-Role}).
+ * /api/admin/auth/** — открыт.
  */
 @Component
 public class AdminSessionAuthFilter extends OncePerRequestFilter {
@@ -36,9 +37,17 @@ public class AdminSessionAuthFilter extends OncePerRequestFilter {
         HttpServletResponse response,
         FilterChain filterChain
     ) throws ServletException, IOException {
+        EducationTrack role;
+        try {
+            role = AdminAuthService.parseRoleHeader(request);
+        } catch (ResponseStatusException e) {
+            response.setStatus(e.getStatusCode().value());
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"message\":\"" + e.getReason() + "\"}");
+            return;
+        }
         HttpSession session = request.getSession(false);
-        Object raw = session == null ? null : session.getAttribute(AdminAuthService.SESSION_KEY);
-        if (!(raw instanceof AdminSession)) {
+        if (!AdminAuthService.hasRole(session, role)) {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"message\":\"Войдите в админку\"}");
