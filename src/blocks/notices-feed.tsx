@@ -12,6 +12,7 @@ import styles from './home.module.css'
 export function NoticesFeed() {
   const apiEnabled = isNewsApiEnabled()
   const overrides = useReadState((s) => s.overrides)
+  const setRead = useReadState((s) => s.setRead)
   const [items, setItems] = useState<StudentNewsItemDto[]>([])
 
   useEffect(() => {
@@ -64,8 +65,16 @@ export function NoticesFeed() {
                 .filter(Boolean)
                 .join(' ')}
             >
-              <div className={styles.noticeTitle}>{n.title}</div>
-              <div className={styles.noticePreview}>{n.date || 'Университет'}</div>
+              <a
+                href={n.url}
+                target="_blank"
+                rel="noreferrer"
+                className={styles.noticeLink}
+                onClick={() => setRead(n.id, true)}
+              >
+                <div className={styles.noticeTitle}>{n.title}</div>
+                <div className={styles.noticePreview}>{n.date || 'Университет'}</div>
+              </a>
             </li>
           ))}
         </ul>

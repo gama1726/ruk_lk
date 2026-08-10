@@ -256,6 +256,17 @@
   min-width: 0;
 }
 
+.noticeLink {
+  display: block;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.noticeLink:hover .noticeTitle {
+  color: var(--color-primary);
+}
+
 .noticeTitle {
   margin: 0;
   font-size: var(--font-size-sm);

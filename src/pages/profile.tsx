@@ -230,10 +230,15 @@ export function Profile() {
               ) : (
                 recentNews.map((n) => (
                   <li key={n.id} className={styles.noticeItem}>
-                    <div className={styles.noticeBody}>
+                    <a
+                      href={n.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={styles.noticeLink}
+                    >
                       <p className={styles.noticeTitle}>{n.title}</p>
                       <p className={styles.noticeDate}>{n.date ? noticeDate(n.date) : ''}</p>
-                    </div>
+                    </a>
                   </li>
                 ))
               )}
