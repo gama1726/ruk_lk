@@ -29,7 +29,8 @@
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: pan-y;
+  /* горизонтальный drag мышью/пальцем берём сами, в т.ч. с карточки */
+  touch-action: none;
   margin: 0 -0.25rem;
   padding: 0.15rem 0.25rem 0.5rem;
 }
@@ -57,7 +58,13 @@
   text-align: left;
   text-decoration: none;
   color: inherit;
-  cursor: pointer;
+  cursor: grab;
+  -webkit-user-drag: none;
+}
+
+.trackDragging .cardLink {
+  cursor: grabbing;
+  pointer-events: none;
 }
 
 .cardLink:hover .cardTitle {

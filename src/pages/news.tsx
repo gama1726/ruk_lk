@@ -207,6 +207,8 @@ export function News() {
                     target="_blank"
                     rel="noreferrer"
                     className={styles.cardLink}
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
                     onClick={(e) => {
                       dragScroll.onCardClick(e)
                       if (!e.defaultPrevented) setRead(n.id, true)
