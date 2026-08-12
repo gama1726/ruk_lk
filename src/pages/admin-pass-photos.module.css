@@ -7,6 +7,12 @@
     var(--color-bg);
 }
 
+.shell[data-track='ALL'] {
+  --admin-accent: var(--color-primary);
+  --admin-accent-muted: var(--color-primary-muted);
+  --admin-accent-text: var(--color-primary);
+}
+
 .shell[data-track='SPO'] {
   --admin-accent: var(--color-secondary);
   --admin-accent-muted: var(--color-secondary-muted);
