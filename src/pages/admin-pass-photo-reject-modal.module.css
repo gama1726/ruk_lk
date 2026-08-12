@@ -1,0 +1,63 @@
+.studentHint {
+  margin: 0 0 1rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.studentHint strong {
+  color: var(--color-text-primary);
+}
+
+.templates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+
+.templatesLabel {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.templateList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.templateChip {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.templateChip:hover {
+  border-color: var(--admin-accent, var(--color-primary));
+  color: var(--admin-accent-text, var(--color-primary));
+}
+
+.templateChipActive {
+  border-color: var(--admin-accent, var(--color-primary));
+  background: var(--admin-accent-muted, var(--color-primary-muted));
+  color: var(--admin-accent-text, var(--color-primary));
+}
+
+.footerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}

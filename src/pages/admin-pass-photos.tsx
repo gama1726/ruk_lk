@@ -26,6 +26,7 @@ import {
   type QueueFilter,
 } from '@/pages/admin-pass-photo-filters'
 import { paths } from '@/paths'
+import { AdminPassPhotoRejectModal } from '@/pages/admin-pass-photo-reject-modal'
 import { AdminPassPhotoShell } from '@/pages/admin-pass-photo-shell'
 import { Badge, Button, Loader } from '@/ui'
 import type { BadgeProps } from '@/ui/Badge/Badge'
@@ -211,6 +212,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const [search, setSearch] = useState('')
   const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all')
+  const [rejectItem, setRejectItem] = useState<PassPhotoAdminItem | null>(null)
 
   const loginPath = paths.adminPassPhotosLogin
 
@@ -270,12 +272,17 @@ export function AdminPassPhotos({ expectedRole }: Props) {
     }
   }
 
-  const onReject = async (id: string) => {
-    const reason = window.prompt('Причина отклонения:', 'Фото не соответствует требованиям') ?? ''
-    if (!reason.trim()) return
-    setBusyId(id)
+  const onReject = (id: string) => {
+    const item = queue.find((i) => i.id === id)
+    if (item) setRejectItem(item)
+  }
+
+  const onRejectConfirm = async (reason: string) => {
+    if (!rejectItem) return
+    setBusyId(rejectItem.id)
     try {
-      await rejectPassPhoto(expectedRole, id, reason.trim())
+      await rejectPassPhoto(expectedRole, rejectItem.id, reason)
+      setRejectItem(null)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка отклонения')
@@ -552,6 +559,15 @@ export function AdminPassPhotos({ expectedRole }: Props) {
           </section>
         </>
       )}
+
+      <AdminPassPhotoRejectModal
+        open={rejectItem !== null}
+        studentName={rejectItem?.studentFullName ?? ''}
+        zachetka={rejectItem?.zachetka || rejectItem?.studentId || ''}
+        busy={rejectItem !== null && busyId === rejectItem.id}
+        onClose={() => setRejectItem(null)}
+        onConfirm={onRejectConfirm}
+      />
     </AdminPassPhotoShell>
   )
 }
