@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { RefreshCw, LogOut } from 'lucide-react'
 import { AdminPassPhotoThumb } from '@/blocks/admin-pass-photo-thumb'
 import { ApiError } from '@/apiClient'
 import {
@@ -15,10 +16,39 @@ import {
   revertPassPhoto,
   type EducationTrack,
   type PassPhotoAdminItem,
+  type PassPhotoStatus,
 } from '@/pass-photo'
 import { paths } from '@/paths'
-import { Button, Card, ScreenHeader } from '@/ui'
+import { AdminPassPhotoShell } from '@/pages/admin-pass-photo-shell'
+import { Badge, Button, Loader } from '@/ui'
+import type { BadgeProps } from '@/ui/Badge/Badge'
 import styles from './admin-pass-photos.module.css'
+
+function statusBadgeVariant(status: PassPhotoStatus): BadgeProps['variant'] {
+  switch (status) {
+    case 'PENDING':
+      return 'warning'
+    case 'PERCO_SYNCING':
+      return 'info'
+    case 'PERCO_SYNCED':
+      return 'success'
+    case 'REJECTED':
+    case 'PERCO_FAILED':
+      return 'danger'
+    default:
+      return 'default'
+  }
+}
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 function AdminPassPhotoCard({
   item,
@@ -39,72 +69,101 @@ function AdminPassPhotoCard({
 }) {
   const syncing = item.status === 'PERCO_SYNCING'
   const failed = item.status === 'PERCO_FAILED'
+  const busy = busyId === item.id
 
   return (
-    <Card padding="md" className={styles.card}>
-      <div className={styles.meta}>
-        <strong>{item.studentFullName}</strong>
-        <span>Зачётка: {item.zachetka || item.studentId}</span>
-        <span>
-          Статус: <strong>{passPhotoStatusLabel[item.status]}</strong>
-        </span>
-        <span>Отправлено: {new Date(item.submittedAt).toLocaleString('ru-RU')}</span>
-        {item.reviewedAt && (
-          <span>Обработано: {new Date(item.reviewedAt).toLocaleString('ru-RU')}</span>
-        )}
-        {item.rejectReason && <span className={styles.warn}>Причина: {item.rejectReason}</span>}
-        {item.percoError && <span className={styles.warn}>Perco: {item.percoError}</span>}
-        {item.validationWarningsJson && (
-          <span className={styles.warn}>Предупреждения: {item.validationWarningsJson}</span>
-        )}
+    <article className={styles.card}>
+      <div className={styles.cardHead}>
+        <div>
+          <h3 className={styles.studentName}>{item.studentFullName}</h3>
+          <p className={styles.zachetka}>Зачётка {item.zachetka || item.studentId}</p>
+        </div>
+        <Badge variant={statusBadgeVariant(item.status)}>
+          {passPhotoStatusLabel[item.status]}
+        </Badge>
       </div>
-      <AdminPassPhotoThumb
-        id={item.id}
-        role={role}
-        alt={`Фото ${item.studentFullName}`}
-        className={styles.thumb}
-      />
-      <div className={styles.actions}>
-        {onApprove && item.status === 'PENDING' && (
-          <Button
-            type="button"
-            disabled={busyId === item.id}
-            onClick={() => onApprove(item.id)}
-          >
-            Принять
-          </Button>
-        )}
-        {onReject && item.status === 'PENDING' && (
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={busyId === item.id}
-            onClick={() => onReject(item.id)}
-          >
-            Отклонить
-          </Button>
-        )}
-        {onRetryPerco && failed && (
-          <Button
-            type="button"
-            disabled={busyId === item.id || syncing}
-            onClick={() => onRetryPerco(item.id)}
-          >
-            Повторить Perco
-          </Button>
-        )}
-        {onRevert && (item.status === 'REJECTED' || item.status === 'PERCO_FAILED') && (
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={busyId === item.id}
-            onClick={() => onRevert(item.id)}
-          >
-            Удалить из ЛК
-          </Button>
-        )}
+
+      <div className={styles.cardBody}>
+        <div className={styles.meta}>
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Отправлено</span>
+            <span className={styles.metaValue}>{formatDateTime(item.submittedAt)}</span>
+          </div>
+          {item.reviewedAt && (
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>Обработано</span>
+              <span className={styles.metaValue}>{formatDateTime(item.reviewedAt)}</span>
+            </div>
+          )}
+          {item.rejectReason && (
+            <p className={styles.warnBlock}>Причина отклонения: {item.rejectReason}</p>
+          )}
+          {item.percoError && (
+            <p className={styles.warnBlock}>Ошибка Perco: {item.percoError}</p>
+          )}
+          {item.validationWarningsJson && (
+            <p className={styles.warnBlock}>Предупреждения: {item.validationWarningsJson}</p>
+          )}
+        </div>
+
+        <div className={styles.photoWrap}>
+          <AdminPassPhotoThumb
+            id={item.id}
+            role={role}
+            alt={`Фото ${item.studentFullName}`}
+            className={styles.thumb}
+          />
+        </div>
       </div>
-    </Card>
+
+      {(onApprove || onReject || onRetryPerco || onRevert) && (
+        <div className={styles.actions}>
+          {onApprove && item.status === 'PENDING' && (
+            <Button type="button" disabled={busy} onClick={() => onApprove(item.id)}>
+              Принять
+            </Button>
+          )}
+          {onReject && item.status === 'PENDING' && (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => onReject(item.id)}
+            >
+              Отклонить
+            </Button>
+          )}
+          {onRetryPerco && failed && (
+            <Button
+              type="button"
+              disabled={busy || syncing}
+              onClick={() => onRetryPerco(item.id)}
+            >
+              Повторить Perco
+            </Button>
+          )}
+          {onRevert && (item.status === 'REJECTED' || item.status === 'PERCO_FAILED') && (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => onRevert(item.id)}
+            >
+              Удалить из ЛК
+            </Button>
+          )}
+        </div>
+      )}
+    </article>
+  )
+}
+
+function EmptyBlock({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className={styles.empty}>
+      <p className={styles.emptyTitle}>{title}</p>
+      <p>{hint}</p>
+    </div>
   )
 }
 
@@ -232,9 +291,11 @@ export function AdminPassPhotos({ expectedRole }: Props) {
 
   if (!ready) {
     return (
-      <div className={styles.page}>
-        <p>Проверка сессии…</p>
-      </div>
+      <AdminPassPhotoShell track={expectedRole}>
+        <div className={styles.loadingWrap}>
+          <Loader text="Проверка сессии…" />
+        </div>
+      </AdminPassPhotoShell>
     )
   }
 
@@ -246,57 +307,116 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const syncingOnly = queue.filter((i) => i.status === 'PERCO_SYNCING')
 
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        title={`Админка пропусков — ${educationTrackLabel[expectedRole]}`}
-        subtitle={`На проверке: ${pendingOnly.length}${syncingOnly.length ? ` · загрузка в Perco: ${syncingOnly.length}` : ''} · ${username}`}
-      />
-      <div className={styles.toolbar}>
-        <Button type="button" variant="secondary" onClick={() => void load()} disabled={loading}>
-          Обновить
-        </Button>
-        <Button type="button" variant="ghost" onClick={() => void onLogout()}>
-          Выйти
-        </Button>
-      </div>
-      {error && <p className={styles.error}>{error}</p>}
-      {loading && <p>Загрузка…</p>}
+    <AdminPassPhotoShell track={expectedRole}>
+      <header className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>Очередь заявок</h1>
+          <p className={styles.pageSubtitle}>
+            {educationTrackLabel[expectedRole]} · сотрудник <strong>{username}</strong>
+          </p>
+        </div>
+        <div className={styles.toolbar}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void load()}
+            disabled={loading}
+          >
+            <RefreshCw size={16} aria-hidden />
+            Обновить
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => void onLogout()}>
+            <LogOut size={16} aria-hidden />
+            Выйти
+          </Button>
+        </div>
+      </header>
 
-      <h2 className={styles.sectionTitle}>На проверке</h2>
-      <div className={styles.grid}>
-        {pendingOnly.map((item) => (
-          <AdminPassPhotoCard
-            key={item.id}
-            item={item}
-            role={expectedRole}
-            busyId={busyId}
-            onApprove={onApprove}
-            onReject={onReject}
-          />
-        ))}
-        {syncingOnly.map((item) => (
-          <AdminPassPhotoCard key={item.id} item={item} role={expectedRole} busyId={busyId} />
-        ))}
-        {!loading && pendingOnly.length === 0 && syncingOnly.length === 0 && (
-          <p>Нет заявок на проверке.</p>
-        )}
+      <div className={styles.stats}>
+        <div className={`${styles.statCard} ${styles.statCardHighlight}`}>
+          <span className={styles.statValue}>{pendingOnly.length}</span>
+          <span className={styles.statLabel}>На проверке</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{syncingOnly.length}</span>
+          <span className={styles.statLabel}>Загрузка в Perco</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{history.length}</span>
+          <span className={styles.statLabel}>В истории</span>
+        </div>
       </div>
 
-      <h2 className={styles.sectionTitle}>Обработанные</h2>
-      <div className={styles.grid}>
-        {history.map((item) => (
-          <AdminPassPhotoCard
-            key={item.id}
-            item={item}
-            role={expectedRole}
-            busyId={busyId}
-            onRetryPerco={onRetryPerco}
-            onRevert={onRevert}
-          />
-        ))}
-        {!loading && history.length === 0 && <p>История пуста.</p>}
-      </div>
-    </div>
+      {error && <p className={styles.errorBanner}>{error}</p>}
+
+      {loading && queue.length === 0 && history.length === 0 ? (
+        <div className={styles.loadingWrap}>
+          <Loader text="Загрузка заявок…" />
+        </div>
+      ) : (
+        <>
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <h2 className={styles.sectionTitle}>На проверке</h2>
+              <span className={styles.sectionCount}>
+                {pendingOnly.length + syncingOnly.length}
+              </span>
+            </div>
+            <div className={styles.grid}>
+              {pendingOnly.map((item) => (
+                <AdminPassPhotoCard
+                  key={item.id}
+                  item={item}
+                  role={expectedRole}
+                  busyId={busyId}
+                  onApprove={onApprove}
+                  onReject={onReject}
+                />
+              ))}
+              {syncingOnly.map((item) => (
+                <AdminPassPhotoCard
+                  key={item.id}
+                  item={item}
+                  role={expectedRole}
+                  busyId={busyId}
+                />
+              ))}
+              {!loading && pendingOnly.length === 0 && syncingOnly.length === 0 && (
+                <EmptyBlock
+                  title="Очередь пуста"
+                  hint="Новые заявки появятся здесь, когда студенты отправят фото."
+                />
+              )}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <h2 className={styles.sectionTitle}>Обработанные</h2>
+              <span className={styles.sectionCount}>{history.length}</span>
+            </div>
+            <div className={styles.grid}>
+              {history.map((item) => (
+                <AdminPassPhotoCard
+                  key={item.id}
+                  item={item}
+                  role={expectedRole}
+                  busyId={busyId}
+                  onRetryPerco={onRetryPerco}
+                  onRevert={onRevert}
+                />
+              ))}
+              {!loading && history.length === 0 && (
+                <EmptyBlock
+                  title="История пуста"
+                  hint="Здесь будут принятые и отклонённые заявки."
+                />
+              )}
+            </div>
+          </section>
+        </>
+      )}
+    </AdminPassPhotoShell>
   )
 }
 

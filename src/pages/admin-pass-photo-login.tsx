@@ -11,7 +11,8 @@ import {
   type EducationTrack,
 } from '@/pass-photo'
 import { paths } from '@/paths'
-import { Button, Card, ScreenHeader } from '@/ui'
+import { Button } from '@/ui'
+import { AdminPassPhotoShell } from '@/pages/admin-pass-photo-shell'
 import styles from './admin-pass-photos.module.css'
 
 type Props = {
@@ -47,48 +48,60 @@ export function AdminPassPhotoLogin({ expectedRole }: Props) {
   }
 
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        title={`Админка пропусков — ${educationTrackLabel[expectedRole]}`}
-        subtitle="Вход для сотрудника"
-      />
-      <Card padding="md" className={styles.authCard}>
-        <form className={styles.authForm} onSubmit={onLogin}>
-          <label className={styles.label}>
-            Логин
-            <input
-              className={styles.input}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              required
-            />
-          </label>
-          <label className={styles.label}>
-            Пароль
-            <input
-              className={styles.input}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </label>
-          {error && <p className={styles.error}>{error}</p>}
-          <Button type="submit" disabled={busy}>
-            {busy ? 'Вход…' : 'Войти'}
-          </Button>
-        </form>
+    <AdminPassPhotoShell track={expectedRole}>
+      <div className={styles.loginWrap}>
+        <div className={styles.loginHero}>
+          <h1 className={styles.loginHeroTitle}>Вход для сотрудника</h1>
+          <p className={styles.loginHeroSub}>
+            Очередь заявок на фото для пропуска —{' '}
+            <strong>{educationTrackLabel[expectedRole]}</strong>
+          </p>
+        </div>
 
-        <p className={styles.switchTrack}>
-          {expectedRole === 'SPO' ? (
-            <Link to={paths.adminPassPhotosHeLogin}>Вход для высшего образования</Link>
-          ) : (
-            <Link to={paths.adminPassPhotosSpoLogin}>Вход для СПО</Link>
-          )}
-        </p>
-      </Card>
-    </div>
+        <div className={styles.authCard}>
+          <form className={styles.authForm} onSubmit={onLogin}>
+            <label className={styles.label}>
+              Логин
+              <input
+                className={styles.input}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                placeholder="admin-spo"
+                required
+              />
+            </label>
+            <label className={styles.label}>
+              Пароль
+              <input
+                className={styles.input}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </label>
+            {error && <p className={styles.error}>{error}</p>}
+            <Button type="submit" disabled={busy} fullWidth>
+              {busy ? 'Вход…' : 'Войти в админку'}
+            </Button>
+          </form>
+
+          <p className={styles.switchTrack}>
+            {expectedRole === 'SPO' ? (
+              <>
+                Работаете с высшим образованием?{' '}
+                <Link to={paths.adminPassPhotosHeLogin}>Вход для ВО</Link>
+              </>
+            ) : (
+              <>
+                Работаете с СПО? <Link to={paths.adminPassPhotosSpoLogin}>Вход для СПО</Link>
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+    </AdminPassPhotoShell>
   )
 }
