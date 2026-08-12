@@ -13,7 +13,6 @@ import {
   passPhotoStatusLabel,
   rejectPassPhoto,
   retryPassPhotoPerco,
-  revertPassPhoto,
   type EducationTrack,
   type PassPhotoAdminItem,
   type PassPhotoStatus,
@@ -28,6 +27,7 @@ import {
   type StatusFilter,
 } from '@/pages/admin-pass-photo-filters'
 import { paths } from '@/paths'
+import { AdminPassPhotoApproveModal } from '@/pages/admin-pass-photo-approve-modal'
 import { AdminPassPhotoRejectModal } from '@/pages/admin-pass-photo-reject-modal'
 import { AdminPassPhotoShell } from '@/pages/admin-pass-photo-shell'
 import { Badge, Button, Lightbox, Loader } from '@/ui'
@@ -68,7 +68,6 @@ function AdminPassPhotoCard({
   busyId,
   onApprove,
   onReject,
-  onRevert,
   onRetryPerco,
   onPhotoOpen,
 }: {
@@ -77,7 +76,6 @@ function AdminPassPhotoCard({
   busyId: string | null
   onApprove?: (id: string) => void
   onReject?: (id: string) => void
-  onRevert?: (id: string) => void
   onRetryPerco?: (id: string) => void
   onPhotoOpen?: (payload: { src: string; alt: string; caption: string }) => void
 }) {
@@ -140,7 +138,7 @@ function AdminPassPhotoCard({
         </div>
       </div>
 
-      {(onApprove || onReject || onRetryPerco || onRevert) && (
+      {(onApprove || onReject || onRetryPerco) && (
         <div className={styles.actions}>
           {onApprove && item.status === 'PENDING' && (
             <Button type="button" disabled={busy} onClick={() => onApprove(item.id)}>
@@ -164,16 +162,6 @@ function AdminPassPhotoCard({
               onClick={() => onRetryPerco(item.id)}
             >
               Повторить Perco
-            </Button>
-          )}
-          {onRevert && (item.status === 'REJECTED' || item.status === 'PERCO_FAILED') && (
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => onRevert(item.id)}
-            >
-              Удалить из ЛК
             </Button>
           )}
         </div>
@@ -239,6 +227,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const deferredSearch = useDeferredValue(search)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [rejectItem, setRejectItem] = useState<PassPhotoAdminItem | null>(null)
+  const [approveItem, setApproveItem] = useState<PassPhotoAdminItem | null>(null)
   const [lightbox, setLightbox] = useState<{
     src: string
     alt: string
@@ -310,6 +299,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
     const pauseRefresh = () =>
       busyId !== null ||
       rejectItem !== null ||
+      approveItem !== null ||
       document.visibilityState === 'hidden'
 
     const tick = () => {
@@ -330,12 +320,19 @@ export function AdminPassPhotos({ expectedRole }: Props) {
       window.clearInterval(intervalId)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [ready, authorized, load, busyId, rejectItem])
+  }, [ready, authorized, load, busyId, rejectItem, approveItem])
 
-  const onApprove = async (id: string) => {
-    setBusyId(id)
+  const onApprove = (id: string) => {
+    const item = queue.find((i) => i.id === id)
+    if (item) setApproveItem(item)
+  }
+
+  const onApproveConfirm = async () => {
+    if (!approveItem) return
+    setBusyId(approveItem.id)
     try {
-      await approvePassPhoto(expectedRole, id)
+      await approvePassPhoto(expectedRole, approveItem.id)
+      setApproveItem(null)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка одобрения')
@@ -370,19 +367,6 @@ export function AdminPassPhotos({ expectedRole }: Props) {
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка повторной загрузки в Perco')
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  const onRevert = async (id: string) => {
-    if (!window.confirm('Удалить заявку из ЛК?')) return
-    setBusyId(id)
-    try {
-      await revertPassPhoto(expectedRole, id)
-      await load()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка удаления')
     } finally {
       setBusyId(null)
     }
@@ -703,7 +687,6 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                   role={expectedRole}
                   busyId={busyId}
                   onRetryPerco={onRetryPerco}
-                  onRevert={onRevert}
                   onPhotoOpen={setLightbox}
                 />
               ))}
@@ -722,6 +705,15 @@ export function AdminPassPhotos({ expectedRole }: Props) {
           )}
         </>
       )}
+
+      <AdminPassPhotoApproveModal
+        open={approveItem !== null}
+        studentName={approveItem?.studentFullName ?? ''}
+        zachetka={approveItem?.zachetka || approveItem?.studentId || ''}
+        busy={approveItem !== null && busyId === approveItem.id}
+        onClose={() => setApproveItem(null)}
+        onConfirm={onApproveConfirm}
+      />
 
       <AdminPassPhotoRejectModal
         open={rejectItem !== null}
