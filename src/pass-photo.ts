@@ -4,6 +4,7 @@
 
 import { apiGet, apiPost, apiPostFormData, apiPut, getApiBaseUrl, isApiConfigured } from '@/apiClient'
 import type { PassPhotoIssuePayload } from '@/apiClient'
+import { paths } from '@/paths'
 
 export type PassPhotoStatus =
   | 'PENDING'
@@ -166,4 +167,8 @@ export const passPhotoStatusLabel: Record<PassPhotoStatus, string> = {
 export const educationTrackLabel: Record<EducationTrack, string> = {
   SPO: 'СПО',
   HE: 'Высшее образование',
+}
+
+export function adminPassPhotoQueuePath(role: EducationTrack): string {
+  return role === 'SPO' ? paths.adminPassPhotosSpo : paths.adminPassPhotosHe
 }

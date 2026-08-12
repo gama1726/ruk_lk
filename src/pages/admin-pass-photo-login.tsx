@@ -1,33 +1,21 @@
 /**
- * @file Вход в админку пропусков (СПО / ВО).
+ * @file Единый вход в админку пропусков (СПО / ВО).
  */
 
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { ApiError } from '@/apiClient'
-import {
-  adminLogin,
-  educationTrackLabel,
-  type EducationTrack,
-} from '@/pass-photo'
-import { paths } from '@/paths'
+import { adminLogin, adminPassPhotoQueuePath } from '@/pass-photo'
 import { Button } from '@/ui'
 import { AdminPassPhotoShell } from '@/pages/admin-pass-photo-shell'
 import styles from './admin-pass-photos.module.css'
 
-type Props = {
-  expectedRole: EducationTrack
-}
-
-export function AdminPassPhotoLogin({ expectedRole }: Props) {
+export function AdminPassPhotoLogin() {
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-
-  const queuePath =
-    expectedRole === 'SPO' ? paths.adminPassPhotosSpo : paths.adminPassPhotosHe
 
   const onLogin = async (e: FormEvent) => {
     e.preventDefault()
@@ -35,11 +23,7 @@ export function AdminPassPhotoLogin({ expectedRole }: Props) {
     setError(null)
     try {
       const me = await adminLogin(username.trim(), password)
-      if (me.role !== expectedRole) {
-        setError(`Эта учётка для «${educationTrackLabel[me.role]}», откройте соответствующий вход.`)
-        return
-      }
-      navigate(queuePath, { replace: true })
+      navigate(adminPassPhotoQueuePath(me.role), { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось войти')
     } finally {
@@ -48,13 +32,12 @@ export function AdminPassPhotoLogin({ expectedRole }: Props) {
   }
 
   return (
-    <AdminPassPhotoShell track={expectedRole}>
+    <AdminPassPhotoShell pageSection="Вход">
       <div className={styles.loginWrap}>
         <div className={styles.loginHero}>
           <h1 className={styles.loginHeroTitle}>Вход для сотрудника</h1>
           <p className={styles.loginHeroSub}>
-            Очередь заявок на фото для пропуска —{' '}
-            <strong>{educationTrackLabel[expectedRole]}</strong>
+            Одна форма для админов СПО и высшего образования — после входа откроется ваша очередь.
           </p>
         </div>
 
@@ -67,7 +50,7 @@ export function AdminPassPhotoLogin({ expectedRole }: Props) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
-                placeholder="admin-spo"
+                placeholder="admin-spo или admin-he"
                 required
               />
             </label>
@@ -87,19 +70,6 @@ export function AdminPassPhotoLogin({ expectedRole }: Props) {
               {busy ? 'Вход…' : 'Войти в админку'}
             </Button>
           </form>
-
-          <p className={styles.switchTrack}>
-            {expectedRole === 'SPO' ? (
-              <>
-                Работаете с высшим образованием?{' '}
-                <Link to={paths.adminPassPhotosHeLogin}>Вход для ВО</Link>
-              </>
-            ) : (
-              <>
-                Работаете с СПО? <Link to={paths.adminPassPhotosSpoLogin}>Вход для СПО</Link>
-              </>
-            )}
-          </p>
         </div>
       </div>
     </AdminPassPhotoShell>

@@ -40,8 +40,11 @@ export const paths = {
   settings: '/settings',
   passPhoto: '/services/pass-photo',
   adminPassPhotos: '/admin/pass-photos',
+  adminPassPhotosLogin: '/admin/pass-photos/login',
   adminPassPhotosSpo: '/admin/pass-photos/spo',
   adminPassPhotosHe: '/admin/pass-photos/he',
+  /** @deprecated используйте adminPassPhotosLogin */
   adminPassPhotosSpoLogin: '/admin/pass-photos/spo/login',
+  /** @deprecated используйте adminPassPhotosLogin */
   adminPassPhotosHeLogin: '/admin/pass-photos/he/login',
 } as const

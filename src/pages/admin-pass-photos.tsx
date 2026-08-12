@@ -182,8 +182,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
 
-  const loginPath =
-    expectedRole === 'SPO' ? paths.adminPassPhotosSpoLogin : paths.adminPassPhotosHeLogin
+  const loginPath = paths.adminPassPhotosLogin
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -291,7 +290,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
 
   if (!ready) {
     return (
-      <AdminPassPhotoShell track={expectedRole}>
+      <AdminPassPhotoShell track={expectedRole} pageSection="Проверка">
         <div className={styles.loadingWrap}>
           <Loader text="Проверка сессии…" />
         </div>
@@ -307,7 +306,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const syncingOnly = queue.filter((i) => i.status === 'PERCO_SYNCING')
 
   return (
-    <AdminPassPhotoShell track={expectedRole}>
+    <AdminPassPhotoShell track={expectedRole} pageSection="Очередь">
       <header className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>Очередь заявок</h1>
