@@ -211,6 +211,22 @@
   font-weight: 600;
 }
 
+.refreshHint {
+  margin: 0.25rem 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.refreshSpin {
+  animation: adminRefreshSpin 0.8s linear infinite;
+}
+
+@keyframes adminRefreshSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

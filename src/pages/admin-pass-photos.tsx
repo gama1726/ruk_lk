@@ -32,6 +32,8 @@ import { Badge, Button, Lightbox, Loader } from '@/ui'
 import type { BadgeProps } from '@/ui/Badge/Badge'
 import styles from './admin-pass-photos.module.css'
 
+const QUEUE_REFRESH_MS = 30_000
+
 function statusBadgeVariant(status: PassPhotoStatus): BadgeProps['variant'] {
   switch (status) {
     case 'PENDING':
@@ -219,6 +221,8 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const [queue, setQueue] = useState<PassPhotoAdminItem[]>([])
   const [history, setHistory] = useState<PassPhotoAdminItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -233,9 +237,15 @@ export function AdminPassPhotos({ expectedRole }: Props) {
 
   const loginPath = paths.adminPassPhotosLogin
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const load = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (silent) {
+      setRefreshing(true)
+    } else {
+      setLoading(true)
+    }
+    if (!silent) {
+      setError(null)
+    }
     try {
       const [pending, processed] = await Promise.all([
         fetchAdminPassPhotoQueue(expectedRole),
@@ -243,15 +253,22 @@ export function AdminPassPhotos({ expectedRole }: Props) {
       ])
       setQueue(pending)
       setHistory(processed)
+      setLastUpdatedAt(new Date())
+      if (silent) {
+        setError(null)
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось загрузить заявки')
-      setQueue([])
-      setHistory([])
+      if (!silent) {
+        setError(e instanceof Error ? e.message : 'Не удалось загрузить заявки')
+        setQueue([])
+        setHistory([])
+      }
       if (e instanceof ApiError && e.status === 401) {
         setAuthorized(false)
       }
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }, [expectedRole])
 
@@ -276,6 +293,34 @@ export function AdminPassPhotos({ expectedRole }: Props) {
       cancelled = true
     }
   }, [expectedRole, load])
+
+  useEffect(() => {
+    if (!ready || !authorized) return
+
+    const pauseRefresh = () =>
+      busyId !== null ||
+      rejectItem !== null ||
+      document.visibilityState === 'hidden'
+
+    const tick = () => {
+      if (pauseRefresh()) return
+      void load({ silent: true })
+    }
+
+    const intervalId = window.setInterval(tick, QUEUE_REFRESH_MS)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !pauseRefresh()) {
+        void load({ silent: true })
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [ready, authorized, load, busyId, rejectItem])
 
   const onApprove = async (id: string) => {
     setBusyId(id)
@@ -383,15 +428,29 @@ export function AdminPassPhotos({ expectedRole }: Props) {
           <p className={styles.pageSubtitle}>
             {educationTrackLabel[expectedRole]} · сотрудник <strong>{username}</strong>
           </p>
+          {lastUpdatedAt && (
+            <p className={styles.refreshHint}>
+              Обновлено{' '}
+              {lastUpdatedAt.toLocaleTimeString('ru-RU', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+              {refreshing ? ' · обновление…' : ` · авто каждые ${QUEUE_REFRESH_MS / 1000} сек`}
+            </p>
+          )}
         </div>
         <div className={styles.toolbar}>
           <Button
             type="button"
             variant="secondary"
             onClick={() => void load()}
-            disabled={loading}
+            disabled={loading || refreshing}
           >
-            <RefreshCw size={16} aria-hidden />
+            <RefreshCw
+              size={16}
+              aria-hidden
+              className={refreshing ? styles.refreshSpin : undefined}
+            />
             Обновить
           </Button>
           <Button type="button" variant="ghost" onClick={() => void onLogout()}>
