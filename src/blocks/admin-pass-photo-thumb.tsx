@@ -8,9 +8,10 @@ type Props = {
   role: EducationTrack
   alt: string
   className?: string
+  onOpen?: (src: string) => void
 }
 
-export function AdminPassPhotoThumb({ id, role, alt, className }: Props) {
+export function AdminPassPhotoThumb({ id, role, alt, className, onOpen }: Props) {
   const [src, setSrc] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -49,5 +50,20 @@ export function AdminPassPhotoThumb({ id, role, alt, className }: Props) {
     return <div className={styles.thumbLoading}>Загрузка фото…</div>
   }
 
-  return <img className={className} src={src} alt={alt} />
+  const image = <img className={className} src={src} alt={alt} />
+
+  if (onOpen) {
+    return (
+      <button
+        type="button"
+        className={styles.thumbButton}
+        onClick={() => onOpen(src)}
+        aria-label={`Открыть фото: ${alt}`}
+      >
+        {image}
+      </button>
+    )
+  }
+
+  return image
 }

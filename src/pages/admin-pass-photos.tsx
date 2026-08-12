@@ -28,7 +28,7 @@ import {
 import { paths } from '@/paths'
 import { AdminPassPhotoRejectModal } from '@/pages/admin-pass-photo-reject-modal'
 import { AdminPassPhotoShell } from '@/pages/admin-pass-photo-shell'
-import { Badge, Button, Loader } from '@/ui'
+import { Badge, Button, Lightbox, Loader } from '@/ui'
 import type { BadgeProps } from '@/ui/Badge/Badge'
 import styles from './admin-pass-photos.module.css'
 
@@ -66,6 +66,7 @@ function AdminPassPhotoCard({
   onReject,
   onRevert,
   onRetryPerco,
+  onPhotoOpen,
 }: {
   item: PassPhotoAdminItem
   role: EducationTrack
@@ -74,6 +75,7 @@ function AdminPassPhotoCard({
   onReject?: (id: string) => void
   onRevert?: (id: string) => void
   onRetryPerco?: (id: string) => void
+  onPhotoOpen?: (payload: { src: string; alt: string; caption: string }) => void
 }) {
   const syncing = item.status === 'PERCO_SYNCING'
   const failed = item.status === 'PERCO_FAILED'
@@ -120,6 +122,16 @@ function AdminPassPhotoCard({
             role={role}
             alt={`Фото ${item.studentFullName}`}
             className={styles.thumb}
+            onOpen={
+              onPhotoOpen
+                ? (src) =>
+                    onPhotoOpen({
+                      src,
+                      alt: `Фото ${item.studentFullName}`,
+                      caption: `${item.studentFullName} · зачётка ${item.zachetka || item.studentId}`,
+                    })
+                : undefined
+            }
           />
         </div>
       </div>
@@ -213,6 +225,11 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all')
   const [rejectItem, setRejectItem] = useState<PassPhotoAdminItem | null>(null)
+  const [lightbox, setLightbox] = useState<{
+    src: string
+    alt: string
+    caption: string
+  } | null>(null)
 
   const loginPath = paths.adminPassPhotosLogin
 
@@ -506,6 +523,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                   busyId={busyId}
                   onApprove={onApprove}
                   onReject={onReject}
+                  onPhotoOpen={setLightbox}
                 />
               ))}
               {filteredSyncing.map((item) => (
@@ -514,6 +532,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                   item={item}
                   role={expectedRole}
                   busyId={busyId}
+                  onPhotoOpen={setLightbox}
                 />
               ))}
               {!loading && filteredPending.length === 0 && filteredSyncing.length === 0 && (
@@ -543,6 +562,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                   busyId={busyId}
                   onRetryPerco={onRetryPerco}
                   onRevert={onRevert}
+                  onPhotoOpen={setLightbox}
                 />
               ))}
               {!loading && filteredHistory.length === 0 && (
@@ -567,6 +587,14 @@ export function AdminPassPhotos({ expectedRole }: Props) {
         busy={rejectItem !== null && busyId === rejectItem.id}
         onClose={() => setRejectItem(null)}
         onConfirm={onRejectConfirm}
+      />
+
+      <Lightbox
+        open={lightbox !== null}
+        src={lightbox?.src ?? null}
+        alt={lightbox?.alt ?? ''}
+        caption={lightbox?.caption}
+        onClose={() => setLightbox(null)}
       />
     </AdminPassPhotoShell>
   )

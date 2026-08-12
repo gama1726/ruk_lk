@@ -64,7 +64,9 @@ public class PassPhotoValidationService {
         int height = image.getHeight();
         if (width < properties.minWidth() || height < properties.minHeight()) {
             issues.add(issue(PassPhotoIssueCode.IMAGE_TOO_SMALL, PassPhotoIssueSeverity.FAIL,
-                "Слишком маленькое фото. Снимите ближе или выберите файл большего разрешения."));
+                "Слишком маленькое фото. Минимальный размер — "
+                    + properties.minWidth() + "×" + properties.minHeight() + " пикселей."));
+            return new PassPhotoValidationResult(issues);
         }
 
         return new PassPhotoValidationResult(issues);

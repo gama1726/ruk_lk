@@ -13,7 +13,11 @@ import {
   type PassPhotoSubmission,
 } from '@/pass-photo'
 import {
-  validatePassPhotoClientBasic,
+  PASS_PHOTO_FORMAT_HINT,
+  PASS_PHOTO_MAX_BYTES,
+  PASS_PHOTO_MIN_HEIGHT,
+  PASS_PHOTO_MIN_WIDTH,
+  validatePassPhotoClient,
   type ClientValidationIssue,
 } from '@/pass-photo-validation'
 import { Button, Card, ScreenHeader } from '@/ui'
@@ -22,8 +26,8 @@ import styles from './pass-photo.module.css'
 const tips = [
   'Снимите себя анфас у светлой однотонной стены.',
   'В кадре — голова и плечи, лицо хорошо видно.',
-  'Формат JPG, JPEG, BMP или PNG, до 2 МБ.',
-  'Минимальный размер фото — 400×500 пикселей.',
+  `Формат ${PASS_PHOTO_FORMAT_HINT}, до ${Math.round(PASS_PHOTO_MAX_BYTES / (1024 * 1024))} МБ.`,
+  `Минимальный размер фото — ${PASS_PHOTO_MIN_WIDTH}×${PASS_PHOTO_MIN_HEIGHT} пикселей.`,
 ]
 
 export function PassPhoto() {
@@ -74,9 +78,9 @@ export function PassPhoto() {
 
     setChecking(true)
     try {
-      const basic = validatePassPhotoClientBasic(picked)
-      if (!basic.ok) {
-        setIssues(basic.issues)
+      const clientResult = await validatePassPhotoClient(picked)
+      if (!clientResult.ok) {
+        setIssues(clientResult.issues)
         return
       }
 
@@ -256,7 +260,7 @@ export function PassPhoto() {
               onClick={() => inputRef.current?.click()}
               disabled={checking || uploading}
             >
-              {checking ? 'Проверка на сервере…' : 'Выбрать фото'}
+              {checking ? 'Проверка…' : 'Выбрать фото'}
             </Button>
 
             {issues.length > 0 && (
