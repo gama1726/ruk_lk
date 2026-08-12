@@ -218,7 +218,7 @@ public class PassPhotoService {
         int recovered = 0;
         for (PassPhotoSubmission submission : stuck) {
             submission.setStatus(PassPhotoStatus.PERCO_FAILED);
-            submission.setPercoError("Синхронизация с Perco прервана. Повторите загрузку из админки.");
+            submission.setPercoError("Синхронизация с Perco прервана. Повторите загрузку из админ-панели.");
             if (submission.getReviewedAt() == null) {
                 submission.setReviewedAt(now);
             }

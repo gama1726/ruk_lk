@@ -14,7 +14,7 @@ public record AdminProperties(
     ) {}
 
     public record He(
-        @DefaultValue("admin-he") String username,
+        @DefaultValue("admin-vo") String username,
         @DefaultValue("") String password
     ) {}
 }

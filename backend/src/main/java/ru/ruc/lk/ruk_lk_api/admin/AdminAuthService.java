@@ -67,12 +67,12 @@ public class AdminAuthService {
     public static EducationTrack parseRoleHeader(HttpServletRequest request) {
         String raw = request.getHeader(HEADER_ROLE);
         if (raw == null || raw.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Укажите роль админки");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Укажите роль админ-панели");
         }
         try {
             return EducationTrack.valueOf(raw.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Неизвестная роль админки");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Неизвестная роль админ-панели");
         }
     }
 
@@ -90,7 +90,7 @@ public class AdminAuthService {
 
     public static AdminSession requireRole(HttpSession session, EducationTrack track) {
         if (session == null || track == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Войдите в админку");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Войдите в админ-панель");
         }
         Object raw = session.getAttribute(sessionKey(track));
         if (raw instanceof AdminSession admin && admin.role() == track) {
@@ -100,6 +100,6 @@ public class AdminAuthService {
         if (legacy instanceof AdminSession admin && admin.role() == track) {
             return admin;
         }
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Войдите в админку");
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Войдите в админ-панель");
     }
 }

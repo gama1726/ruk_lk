@@ -50,7 +50,7 @@ public class AdminSessionAuthFilter extends OncePerRequestFilter {
         if (!AdminAuthService.hasRole(session, role)) {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"message\":\"Войдите в админку\"}");
+            response.getWriter().write("{\"message\":\"Войдите в админ-панель\"}");
             return;
         }
         filterChain.doFilter(request, response);

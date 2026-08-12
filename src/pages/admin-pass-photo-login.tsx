@@ -1,5 +1,5 @@
 /**
- * @file Единый вход в админку пропусков (СПО / ВО).
+ * @file Единый вход в админ-панель пропусков (СПО / ВО).
  */
 
 import { useState, type FormEvent } from 'react'
@@ -37,7 +37,7 @@ export function AdminPassPhotoLogin() {
         <div className={styles.loginHero}>
           <h1 className={styles.loginHeroTitle}>Вход для сотрудника</h1>
           <p className={styles.loginHeroSub}>
-            Одна форма для админов СПО и высшего образования — после входа откроется ваша очередь.
+            Одна форма для сотрудников СПО и высшего образования — после входа откроется ваша очередь.
           </p>
         </div>
 
@@ -50,7 +50,7 @@ export function AdminPassPhotoLogin() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
-                placeholder="admin-spo или admin-he"
+                placeholder="admin-spo или admin-vo"
                 required
               />
             </label>
@@ -67,7 +67,7 @@ export function AdminPassPhotoLogin() {
             </label>
             {error && <p className={styles.error}>{error}</p>}
             <Button type="submit" disabled={busy} fullWidth>
-              {busy ? 'Вход…' : 'Войти в админку'}
+              {busy ? 'Вход…' : 'Войти в админ-панель'}
             </Button>
           </form>
         </div>

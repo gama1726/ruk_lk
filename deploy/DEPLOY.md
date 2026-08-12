@@ -39,23 +39,26 @@ cp deploy/application-local.properties.example backend/application-local.propert
 nano backend/application-local.properties
 ```
 
-Заполните: логин/пароль 1С, UniSender (`api-key`, `from-email`), учётки админок пропусков
+Заполните: логин/пароль 1С, UniSender (`api-key`, `from-email`), учётки админ-панели пропусков
 (`app.admin.spo.username` / `password`, `app.admin.he.username` / `password`).  
 Если MAX включён (`app.max.enabled=true`) — обязателен `app.max.webhook-secret`.
 
 **Не задавайте `app.auth.fixed-code` в prod** — приложение с профилем `prod` не стартует.
 
-### Админки фото для пропуска
+### Админ-панель фото для пропуска
 
 Две отдельные очереди по треку студента (СПО / ВО). Вход по логину и паролю из `application-local.properties`
-(при старте API учётки создаются или обновляются).
+(при старте API учётки создаются или обновляются). Сессии СПО, ВО и студенческого ЛК независимы.
 
 | URL | Назначение |
 |-----|------------|
-| `https://my.ruc.su/admin/pass-photos/spo/login` | Вход админа СПО |
-| `https://my.ruc.su/admin/pass-photos/spo` | Очередь СПО |
-| `https://my.ruc.su/admin/pass-photos/he/login` | Вход админа ВО |
-| `https://my.ruc.su/admin/pass-photos/he` | Очередь ВО |
+| `https://my.ruc.su/admin/pass-photos` | Единый вход (СПО и ВО) |
+| `https://my.ruc.su/admin/pass-photos/login` | То же — форма входа |
+| `https://my.ruc.su/admin/pass-photos/spo` | Очередь СПО (после входа) |
+| `https://my.ruc.su/admin/pass-photos/he` | Очередь ВО (после входа) |
+
+Старые URL `/admin/pass-photos/spo/login` и `/he/login` перенаправляют на единый вход.
+После логина открывается очередь по роли учётки (например `admin-spo` или `admin-vo`).
 
 ```bash
 cp deploy/env.example .env
