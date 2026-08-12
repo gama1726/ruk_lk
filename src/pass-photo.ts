@@ -106,7 +106,7 @@ export async function fetchAdminPassPhotoQueue(role: EducationTrack): Promise<Pa
 
 export async function fetchAdminPassPhotoHistory(
   role: EducationTrack,
-  limit = 30,
+  limit = 100,
 ): Promise<PassPhotoAdminItem[]> {
   return apiGet<PassPhotoAdminItem[]>(`/api/admin/pass-photos/history?limit=${limit}`, {
     headers: adminRoleHeaders(role),

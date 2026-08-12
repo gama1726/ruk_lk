@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { RefreshCw, LogOut } from 'lucide-react'
+import { LogOut, RefreshCw, Search } from 'lucide-react'
 import { AdminPassPhotoThumb } from '@/blocks/admin-pass-photo-thumb'
 import { ApiError } from '@/apiClient'
 import {
@@ -18,6 +18,13 @@ import {
   type PassPhotoAdminItem,
   type PassPhotoStatus,
 } from '@/pass-photo'
+import {
+  countByStatus,
+  filterHistoryItems,
+  filterQueueItems,
+  type HistoryFilter,
+  type QueueFilter,
+} from '@/pages/admin-pass-photo-filters'
 import { paths } from '@/paths'
 import { AdminPassPhotoShell } from '@/pages/admin-pass-photo-shell'
 import { Badge, Button, Loader } from '@/ui'
@@ -167,6 +174,26 @@ function EmptyBlock({ title, hint }: { title: string; hint: string }) {
   )
 }
 
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      className={[styles.filterChip, active ? styles.filterChipActive : ''].filter(Boolean).join(' ')}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  )
+}
+
 type Props = {
   expectedRole: EducationTrack
 }
@@ -181,6 +208,9 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
+  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all')
 
   const loginPath = paths.adminPassPhotosLogin
 
@@ -288,6 +318,25 @@ export function AdminPassPhotos({ expectedRole }: Props) {
     navigate(loginPath, { replace: true })
   }
 
+  const pendingTotal = countByStatus(queue, 'PENDING')
+  const syncingTotal = countByStatus(queue, 'PERCO_SYNCING')
+  const syncedTotal = countByStatus(history, 'PERCO_SYNCED')
+  const rejectedTotal = countByStatus(history, 'REJECTED')
+  const failedTotal = countByStatus(history, 'PERCO_FAILED')
+
+  const filteredQueue = useMemo(
+    () => filterQueueItems(queue, search, queueFilter),
+    [queue, search, queueFilter],
+  )
+  const filteredHistory = useMemo(
+    () => filterHistoryItems(history, search, historyFilter),
+    [history, search, historyFilter],
+  )
+
+  const filteredPending = filteredQueue.filter((i) => i.status === 'PENDING')
+  const filteredSyncing = filteredQueue.filter((i) => i.status === 'PERCO_SYNCING')
+  const hasActiveFilters = search.trim() !== '' || queueFilter !== 'all' || historyFilter !== 'all'
+
   if (!ready) {
     return (
       <AdminPassPhotoShell track={expectedRole} pageSection="Проверка">
@@ -301,9 +350,6 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   if (!authorized) {
     return <Navigate to={loginPath} replace />
   }
-
-  const pendingOnly = queue.filter((i) => i.status === 'PENDING')
-  const syncingOnly = queue.filter((i) => i.status === 'PERCO_SYNCING')
 
   return (
     <AdminPassPhotoShell track={expectedRole} pageSection="Очередь">
@@ -333,17 +379,100 @@ export function AdminPassPhotos({ expectedRole }: Props) {
 
       <div className={styles.stats}>
         <div className={`${styles.statCard} ${styles.statCardHighlight}`}>
-          <span className={styles.statValue}>{pendingOnly.length}</span>
+          <span className={styles.statValue}>{pendingTotal}</span>
           <span className={styles.statLabel}>На проверке</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statValue}>{syncingOnly.length}</span>
+          <span className={styles.statValue}>{syncingTotal}</span>
           <span className={styles.statLabel}>Загрузка в Perco</span>
         </div>
         <div className={styles.statCard}>
           <span className={styles.statValue}>{history.length}</span>
           <span className={styles.statLabel}>В истории</span>
         </div>
+      </div>
+
+      <div className={styles.filtersBar}>
+        <div className={styles.searchRow}>
+          <div className={styles.searchField}>
+            <label className={styles.filterLabel} htmlFor="admin-pass-photo-search">
+              Поиск
+            </label>
+            <div className={styles.searchInputWrap}>
+              <Search size={16} className={styles.searchIcon} aria-hidden />
+              <input
+                id="admin-pass-photo-search"
+                className={styles.searchInput}
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="ФИО или номер зачётки"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          {hasActiveFilters && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setSearch('')
+                setQueueFilter('all')
+                setHistoryFilter('all')
+              }}
+            >
+              Сбросить фильтры
+            </Button>
+          )}
+        </div>
+
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>Очередь</span>
+          <div className={styles.filterChips}>
+            <FilterChip active={queueFilter === 'all'} onClick={() => setQueueFilter('all')}>
+              Все ({pendingTotal + syncingTotal})
+            </FilterChip>
+            <FilterChip active={queueFilter === 'pending'} onClick={() => setQueueFilter('pending')}>
+              На проверке ({pendingTotal})
+            </FilterChip>
+            <FilterChip active={queueFilter === 'syncing'} onClick={() => setQueueFilter('syncing')}>
+              В Perco ({syncingTotal})
+            </FilterChip>
+          </div>
+        </div>
+
+        <div className={styles.filterGroup}>
+          <span className={styles.filterLabel}>История</span>
+          <div className={styles.filterChips}>
+            <FilterChip active={historyFilter === 'all'} onClick={() => setHistoryFilter('all')}>
+              Все ({history.length})
+            </FilterChip>
+            <FilterChip
+              active={historyFilter === 'PERCO_SYNCED'}
+              onClick={() => setHistoryFilter('PERCO_SYNCED')}
+            >
+              Принято ({syncedTotal})
+            </FilterChip>
+            <FilterChip
+              active={historyFilter === 'REJECTED'}
+              onClick={() => setHistoryFilter('REJECTED')}
+            >
+              Отклонено ({rejectedTotal})
+            </FilterChip>
+            <FilterChip
+              active={historyFilter === 'PERCO_FAILED'}
+              onClick={() => setHistoryFilter('PERCO_FAILED')}
+            >
+              Ошибка Perco ({failedTotal})
+            </FilterChip>
+          </div>
+        </div>
+
+        {hasActiveFilters && (
+          <p className={styles.filtersHint}>
+            Показано: {filteredQueue.length} в очереди, {filteredHistory.length} в истории
+          </p>
+        )}
       </div>
 
       {error && <p className={styles.errorBanner}>{error}</p>}
@@ -358,11 +487,11 @@ export function AdminPassPhotos({ expectedRole }: Props) {
             <div className={styles.sectionHead}>
               <h2 className={styles.sectionTitle}>На проверке</h2>
               <span className={styles.sectionCount}>
-                {pendingOnly.length + syncingOnly.length}
+                {filteredPending.length + filteredSyncing.length}
               </span>
             </div>
             <div className={styles.grid}>
-              {pendingOnly.map((item) => (
+              {filteredPending.map((item) => (
                 <AdminPassPhotoCard
                   key={item.id}
                   item={item}
@@ -372,7 +501,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                   onReject={onReject}
                 />
               ))}
-              {syncingOnly.map((item) => (
+              {filteredSyncing.map((item) => (
                 <AdminPassPhotoCard
                   key={item.id}
                   item={item}
@@ -380,10 +509,14 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                   busyId={busyId}
                 />
               ))}
-              {!loading && pendingOnly.length === 0 && syncingOnly.length === 0 && (
+              {!loading && filteredPending.length === 0 && filteredSyncing.length === 0 && (
                 <EmptyBlock
-                  title="Очередь пуста"
-                  hint="Новые заявки появятся здесь, когда студенты отправят фото."
+                  title={hasActiveFilters ? 'Ничего не найдено' : 'Очередь пуста'}
+                  hint={
+                    hasActiveFilters
+                      ? 'Измените поиск или фильтры очереди.'
+                      : 'Новые заявки появятся здесь, когда студенты отправят фото.'
+                  }
                 />
               )}
             </div>
@@ -392,10 +525,10 @@ export function AdminPassPhotos({ expectedRole }: Props) {
           <section className={styles.section}>
             <div className={styles.sectionHead}>
               <h2 className={styles.sectionTitle}>Обработанные</h2>
-              <span className={styles.sectionCount}>{history.length}</span>
+              <span className={styles.sectionCount}>{filteredHistory.length}</span>
             </div>
             <div className={styles.grid}>
-              {history.map((item) => (
+              {filteredHistory.map((item) => (
                 <AdminPassPhotoCard
                   key={item.id}
                   item={item}
@@ -405,10 +538,14 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                   onRevert={onRevert}
                 />
               ))}
-              {!loading && history.length === 0 && (
+              {!loading && filteredHistory.length === 0 && (
                 <EmptyBlock
-                  title="История пуста"
-                  hint="Здесь будут принятые и отклонённые заявки."
+                  title={hasActiveFilters ? 'Ничего не найдено' : 'История пуста'}
+                  hint={
+                    hasActiveFilters
+                      ? 'Измените поиск или фильтры истории.'
+                      : 'Здесь будут принятые и отклонённые заявки.'
+                  }
                 />
               )}
             </div>
