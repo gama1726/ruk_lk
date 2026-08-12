@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { LogOut, RefreshCw, Search } from 'lucide-react'
+import { LogOut, RefreshCw, Search, X } from 'lucide-react'
 import { AdminPassPhotoThumb } from '@/blocks/admin-pass-photo-thumb'
 import { ApiError } from '@/apiClient'
 import {
@@ -19,11 +19,13 @@ import {
   type PassPhotoStatus,
 } from '@/pass-photo'
 import {
+  buildStatusFilterOptions,
   countByStatus,
   filterHistoryItems,
   filterQueueItems,
-  type HistoryFilter,
-  type QueueFilter,
+  showHistorySection,
+  showQueueSection,
+  type StatusFilter,
 } from '@/pages/admin-pass-photo-filters'
 import { paths } from '@/paths'
 import { AdminPassPhotoRejectModal } from '@/pages/admin-pass-photo-reject-modal'
@@ -191,17 +193,25 @@ function EmptyBlock({ title, hint }: { title: string; hint: string }) {
 
 function FilterChip({
   active,
+  muted,
   onClick,
   children,
 }: {
   active: boolean
+  muted?: boolean
   onClick: () => void
   children: ReactNode
 }) {
   return (
     <button
       type="button"
-      className={[styles.filterChip, active ? styles.filterChipActive : ''].filter(Boolean).join(' ')}
+      className={[
+        styles.filterChip,
+        active ? styles.filterChipActive : '',
+        muted ? styles.filterChipMuted : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       onClick={onClick}
     >
       {children}
@@ -226,8 +236,8 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
-  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all')
+  const deferredSearch = useDeferredValue(search)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [rejectItem, setRejectItem] = useState<PassPhotoAdminItem | null>(null)
   const [lightbox, setLightbox] = useState<{
     src: string
@@ -394,17 +404,53 @@ export function AdminPassPhotos({ expectedRole }: Props) {
   const failedTotal = countByStatus(history, 'PERCO_FAILED')
 
   const filteredQueue = useMemo(
-    () => filterQueueItems(queue, search, queueFilter),
-    [queue, search, queueFilter],
+    () => filterQueueItems(queue, deferredSearch, statusFilter),
+    [queue, deferredSearch, statusFilter],
   )
   const filteredHistory = useMemo(
-    () => filterHistoryItems(history, search, historyFilter),
-    [history, search, historyFilter],
+    () => filterHistoryItems(history, deferredSearch, statusFilter),
+    [history, deferredSearch, statusFilter],
   )
 
   const filteredPending = filteredQueue.filter((i) => i.status === 'PENDING')
   const filteredSyncing = filteredQueue.filter((i) => i.status === 'PERCO_SYNCING')
-  const hasActiveFilters = search.trim() !== '' || queueFilter !== 'all' || historyFilter !== 'all'
+  const hasActiveFilters = search.trim() !== '' || statusFilter !== 'all'
+  const showQueue = showQueueSection(statusFilter)
+  const showHistory = showHistorySection(statusFilter)
+
+  const filterOptions = useMemo(
+    () =>
+      buildStatusFilterOptions({
+        pending: pendingTotal,
+        syncing: syncingTotal,
+        history: history.length,
+        synced: syncedTotal,
+        rejected: rejectedTotal,
+        failed: failedTotal,
+      }),
+    [pendingTotal, syncingTotal, history.length, syncedTotal, rejectedTotal, failedTotal],
+  )
+
+  const queueSectionTitle =
+    statusFilter === 'pending'
+      ? 'На проверке'
+      : statusFilter === 'syncing'
+        ? 'Загрузка в Perco'
+        : 'Очередь'
+
+  const historySectionTitle =
+    statusFilter === 'PERCO_SYNCED'
+      ? 'Принято'
+      : statusFilter === 'REJECTED'
+        ? 'Отклонено'
+        : statusFilter === 'PERCO_FAILED'
+          ? 'Ошибка Perco'
+          : 'Обработанные'
+
+  const resetFilters = () => {
+    setSearch('')
+    setStatusFilter('all')
+  }
 
   if (!ready) {
     return (
@@ -461,18 +507,49 @@ export function AdminPassPhotos({ expectedRole }: Props) {
       </header>
 
       <div className={styles.stats}>
-        <div className={`${styles.statCard} ${styles.statCardHighlight}`}>
+        <button
+          type="button"
+          className={[
+            styles.statCard,
+            styles.statCardButton,
+            styles.statCardHighlight,
+            statusFilter === 'pending' ? styles.statCardActive : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          onClick={() => setStatusFilter('pending')}
+        >
           <span className={styles.statValue}>{pendingTotal}</span>
           <span className={styles.statLabel}>На проверке</span>
-        </div>
-        <div className={styles.statCard}>
+        </button>
+        <button
+          type="button"
+          className={[
+            styles.statCard,
+            styles.statCardButton,
+            statusFilter === 'syncing' ? styles.statCardActive : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          onClick={() => setStatusFilter('syncing')}
+        >
           <span className={styles.statValue}>{syncingTotal}</span>
           <span className={styles.statLabel}>Загрузка в Perco</span>
-        </div>
-        <div className={styles.statCard}>
+        </button>
+        <button
+          type="button"
+          className={[
+            styles.statCard,
+            styles.statCardButton,
+            statusFilter === 'history' ? styles.statCardActive : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          onClick={() => setStatusFilter('history')}
+        >
           <span className={styles.statValue}>{history.length}</span>
           <span className={styles.statLabel}>В истории</span>
-        </div>
+        </button>
       </div>
 
       <div className={styles.filtersBar}>
@@ -492,68 +569,71 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                 placeholder="ФИО или номер зачётки"
                 autoComplete="off"
               />
+              {search && (
+                <button
+                  type="button"
+                  className={styles.searchClear}
+                  onClick={() => setSearch('')}
+                  aria-label="Очистить поиск"
+                >
+                  <X size={14} aria-hidden />
+                </button>
+              )}
             </div>
           </div>
           {hasActiveFilters && (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setSearch('')
-                setQueueFilter('all')
-                setHistoryFilter('all')
-              }}
-            >
-              Сбросить фильтры
+            <Button type="button" variant="ghost" onClick={resetFilters}>
+              Сбросить
             </Button>
           )}
         </div>
 
         <div className={styles.filterGroup}>
-          <span className={styles.filterLabel}>Очередь</span>
-          <div className={styles.filterChips}>
-            <FilterChip active={queueFilter === 'all'} onClick={() => setQueueFilter('all')}>
-              Все ({pendingTotal + syncingTotal})
-            </FilterChip>
-            <FilterChip active={queueFilter === 'pending'} onClick={() => setQueueFilter('pending')}>
-              На проверке ({pendingTotal})
-            </FilterChip>
-            <FilterChip active={queueFilter === 'syncing'} onClick={() => setQueueFilter('syncing')}>
-              В Perco ({syncingTotal})
-            </FilterChip>
-          </div>
-        </div>
-
-        <div className={styles.filterGroup}>
-          <span className={styles.filterLabel}>История</span>
-          <div className={styles.filterChips}>
-            <FilterChip active={historyFilter === 'all'} onClick={() => setHistoryFilter('all')}>
-              Все ({history.length})
-            </FilterChip>
-            <FilterChip
-              active={historyFilter === 'PERCO_SYNCED'}
-              onClick={() => setHistoryFilter('PERCO_SYNCED')}
-            >
-              Принято ({syncedTotal})
-            </FilterChip>
-            <FilterChip
-              active={historyFilter === 'REJECTED'}
-              onClick={() => setHistoryFilter('REJECTED')}
-            >
-              Отклонено ({rejectedTotal})
-            </FilterChip>
-            <FilterChip
-              active={historyFilter === 'PERCO_FAILED'}
-              onClick={() => setHistoryFilter('PERCO_FAILED')}
-            >
-              Ошибка Perco ({failedTotal})
-            </FilterChip>
+          <span className={styles.filterLabel}>Показать</span>
+          <div className={styles.filterRow}>
+            {filterOptions.slice(0, 1).map((option) => (
+              <FilterChip
+                key={option.id}
+                active={statusFilter === option.id}
+                muted={option.count === 0 && option.id !== 'all'}
+                onClick={() => setStatusFilter(option.id)}
+              >
+                {option.label} ({option.count})
+              </FilterChip>
+            ))}
+            <span className={styles.filterDivider} aria-hidden />
+            {filterOptions.slice(1, 3).map((option) => (
+              <FilterChip
+                key={option.id}
+                active={statusFilter === option.id}
+                muted={option.count === 0}
+                onClick={() => setStatusFilter(option.id)}
+              >
+                {option.label} ({option.count})
+              </FilterChip>
+            ))}
+            <span className={styles.filterDivider} aria-hidden />
+            {filterOptions.slice(3).map((option) => (
+              <FilterChip
+                key={option.id}
+                active={statusFilter === option.id}
+                muted={option.count === 0}
+                onClick={() => setStatusFilter(option.id)}
+              >
+                {option.label} ({option.count})
+              </FilterChip>
+            ))}
           </div>
         </div>
 
         {hasActiveFilters && (
           <p className={styles.filtersHint}>
-            Показано: {filteredQueue.length} в очереди, {filteredHistory.length} в истории
+            Найдено:{' '}
+            {showQueue && showHistory
+              ? `${filteredQueue.length} в очереди, ${filteredHistory.length} в истории`
+              : showQueue
+                ? `${filteredQueue.length} в очереди`
+                : `${filteredHistory.length} в истории`}
           </p>
         )}
       </div>
@@ -566,9 +646,10 @@ export function AdminPassPhotos({ expectedRole }: Props) {
         </div>
       ) : (
         <>
+          {showQueue && (
           <section className={styles.section}>
             <div className={styles.sectionHead}>
-              <h2 className={styles.sectionTitle}>На проверке</h2>
+              <h2 className={styles.sectionTitle}>{queueSectionTitle}</h2>
               <span className={styles.sectionCount}>
                 {filteredPending.length + filteredSyncing.length}
               </span>
@@ -599,17 +680,19 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                   title={hasActiveFilters ? 'Ничего не найдено' : 'Очередь пуста'}
                   hint={
                     hasActiveFilters
-                      ? 'Измените поиск или фильтры очереди.'
+                      ? 'Измените поиск или выберите другой статус.'
                       : 'Новые заявки появятся здесь, когда студенты отправят фото.'
                   }
                 />
               )}
             </div>
           </section>
+          )}
 
+          {showHistory && (
           <section className={styles.section}>
             <div className={styles.sectionHead}>
-              <h2 className={styles.sectionTitle}>Обработанные</h2>
+              <h2 className={styles.sectionTitle}>{historySectionTitle}</h2>
               <span className={styles.sectionCount}>{filteredHistory.length}</span>
             </div>
             <div className={styles.grid}>
@@ -629,13 +712,14 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                   title={hasActiveFilters ? 'Ничего не найдено' : 'История пуста'}
                   hint={
                     hasActiveFilters
-                      ? 'Измените поиск или фильтры истории.'
+                      ? 'Измените поиск или выберите другой статус.'
                       : 'Здесь будут принятые и отклонённые заявки.'
                   }
                 />
               )}
             </div>
           </section>
+          )}
         </>
       )}
 
