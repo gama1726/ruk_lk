@@ -182,8 +182,19 @@ public class MaxBindingService {
         String masked = PhoneNumbers.maskRu(challenge.getExpectedPhoneNorm());
 
         String botToken = properties.getBotToken() == null ? "" : properties.getBotToken().trim();
+        if (hash == null || hash.isBlank()) {
+            log.info("MAX bind: контакт без hash user_id={} (не через request_contact?)", maxUserId);
+            if (outbound != null) {
+                try {
+                    outbound.sendBindRejectedInvalidContact(maxUserId);
+                } catch (MaxSendException e) {
+                    log.warn("MAX bind: не удалось отправить отказ user_id={}", maxUserId, e);
+                }
+            }
+            return;
+        }
         if (!contactVerifier.verifyContactHash(vcfInfo, hash, botToken)) {
-            log.info("MAX bind: неверный hash контакта user_id={}", maxUserId);
+            log.info("MAX bind: неверный hash контакта user_id={} (проверьте app.max.bot-token)", maxUserId);
             if (outbound != null) {
                 try {
                     outbound.sendBindRejectedInvalidContact(maxUserId);

@@ -3,6 +3,7 @@ package ru.ruc.lk.ruk_lk_api.integration.max;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.List;
 
 /** Нормализация российских номеров для сравнения 1С ↔ MAX. */
 final class PhoneNumbers {
@@ -48,16 +49,28 @@ final class PhoneNumbers {
         return "+7 (" + code + ") ***-**-" + tail;
     }
 
+    /**
+     * Подготовка vcf_info для HMAC по спецификации MAX.
+     * В JSON webhook приходят реальные CRLF — их не меняем.
+     * Дополнительно поддерживаем литералы {@code \r\n} в строке (как в reference PHP client).
+     */
     static String normalizeVcfForHash(String vcfInfo) {
         if (vcfInfo == null) {
             return "";
         }
-        // MAX: перед HMAC заменить CRLF на LF (в JSON приходит как реальные \r\n)
-        return vcfInfo
-            .replace("\r\n", "\n")
-            .replace('\r', '\n')
-            .replace("\\r\\n", "\n")
-            .replace("\\n", "\n");
+        return vcfInfo.replace("\\r\\n", "\n").replace("\\n", "\n");
+    }
+
+    /** Варианты vcf_info для проверки hash — MAX подписывает «сырую» строку из webhook. */
+    static Iterable<String> vcfHashCandidates(String vcfInfo) {
+        if (vcfInfo == null || vcfInfo.isBlank()) {
+            return List.of();
+        }
+        String escapedNormalized = normalizeVcfForHash(vcfInfo);
+        if (escapedNormalized.equals(vcfInfo)) {
+            return List.of(vcfInfo);
+        }
+        return List.of(vcfInfo, escapedNormalized);
     }
 
     static boolean sameRuNumber(String left, String right) {

@@ -22,9 +22,14 @@ public class MaxContactVerifier {
         if (botToken == null || botToken.isBlank()) {
             return false;
         }
-        String normalized = PhoneNumbers.normalizeVcfForHash(vcfInfo);
-        String expected = hmacSha256Hex(botToken, normalized);
-        return constantTimeEquals(expected, hash.trim().toLowerCase(Locale.ROOT));
+        String provided = hash.trim().toLowerCase(Locale.ROOT);
+        for (String candidate : PhoneNumbers.vcfHashCandidates(vcfInfo)) {
+            String expected = hmacSha256Hex(botToken, candidate);
+            if (constantTimeEquals(expected, provided)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public String phoneFromContact(String vcfInfo, String vcfPhone) {
