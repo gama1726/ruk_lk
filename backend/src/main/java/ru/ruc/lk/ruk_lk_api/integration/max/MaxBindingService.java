@@ -87,6 +87,20 @@ public class MaxBindingService {
             );
         }
 
+        Instant now = Instant.now();
+        for (MaxBindToken existing : tokenRepository.findByStudentId(normalizedStudentId)) {
+            if (!existing.isExpired(now)) {
+                String url = "https://max.ru/" + botUsername + "?start=" + existing.getToken();
+                long expiresIn = ChronoUnit.SECONDS.between(now, existing.getExpiresAt());
+                log.info(
+                    "MAX bind: повторное использование токена для student_id={} (pending user_id={})",
+                    normalizedStudentId,
+                    existing.getPendingMaxUserId()
+                );
+                return new MaxBindLink(url, Math.max(expiresIn, 1));
+            }
+        }
+
         tokenRepository.deleteByStudentId(normalizedStudentId);
 
         String token = randomToken();

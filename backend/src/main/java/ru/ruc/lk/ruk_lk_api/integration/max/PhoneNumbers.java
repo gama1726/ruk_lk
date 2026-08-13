@@ -52,7 +52,12 @@ final class PhoneNumbers {
         if (vcfInfo == null) {
             return "";
         }
-        return vcfInfo.replace("\\r\\n", "\n").replace("\\n", "\n");
+        // MAX: перед HMAC заменить CRLF на LF (в JSON приходит как реальные \r\n)
+        return vcfInfo
+            .replace("\r\n", "\n")
+            .replace('\r', '\n')
+            .replace("\\r\\n", "\n")
+            .replace("\\n", "\n");
     }
 
     static boolean sameRuNumber(String left, String right) {

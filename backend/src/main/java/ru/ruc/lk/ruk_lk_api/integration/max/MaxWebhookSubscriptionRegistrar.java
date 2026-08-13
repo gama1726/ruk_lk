@@ -53,7 +53,7 @@ public class MaxWebhookSubscriptionRegistrar {
                 .body(body)
                 .retrieve()
                 .toBodilessEntity();
-            log.info("MAX webhook подписан: {}", webhookUrl);
+            log.info("MAX webhook подписан: {} (bot_started, message_created)", webhookUrl);
         } catch (RestClientResponseException e) {
             log.error(
                 "MAX webhook: не удалось подписаться ({}): {}",

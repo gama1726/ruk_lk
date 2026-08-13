@@ -69,7 +69,12 @@ public class MaxWebhookController {
 
     private void handleMessageCreated(MaxUpdate body) {
         MaxMessage message = body.message();
-        if (message == null || message.sender() == null) {
+        if (message == null) {
+            log.info("MAX webhook message_created без message");
+            return;
+        }
+        if (message.sender() == null) {
+            log.info("MAX webhook message_created без sender");
             return;
         }
         Long userId = message.sender().userId();
@@ -79,17 +84,24 @@ public class MaxWebhookController {
 
         List<MaxAttachment> attachments = message.attachments();
         if (attachments == null || attachments.isEmpty()) {
+            log.debug("MAX webhook message_created user_id={} без вложений", userId);
             return;
         }
 
         for (MaxAttachment attachment : attachments) {
-            if (attachment == null || !"contact".equals(attachment.type())) {
+            if (attachment == null) {
+                continue;
+            }
+            log.info("MAX webhook message_created user_id={} attachment type={}", userId, attachment.type());
+            if (!"contact".equals(attachment.type())) {
                 continue;
             }
             MaxContactPayload payload = attachment.payload();
             if (payload == null) {
+                log.info("MAX webhook contact без payload user_id={}", userId);
                 continue;
             }
+            log.info("MAX webhook contact user_id={} hashPresent={}", userId, payload.hash() != null && !payload.hash().isBlank());
             bindingService.onContactShared(
                 userId,
                 payload.vcfInfo(),
