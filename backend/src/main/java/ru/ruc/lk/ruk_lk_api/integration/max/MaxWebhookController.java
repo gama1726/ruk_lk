@@ -1,5 +1,7 @@
 package ru.ruc.lk.ruk_lk_api.integration.max;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -32,7 +34,6 @@ public class MaxWebhookController {
         @RequestBody MaxUpdate body
     ) {
         String expected = properties.getWebhookSecret() == null ? "" : properties.getWebhookSecret().trim();
-        // Fail-closed: без secret webhook не принимаем
         if (expected.isBlank()) {
             log.warn("MAX webhook: app.max.webhook-secret не задан");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -43,17 +44,60 @@ public class MaxWebhookController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        if (body != null && "bot_started".equals(body.updateType())) {
-            Long userId = body.user() == null ? null : body.user().userId();
-            String payload = body.payload();
-            if (userId != null && payload != null && !payload.isBlank()) {
-                bindingService.completeBind(payload, userId);
-            } else {
-                log.info("MAX webhook bot_started без payload или user_id");
-            }
+        if (body == null || body.updateType() == null) {
+            return ResponseEntity.ok().build();
+        }
+
+        switch (body.updateType()) {
+            case "bot_started" -> handleBotStarted(body);
+            case "message_created" -> handleMessageCreated(body);
+            default -> { /* игнорируем прочие события */ }
         }
 
         return ResponseEntity.ok().build();
+    }
+
+    private void handleBotStarted(MaxUpdate body) {
+        Long userId = body.user() == null ? null : body.user().userId();
+        String payload = body.payload();
+        if (userId != null && payload != null && !payload.isBlank()) {
+            bindingService.onBotStarted(payload, userId);
+        } else {
+            log.info("MAX webhook bot_started без payload или user_id");
+        }
+    }
+
+    private void handleMessageCreated(MaxUpdate body) {
+        MaxMessage message = body.message();
+        if (message == null || message.sender() == null) {
+            return;
+        }
+        Long userId = message.sender().userId();
+        if (userId == null) {
+            return;
+        }
+
+        List<MaxAttachment> attachments = message.attachments();
+        if (attachments == null || attachments.isEmpty()) {
+            return;
+        }
+
+        for (MaxAttachment attachment : attachments) {
+            if (attachment == null || !"contact".equals(attachment.type())) {
+                continue;
+            }
+            MaxContactPayload payload = attachment.payload();
+            if (payload == null) {
+                continue;
+            }
+            bindingService.onContactShared(
+                userId,
+                payload.vcfInfo(),
+                payload.vcfPhone(),
+                payload.hash()
+            );
+            return;
+        }
     }
 
     private static boolean constantTimeEquals(String a, String b) {
@@ -66,7 +110,8 @@ public class MaxWebhookController {
     public record MaxUpdate(
         String update_type,
         String payload,
-        MaxUser user
+        MaxUser user,
+        MaxMessage message
     ) {
         public String updateType() {
             return update_type;
@@ -77,6 +122,40 @@ public class MaxWebhookController {
     public record MaxUser(Long user_id) {
         public Long userId() {
             return user_id;
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record MaxMessage(
+        MaxUser sender,
+        MaxMessageBody body
+    ) {
+        public List<MaxAttachment> attachments() {
+            if (body == null || body.attachments() == null) {
+                return List.of();
+            }
+            return body.attachments();
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record MaxMessageBody(List<MaxAttachment> attachments) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record MaxAttachment(String type, MaxContactPayload payload) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record MaxContactPayload(
+        String vcf_info,
+        String vcf_phone,
+        String hash
+    ) {
+        public String vcfInfo() {
+            return vcf_info;
+        }
+
+        public String vcfPhone() {
+            return vcf_phone;
         }
     }
 }

@@ -26,19 +26,25 @@ public class MaxBindingService {
     private final VerificationMaxSender maxSender;
     private final MaxProperties properties;
     private final ObjectProvider<MaxBotIdentity> botIdentity;
+    private final ObjectProvider<MaxOutboundMessages> outboundMessages;
+    private final MaxContactVerifier contactVerifier;
 
     public MaxBindingService(
         StudentMaxBindingRepository bindingRepository,
         MaxBindTokenRepository tokenRepository,
         VerificationMaxSender maxSender,
         MaxProperties properties,
-        ObjectProvider<MaxBotIdentity> botIdentity
+        ObjectProvider<MaxBotIdentity> botIdentity,
+        ObjectProvider<MaxOutboundMessages> outboundMessages,
+        MaxContactVerifier contactVerifier
     ) {
         this.bindingRepository = bindingRepository;
         this.tokenRepository = tokenRepository;
         this.maxSender = maxSender;
         this.properties = properties;
         this.botIdentity = botIdentity;
+        this.outboundMessages = outboundMessages;
+        this.contactVerifier = contactVerifier;
     }
 
     public boolean isLoginChannelEnabled() {
@@ -57,7 +63,7 @@ public class MaxBindingService {
     }
 
     @Transactional
-    public MaxBindLink createBindLink(String studentId) {
+    public MaxBindLink createBindLink(String studentId, String phoneFromOneC) {
         if (!isLoginChannelEnabled()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Вход через MAX недоступен");
         }
@@ -73,37 +79,129 @@ public class MaxBindingService {
         }
 
         String normalizedStudentId = studentId.trim();
+        String expectedPhoneNorm = PhoneNumbers.normalizeRu(phoneFromOneC);
+        if (properties.isRequirePhoneMatch() && expectedPhoneNorm.isBlank()) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "В базе нет телефона для этой зачётки. Обратитесь в институт, чтобы добавить номер, или войдите через email."
+            );
+        }
+
         tokenRepository.deleteByStudentId(normalizedStudentId);
 
         String token = randomToken();
         Instant expiresAt = Instant.now().plus(properties.getBindTokenTtlMinutes(), ChronoUnit.MINUTES);
-        tokenRepository.save(new MaxBindToken(token, normalizedStudentId, expiresAt));
+        tokenRepository.save(new MaxBindToken(token, normalizedStudentId, expiresAt, expectedPhoneNorm));
 
         String url = "https://max.ru/" + botUsername + "?start=" + token;
         long expiresIn = ChronoUnit.SECONDS.between(Instant.now(), expiresAt);
         return new MaxBindLink(url, Math.max(expiresIn, 1));
     }
 
+    /**
+     * Пользователь открыл бота по deep link.
+     */
     @Transactional
-    public boolean completeBind(String payload, Long maxUserId) {
+    public void onBotStarted(String payload, Long maxUserId) {
         if (payload == null || payload.isBlank() || maxUserId == null) {
-            return false;
+            return;
         }
 
-        String token = payload.trim();
-        Optional<MaxBindToken> bindToken = tokenRepository.findById(token);
+        Optional<MaxBindToken> bindToken = tokenRepository.findById(payload.trim());
         if (bindToken.isEmpty()) {
             log.info("MAX bind: неизвестный токен");
-            return false;
+            return;
         }
 
         MaxBindToken challenge = bindToken.get();
-        if (challenge.isExpired(Instant.now())) {
+        Instant now = Instant.now();
+        if (challenge.isExpired(now)) {
             tokenRepository.delete(challenge);
             log.info("MAX bind: токен истёк для student_id={}", challenge.getStudentId());
-            return false;
+            return;
         }
 
+        if (!properties.isRequirePhoneMatch()) {
+            completeBind(challenge, maxUserId);
+            return;
+        }
+
+        challenge.setPendingMaxUserId(maxUserId);
+        tokenRepository.save(challenge);
+
+        MaxOutboundMessages outbound = outboundMessages.getIfAvailable();
+        if (outbound == null || !outbound.isConfigured()) {
+            log.warn("MAX bind: нет outbound API — привязка по телефону недоступна");
+            return;
+        }
+
+        String masked = PhoneNumbers.maskRu(challenge.getExpectedPhoneNorm());
+        try {
+            outbound.sendPhoneVerificationRequest(maxUserId, masked);
+        } catch (MaxSendException e) {
+            log.warn("MAX bind: не удалось отправить запрос контакта user_id={}", maxUserId, e);
+        }
+    }
+
+    /**
+     * Контакт из кнопки request_contact.
+     */
+    @Transactional
+    public void onContactShared(Long maxUserId, String vcfInfo, String vcfPhone, String hash) {
+        if (maxUserId == null) {
+            return;
+        }
+        if (!properties.isRequirePhoneMatch()) {
+            return;
+        }
+
+        Instant now = Instant.now();
+        Optional<MaxBindToken> tokenOpt =
+            tokenRepository.findFirstByPendingMaxUserIdAndExpiresAtAfterOrderByExpiresAtDesc(maxUserId, now);
+        if (tokenOpt.isEmpty()) {
+            log.info("MAX bind: контакт без активной привязки user_id={}", maxUserId);
+            return;
+        }
+
+        MaxBindToken challenge = tokenOpt.get();
+        MaxOutboundMessages outbound = outboundMessages.getIfAvailable();
+        String masked = PhoneNumbers.maskRu(challenge.getExpectedPhoneNorm());
+
+        String botToken = properties.getBotToken() == null ? "" : properties.getBotToken().trim();
+        if (!contactVerifier.verifyContactHash(vcfInfo, hash, botToken)) {
+            log.info("MAX bind: неверный hash контакта user_id={}", maxUserId);
+            if (outbound != null) {
+                try {
+                    outbound.sendBindRejectedInvalidContact(maxUserId);
+                } catch (MaxSendException e) {
+                    log.warn("MAX bind: не удалось отправить отказ user_id={}", maxUserId, e);
+                }
+            }
+            return;
+        }
+
+        String contactPhone = contactVerifier.phoneFromContact(vcfInfo, vcfPhone);
+        if (!PhoneNumbers.sameRuNumber(contactPhone, challenge.getExpectedPhoneNorm())) {
+            log.info(
+                "MAX bind: телефон не совпал для student_id={} (ожидали {}, получили ***)",
+                challenge.getStudentId(),
+                masked
+            );
+            if (outbound != null) {
+                try {
+                    outbound.sendBindRejectedWrongPhone(maxUserId, masked);
+                } catch (MaxSendException e) {
+                    log.warn("MAX bind: не удалось отправить отказ user_id={}", maxUserId, e);
+                }
+            }
+            tokenRepository.delete(challenge);
+            return;
+        }
+
+        completeBind(challenge, maxUserId);
+    }
+
+    private void completeBind(MaxBindToken challenge, Long maxUserId) {
         String studentId = challenge.getStudentId();
         Instant now = Instant.now();
 
@@ -141,7 +239,6 @@ public class MaxBindingService {
         }
 
         log.info("MAX bind: student_id={} → user_id={}", studentId, maxUserId);
-        return true;
     }
 
     public record MaxBindLink(String url, long expiresInSeconds) {}

@@ -26,6 +26,18 @@
   border-top: 1px solid color-mix(in srgb, var(--color-border, #ddd) 80%, transparent);
 }
 
+.bindSteps {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.bindSteps li + li {
+  margin-top: 0.35rem;
+}
+
 .link {
   color: var(--color-primary);
   text-decoration: none;

@@ -103,7 +103,8 @@ public class AuthService {
     /** Deep link для привязки MAX (нужна сессия pending identification). */
     public MaxBindLinkResponse maxBindLink(HttpSession session) {
         PendingIdentification pending = requirePendingIdentification(session);
-        MaxBindingService.MaxBindLink link = maxBindingService.createBindLink(pending.studentId());
+        MaxBindingService.MaxBindLink link =
+            maxBindingService.createBindLink(pending.studentId(), pending.phone());
         return new MaxBindLinkResponse(link.url(), link.expiresInSeconds());
     }
 

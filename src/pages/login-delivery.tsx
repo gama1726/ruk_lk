@@ -80,7 +80,9 @@ export function LoginDelivery() {
     }
     const updated = useAuth.getState().pendingIdentification
     if (!updated?.maxAvailable) {
-      setError('Привязка ещё не найдена. Откройте ссылку в MAX и нажмите «Начать».')
+      setError(
+        'Привязка ещё не найдена. Откройте ссылку в MAX, нажмите «Начать» и «Поделиться номером».'
+      )
     } else {
       setChannel('MAX')
     }
@@ -143,8 +145,15 @@ export function LoginDelivery() {
         {needsMaxBind && (
           <div className={form.bindBox}>
             <p className={form.hint}>
-              Чтобы получать код в MAX, один раз откройте бота и нажмите «Начать».
+              Чтобы получать код в MAX, один раз привяжите аккаунт к боту. Номер в MAX должен совпадать
+              с телефоном из базы университета
+              {pendingIdentification.maskedPhone ? ` (${pendingIdentification.maskedPhone})` : ''}.
             </p>
+            <ol className={form.bindSteps}>
+              <li>Нажмите «Открыть бота в MAX» и в профиле бота — «Начать».</li>
+              <li>В чате нажмите «Поделиться номером» — MAX отправит номер, привязанный к аккаунту.</li>
+              <li>Вернитесь сюда и нажмите «Я привязал — проверить».</li>
+            </ol>
             <Button
               type="button"
               fullWidth

@@ -15,6 +15,8 @@ public class MaxProperties {
     /** HTTPS URL webhook, например https://lk.ruc.su/api/max/webhook — для автоподписки */
     private String webhookUrl = "";
     private int bindTokenTtlMinutes = 15;
+    /** Сверка телефона 1С с контактом MAX (request_contact). */
+    private boolean requirePhoneMatch = true;
 
     public boolean isEnabled() {
         return enabled;
@@ -78,5 +80,13 @@ public class MaxProperties {
 
     public void setBindTokenTtlMinutes(int bindTokenTtlMinutes) {
         this.bindTokenTtlMinutes = bindTokenTtlMinutes;
+    }
+
+    public boolean isRequirePhoneMatch() {
+        return requirePhoneMatch;
+    }
+
+    public void setRequirePhoneMatch(boolean requirePhoneMatch) {
+        this.requirePhoneMatch = requirePhoneMatch;
     }
 }

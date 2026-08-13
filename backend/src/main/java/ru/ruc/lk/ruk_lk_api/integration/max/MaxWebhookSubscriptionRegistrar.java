@@ -41,7 +41,7 @@ public class MaxWebhookSubscriptionRegistrar {
         try {
             var body = new java.util.LinkedHashMap<String, Object>();
             body.put("url", webhookUrl);
-            body.put("update_types", List.of("bot_started"));
+            body.put("update_types", List.of("bot_started", "message_created"));
             String secret = properties.getWebhookSecret() == null ? "" : properties.getWebhookSecret().trim();
             if (!secret.isBlank()) {
                 body.put("secret", secret);
