@@ -114,6 +114,9 @@ export function LoginDelivery() {
 
     if (result) {
       setError(result)
+      if (channel === 'MAX') {
+        void refreshPendingIdentification()
+      }
       return
     }
 

@@ -21,12 +21,17 @@ public class StudentMaxBinding {
     @Column(nullable = false)
     private Instant boundAt;
 
+    /** 10 цифр без +7 — телефон, с которым подтверждена привязка. */
+    @Column(length = 16)
+    private String verifiedPhoneNorm;
+
     protected StudentMaxBinding() {}
 
-    public StudentMaxBinding(String studentId, Long maxUserId, Instant boundAt) {
+    public StudentMaxBinding(String studentId, Long maxUserId, Instant boundAt, String verifiedPhoneNorm) {
         this.studentId = studentId;
         this.maxUserId = maxUserId;
         this.boundAt = boundAt;
+        this.verifiedPhoneNorm = verifiedPhoneNorm;
     }
 
     public String getStudentId() {
@@ -41,8 +46,17 @@ public class StudentMaxBinding {
         return boundAt;
     }
 
-    public void rebind(Long maxUserId, Instant boundAt) {
+    public String getVerifiedPhoneNorm() {
+        return verifiedPhoneNorm;
+    }
+
+    public void rebind(Long maxUserId, Instant boundAt, String verifiedPhoneNorm) {
         this.maxUserId = maxUserId;
         this.boundAt = boundAt;
+        this.verifiedPhoneNorm = verifiedPhoneNorm;
+    }
+
+    public void captureVerifiedPhone(String verifiedPhoneNorm) {
+        this.verifiedPhoneNorm = verifiedPhoneNorm;
     }
 }

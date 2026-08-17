@@ -84,7 +84,10 @@ public class AuthService {
 
         String email = resolveEmail(me);
         String phone = blankToEmpty(me.phone());
-        Long maxUserId = maxBindingService.findMaxUserId(me.studentId()).orElse(null);
+        Long maxUserId = maxBindingService
+            .resolveBindingForLogin(me.studentId(), phone)
+            .maxUserId()
+            .orElse(null);
 
         session.setAttribute(PENDING_IDENTIFICATION_KEY, new PendingIdentification(
             me.studentId(),
@@ -111,7 +114,10 @@ public class AuthService {
     /** Обновить maxAvailable из БД (после привязки в боте). */
     public IdentifyResponse refreshPendingIdentification(HttpSession session) {
         PendingIdentification pending = requirePendingIdentification(session);
-        Long maxUserId = maxBindingService.findMaxUserId(pending.studentId()).orElse(null);
+        Long maxUserId = maxBindingService
+            .resolveBindingForLogin(pending.studentId(), pending.phone())
+            .maxUserId()
+            .orElse(null);
         session.setAttribute(PENDING_IDENTIFICATION_KEY, new PendingIdentification(
             pending.studentId(),
             pending.fullName(),
@@ -130,18 +136,34 @@ public class AuthService {
         enforceSendCooldown(session);
 
         PendingIdentification pending = requirePendingIdentification(session);
-        Long maxUserId = maxBindingService.findMaxUserId(pending.studentId()).orElse(null);
-
-        String code = generateCode();
-        String deliveryHint;
+        String currentPhone = pending.phone();
+        Long maxUserId;
 
         if (delivery == LoginCodeChannel.MAX) {
+            currentPhone = currentPhoneFromOneC(pending);
+            MaxBindingService.BindingResolution binding =
+                maxBindingService.resolveBindingForLogin(pending.studentId(), currentPhone);
+            if (binding.phoneChanged()) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Номер телефона в базе университета изменился. Привяжите MAX заново, чтобы получать коды входа."
+                );
+            }
+            maxUserId = binding.maxUserId().orElse(null);
             if (!isMaxAvailable(maxUserId)) {
                 throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Сначала привяжите MAX через бота"
                 );
             }
+        } else {
+            maxUserId = maxBindingService.findMaxUserId(pending.studentId()).orElse(null);
+        }
+
+        String code = generateCode();
+        String deliveryHint;
+
+        if (delivery == LoginCodeChannel.MAX) {
             try {
                 maxSender.sendLoginCode(maxUserId, pending.fullName(), code);
             } catch (MaxSendException e) {
@@ -150,7 +172,7 @@ public class AuthService {
                     "Не удалось отправить код в MAX. Попробуйте email или позже."
                 );
             }
-            deliveryHint = maskPhone(pending.phone());
+            deliveryHint = maskPhone(currentPhone);
         } else {
             try {
                 emailSender.sendLoginCode(pending.email(), pending.fullName(), code);
@@ -268,7 +290,10 @@ public class AuthService {
         if (!(raw instanceof PendingIdentification pending)) {
             return Optional.empty();
         }
-        Long maxUserId = maxBindingService.findMaxUserId(pending.studentId()).orElse(null);
+        Long maxUserId = maxBindingService
+            .resolveBindingForLogin(pending.studentId(), pending.phone())
+            .maxUserId()
+            .orElse(null);
         return Optional.of(toIdentifyResponse(
             pending.studentId(),
             pending.email(),
@@ -324,6 +349,19 @@ public class AuthService {
                 HttpStatus.TOO_MANY_REQUESTS,
                 "Подождите " + Math.max(1, retryAfter) + " с. перед повторной отправкой кода"
             );
+        }
+    }
+
+    /** Свежий телефон из 1С перед отправкой в MAX; при сбое 1С — номер из identify. */
+    private String currentPhoneFromOneC(PendingIdentification pending) {
+        try {
+            return onecClient.login(pending.studentId())
+                .map(me -> blankToEmpty(me.phone()))
+                .filter(phone -> !phone.isBlank())
+                .orElse(pending.phone());
+        } catch (RuntimeException e) {
+            log.warn("MAX send: не удалось обновить телефон из 1С для {}", pending.studentId(), e);
+            return pending.phone();
         }
     }
 

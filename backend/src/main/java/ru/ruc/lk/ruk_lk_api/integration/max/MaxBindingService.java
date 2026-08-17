@@ -62,6 +62,65 @@ public class MaxBindingService {
         return findMaxUserId(studentId).isPresent();
     }
 
+    /**
+     * Актуальная привязка для входа. Если телефон в 1С больше не совпадает
+     * с номером привязки — сбрасываем её и пишем об этом в MAX.
+     */
+    @Transactional
+    public BindingResolution resolveBindingForLogin(String studentId, String currentPhoneFromOneC) {
+        if (studentId == null || studentId.isBlank()) {
+            return BindingResolution.unbound();
+        }
+        Optional<StudentMaxBinding> bindingOpt = bindingRepository.findById(studentId.trim());
+        if (bindingOpt.isEmpty()) {
+            return BindingResolution.unbound();
+        }
+
+        StudentMaxBinding binding = bindingOpt.get();
+        if (!properties.isRequirePhoneMatch()) {
+            return BindingResolution.bound(binding.getMaxUserId());
+        }
+
+        String currentNorm = PhoneNumbers.normalizeRu(currentPhoneFromOneC);
+        String storedNorm = binding.getVerifiedPhoneNorm() == null ? "" : binding.getVerifiedPhoneNorm();
+
+        if (storedNorm.isBlank()) {
+            if (!currentNorm.isBlank()) {
+                binding.captureVerifiedPhone(currentNorm);
+                bindingRepository.save(binding);
+            }
+            return BindingResolution.bound(binding.getMaxUserId());
+        }
+        if (currentNorm.isBlank() || storedNorm.equals(currentNorm)) {
+            return BindingResolution.bound(binding.getMaxUserId());
+        }
+
+        Long maxUserId = binding.getMaxUserId();
+        log.info(
+            "MAX bind: телефон 1С изменился для student_id={}, привязка user_id={} сброшена",
+            studentId.trim(),
+            maxUserId
+        );
+        bindingRepository.delete(binding);
+        bindingRepository.flush();
+        notifyBindingStale(maxUserId);
+        return BindingResolution.stale();
+    }
+
+    public record BindingResolution(Optional<Long> maxUserId, boolean phoneChanged) {
+        static BindingResolution unbound() {
+            return new BindingResolution(Optional.empty(), false);
+        }
+
+        static BindingResolution bound(Long maxUserId) {
+            return new BindingResolution(Optional.of(maxUserId), false);
+        }
+
+        static BindingResolution stale() {
+            return new BindingResolution(Optional.empty(), true);
+        }
+    }
+
     @Transactional
     public MaxBindLink createBindLink(String studentId, String phoneFromOneC) {
         if (!isLoginChannelEnabled()) {
@@ -229,6 +288,7 @@ public class MaxBindingService {
     private void completeBind(MaxBindToken challenge, Long maxUserId) {
         String studentId = challenge.getStudentId();
         Instant now = Instant.now();
+        String verifiedPhoneNorm = challenge.getExpectedPhoneNorm();
 
         bindingRepository.findByMaxUserId(maxUserId).ifPresent(existing -> {
             if (!existing.getStudentId().equals(studentId)) {
@@ -239,15 +299,16 @@ public class MaxBindingService {
                     studentId
                 );
                 bindingRepository.delete(existing);
+                bindingRepository.flush();
             }
         });
 
         bindingRepository.findById(studentId).ifPresentOrElse(
             existing -> {
-                existing.rebind(maxUserId, now);
+                existing.rebind(maxUserId, now, verifiedPhoneNorm);
                 bindingRepository.save(existing);
             },
-            () -> bindingRepository.save(new StudentMaxBinding(studentId, maxUserId, now))
+            () -> bindingRepository.save(new StudentMaxBinding(studentId, maxUserId, now, verifiedPhoneNorm))
         );
 
         tokenRepository.delete(challenge);
@@ -264,6 +325,19 @@ public class MaxBindingService {
         }
 
         log.info("MAX bind: student_id={} → user_id={}", studentId, maxUserId);
+    }
+
+    private void notifyBindingStale(Long maxUserId) {
+        try {
+            maxSender.sendMessage(
+                maxUserId,
+                "Привязка MAX к личному кабинету РУК больше неактуальна: номер телефона "
+                    + "в базе университета изменился.\n\n"
+                    + "Откройте личный кабинет и привяжите MAX заново."
+            );
+        } catch (MaxSendException e) {
+            log.warn("MAX bind: не удалось отправить уведомление об устаревшей привязке user_id={}", maxUserId, e);
+        }
     }
 
     public record MaxBindLink(String url, long expiresInSeconds) {}
