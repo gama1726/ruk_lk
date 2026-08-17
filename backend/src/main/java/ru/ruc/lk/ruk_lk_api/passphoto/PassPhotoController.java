@@ -147,6 +147,16 @@ class PassPhotoAdminController {
         return passPhotoService.retryPerco(id, admin.username(), admin.role());
     }
 
+    @PostMapping("/{id}/allow-resubmit")
+    public PassPhotoAdminItemDto allowResubmit(
+        HttpServletRequest request,
+        HttpSession session,
+        @PathVariable UUID id
+    ) {
+        AdminSession admin = AdminAuthService.requireRole(session, AdminAuthService.parseRoleHeader(request));
+        return passPhotoService.allowResubmit(id, admin.role());
+    }
+
     @PostMapping("/{id}/revert")
     public Map<String, String> revert(
         HttpServletRequest request,

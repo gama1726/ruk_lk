@@ -47,7 +47,8 @@ final class PassPhotoMapper {
             entity.getSubmittedAt(),
             entity.getReviewedAt(),
             entity.getRejectReason(),
-            entity.getPercoError()
+            entity.getPercoError(),
+            entity.isResubmitAllowedByAdmin()
         );
     }
 

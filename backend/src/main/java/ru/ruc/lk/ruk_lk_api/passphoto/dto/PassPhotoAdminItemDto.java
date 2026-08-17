@@ -14,5 +14,6 @@ public record PassPhotoAdminItemDto(
     Instant submittedAt,
     Instant reviewedAt,
     String rejectReason,
-    String percoError
+    String percoError,
+    boolean resubmitAllowed
 ) {}

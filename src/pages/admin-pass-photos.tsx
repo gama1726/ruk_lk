@@ -6,6 +6,7 @@ import { ApiError } from '@/apiClient'
 import {
   adminLogout,
   approvePassPhoto,
+  allowPassPhotoResubmit,
   educationTrackLabel,
   fetchAdminMe,
   fetchAdminPassPhotoHistory,
@@ -69,6 +70,7 @@ function AdminPassPhotoCard({
   onApprove,
   onReject,
   onRetryPerco,
+  onAllowResubmit,
   onPhotoOpen,
 }: {
   item: PassPhotoAdminItem
@@ -77,10 +79,12 @@ function AdminPassPhotoCard({
   onApprove?: (id: string) => void
   onReject?: (id: string) => void
   onRetryPerco?: (id: string) => void
+  onAllowResubmit?: (id: string) => void
   onPhotoOpen?: (payload: { src: string; alt: string; caption: string }) => void
 }) {
   const syncing = item.status === 'PERCO_SYNCING'
   const failed = item.status === 'PERCO_FAILED'
+  const synced = item.status === 'PERCO_SYNCED'
   const busy = busyId === item.id
 
   return (
@@ -113,6 +117,9 @@ function AdminPassPhotoCard({
           {item.percoError && (
             <p className={styles.warnBlock}>Ошибка Perco: {item.percoError}</p>
           )}
+          {synced && item.resubmitAllowed && (
+            <p className={styles.warnBlock}>Студент может отправить новое фото, не дожидаясь 3 дней.</p>
+          )}
           {item.validationWarningsJson && (
             <p className={styles.warnBlock}>Предупреждения: {item.validationWarningsJson}</p>
           )}
@@ -138,7 +145,7 @@ function AdminPassPhotoCard({
         </div>
       </div>
 
-      {(onApprove || onReject || onRetryPerco) && (
+      {(onApprove || onReject || onRetryPerco || onAllowResubmit) && (
         <div className={styles.actions}>
           {onApprove && item.status === 'PENDING' && (
             <Button type="button" disabled={busy} onClick={() => onApprove(item.id)}>
@@ -162,6 +169,16 @@ function AdminPassPhotoCard({
               onClick={() => onRetryPerco(item.id)}
             >
               Повторить Perco
+            </Button>
+          )}
+          {onAllowResubmit && synced && !item.resubmitAllowed && (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => onAllowResubmit(item.id)}
+            >
+              Разрешить новое фото
             </Button>
           )}
         </div>
@@ -367,6 +384,18 @@ export function AdminPassPhotos({ expectedRole }: Props) {
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка повторной загрузки в Perco')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const onAllowResubmit = async (id: string) => {
+    setBusyId(id)
+    try {
+      await allowPassPhotoResubmit(expectedRole, id)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось разрешить новое фото')
     } finally {
       setBusyId(null)
     }
@@ -687,6 +716,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                   role={expectedRole}
                   busyId={busyId}
                   onRetryPerco={onRetryPerco}
+                  onAllowResubmit={onAllowResubmit}
                   onPhotoOpen={setLightbox}
                 />
               ))}

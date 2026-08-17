@@ -42,6 +42,7 @@ export type PassPhotoAdminItem = {
   reviewedAt: string | null
   rejectReason: string | null
   percoError: string | null
+  resubmitAllowed?: boolean
 }
 
 export type AdminMe = {
@@ -139,6 +140,17 @@ export async function retryPassPhotoPerco(
 ): Promise<PassPhotoSubmission> {
   return apiPost<PassPhotoSubmission>(
     `/api/admin/pass-photos/${id}/retry-perco`,
+    {},
+    { headers: adminRoleHeaders(role) },
+  )
+}
+
+export async function allowPassPhotoResubmit(
+  role: EducationTrack,
+  id: string,
+): Promise<PassPhotoAdminItem> {
+  return apiPost<PassPhotoAdminItem>(
+    `/api/admin/pass-photos/${id}/allow-resubmit`,
     {},
     { headers: adminRoleHeaders(role) },
   )

@@ -113,7 +113,8 @@ public class PassPhotoService {
             }
             if (latest.getStatus() == PassPhotoStatus.PERCO_SYNCED) {
                 Instant nextAt = nextResubmitAt(latest);
-                if (nextAt != null && Instant.now().isBefore(nextAt)) {
+                if (nextAt != null && Instant.now().isBefore(nextAt)
+                    && !latest.isResubmitAllowedByAdmin()) {
                     throw new ResponseStatusException(
                         HttpStatus.TOO_MANY_REQUESTS,
                         "Повторная загрузка фото доступна раз в "
@@ -354,6 +355,21 @@ public class PassPhotoService {
         return toStudentDto(submission, submission.getStudentId());
     }
 
+    public PassPhotoAdminItemDto allowResubmit(UUID id, EducationTrack track) {
+        PassPhotoSubmission submission = requireSubmissionForTrack(id, track);
+        if (submission.getStatus() != PassPhotoStatus.PERCO_SYNCED) {
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Разрешить новое фото можно только для принятой заявки"
+            );
+        }
+        if (!submission.isResubmitAllowedByAdmin()) {
+            submission.setResubmitAllowedAt(Instant.now());
+            repository.save(submission);
+        }
+        return PassPhotoMapper.toAdminItem(submission);
+    }
+
     private PassPhotoSubmissionDto toStudentDto(PassPhotoSubmission entity) {
         return toStudentDto(entity, entity.getStudentId());
     }
@@ -383,6 +399,9 @@ public class PassPhotoService {
             return new ResubmitPolicy(true, null);
         }
         if (status == PassPhotoStatus.PERCO_SYNCED) {
+            if (entity.isResubmitAllowedByAdmin()) {
+                return new ResubmitPolicy(true, null);
+            }
             Instant nextAt = nextResubmitAt(entity);
             if (nextAt == null || !Instant.now().isBefore(nextAt)) {
                 return new ResubmitPolicy(true, null);

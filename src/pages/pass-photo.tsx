@@ -316,7 +316,9 @@ export function PassPhoto() {
             </p>
           )}
           {submission.canResubmit === true && (
-            <p className={styles.muted}>Можно отправить новое фото на проверку — форма ниже.</p>
+            <p className={styles.muted}>
+              Можно отправить новое фото на проверку — форма ниже.
+            </p>
           )}
         </Card>
       )}

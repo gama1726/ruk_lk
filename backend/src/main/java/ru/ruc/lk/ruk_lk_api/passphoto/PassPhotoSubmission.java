@@ -54,6 +54,9 @@ public class PassPhotoSubmission {
     @Column(length = 2000)
     private String percoError;
 
+    /** Админ разрешил студенту отправить новое фото, не дожидаясь cooldown. */
+    private Instant resubmitAllowedAt;
+
     protected PassPhotoSubmission() {}
 
     public PassPhotoSubmission(
@@ -159,5 +162,17 @@ public class PassPhotoSubmission {
 
     public void setPercoError(String percoError) {
         this.percoError = percoError;
+    }
+
+    public Instant getResubmitAllowedAt() {
+        return resubmitAllowedAt;
+    }
+
+    public void setResubmitAllowedAt(Instant resubmitAllowedAt) {
+        this.resubmitAllowedAt = resubmitAllowedAt;
+    }
+
+    public boolean isResubmitAllowedByAdmin() {
+        return resubmitAllowedAt != null;
     }
 }
