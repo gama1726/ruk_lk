@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Base64;
@@ -31,6 +30,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+
+import ru.ruc.lk.ruk_lk_api.imaging.ExifOrientedImages;
 
 @Component
 @ConditionalOnProperty(name = "app.perco.enabled", havingValue = "true")
@@ -262,7 +263,7 @@ public class HttpPercoClient implements PercoClient {
 
     byte[] resizeToPercoFormat(byte[] jpeg) throws PercoException {
         try {
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(jpeg));
+            BufferedImage image = ExifOrientedImages.read(jpeg);
             if (image == null) {
                 throw new PercoException("Не удалось прочитать JPEG для Perco-Web");
             }

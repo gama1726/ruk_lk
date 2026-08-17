@@ -3,7 +3,6 @@ package ru.ruc.lk.ruk_lk_api.passphoto;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -12,6 +11,8 @@ import java.util.List;
 import javax.imageio.ImageIO;
 
 import org.springframework.stereotype.Service;
+
+import ru.ruc.lk.ruk_lk_api.imaging.ExifOrientedImages;
 
 /**
  * Проверка фото для пропуска: только файл и изображение
@@ -47,7 +48,7 @@ public class PassPhotoValidationService {
 
         BufferedImage image;
         try {
-            image = ImageIO.read(new ByteArrayInputStream(bytes));
+            image = ExifOrientedImages.read(bytes);
         } catch (IOException e) {
             issues.add(issue(PassPhotoIssueCode.INVALID_FORMAT, PassPhotoIssueSeverity.FAIL,
                 "Не удалось прочитать изображение."));
@@ -73,13 +74,14 @@ public class PassPhotoValidationService {
     }
 
     /**
-     * JPEG сохраняем как есть; BMP и PNG конвертируем в JPEG для хранения и Perco.
+     * JPEG без EXIF-поворота сохраняем как есть. Иначе (и для BMP/PNG) пишем JPEG
+     * с уже «запечённой» ориентацией — Perco EXIF не читает.
      */
     public byte[] normalizeForStorage(byte[] bytes, String contentType) throws IOException {
-        if (isJpeg(bytes, contentType)) {
+        if (isJpeg(bytes, contentType) && ExifOrientedImages.jpegOrientation(bytes) <= 1) {
             return bytes;
         }
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
+        BufferedImage image = ExifOrientedImages.read(bytes);
         if (image == null) {
             throw new IOException("Не удалось прочитать изображение");
         }
