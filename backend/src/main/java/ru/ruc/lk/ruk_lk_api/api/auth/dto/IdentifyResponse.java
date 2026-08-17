@@ -6,5 +6,7 @@ public record IdentifyResponse(
     String maskedEmail,
     String maskedPhone,
     boolean emailAvailable,
-    boolean maxAvailable
+    boolean maxAvailable,
+    /** Привязка MAX сброшена: номер в 1С больше не совпадает с номером при привязке. */
+    boolean maxPhoneChanged
 ) {}

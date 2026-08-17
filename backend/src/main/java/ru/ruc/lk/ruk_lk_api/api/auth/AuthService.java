@@ -84,10 +84,9 @@ public class AuthService {
 
         String email = resolveEmail(me);
         String phone = blankToEmpty(me.phone());
-        Long maxUserId = maxBindingService
-            .resolveBindingForLogin(me.studentId(), phone)
-            .maxUserId()
-            .orElse(null);
+        MaxBindingService.BindingResolution binding =
+            maxBindingService.resolveBindingForLogin(me.studentId(), phone);
+        Long maxUserId = binding.maxUserId().orElse(null);
 
         session.setAttribute(PENDING_IDENTIFICATION_KEY, new PendingIdentification(
             me.studentId(),
@@ -100,7 +99,7 @@ public class AuthService {
         session.removeAttribute(PENDING_KEY);
         session.removeAttribute(SESSION_KEY);
 
-        return toIdentifyResponse(me.studentId(), email, phone, maxUserId);
+        return toIdentifyResponse(me.studentId(), email, phone, binding);
     }
 
     /** Deep link для привязки MAX (нужна сессия pending identification). */
@@ -114,19 +113,19 @@ public class AuthService {
     /** Обновить maxAvailable из БД (после привязки в боте). */
     public IdentifyResponse refreshPendingIdentification(HttpSession session) {
         PendingIdentification pending = requirePendingIdentification(session);
-        Long maxUserId = maxBindingService
-            .resolveBindingForLogin(pending.studentId(), pending.phone())
-            .maxUserId()
-            .orElse(null);
+        String phone = currentPhoneFromOneC(pending);
+        MaxBindingService.BindingResolution binding =
+            maxBindingService.resolveBindingForLogin(pending.studentId(), phone);
+        Long maxUserId = binding.maxUserId().orElse(null);
         session.setAttribute(PENDING_IDENTIFICATION_KEY, new PendingIdentification(
             pending.studentId(),
             pending.fullName(),
             pending.email(),
-            pending.phone(),
+            phone,
             maxUserId,
             pending.programs()
         ));
-        return toIdentifyResponse(pending.studentId(), pending.email(), pending.phone(), maxUserId);
+        return toIdentifyResponse(pending.studentId(), pending.email(), phone, binding);
     }
 
     /** Шаг 2: отправка кода на выбранный канал. */
@@ -290,15 +289,14 @@ public class AuthService {
         if (!(raw instanceof PendingIdentification pending)) {
             return Optional.empty();
         }
-        Long maxUserId = maxBindingService
-            .resolveBindingForLogin(pending.studentId(), pending.phone())
-            .maxUserId()
-            .orElse(null);
+        String phone = currentPhoneFromOneC(pending);
+        MaxBindingService.BindingResolution binding =
+            maxBindingService.resolveBindingForLogin(pending.studentId(), phone);
         return Optional.of(toIdentifyResponse(
             pending.studentId(),
             pending.email(),
-            pending.phone(),
-            maxUserId
+            phone,
+            binding
         ));
     }
 
@@ -380,14 +378,15 @@ public class AuthService {
         String studentId,
         String email,
         String phone,
-        Long maxUserId
+        MaxBindingService.BindingResolution binding
     ) {
         return new IdentifyResponse(
             studentId,
             maskEmail(email),
             maskPhone(phone),
             true,
-            isMaxAvailable(maxUserId)
+            isMaxAvailable(binding.maxUserId().orElse(null)),
+            binding.phoneChanged()
         );
     }
 

@@ -66,6 +66,7 @@ export function LoginDelivery() {
 
   const showMax = maxEnabled
   const maxBound = pendingIdentification.maxAvailable
+  const maxPhoneChanged = pendingIdentification.maxPhoneChanged
   const emailDisabled = !pendingIdentification.emailAvailable
   const maxDisabled = !maxBound
 
@@ -113,10 +114,15 @@ export function LoginDelivery() {
     setBusy(false)
 
     if (result) {
-      setError(result)
       if (channel === 'MAX') {
-        void refreshPendingIdentification()
+        await refreshPendingIdentification()
+        const updated = useAuth.getState().pendingIdentification
+        if (updated?.maxPhoneChanged) {
+          setError(undefined)
+          return
+        }
       }
+      setError(result)
       return
     }
 
@@ -145,11 +151,19 @@ export function LoginDelivery() {
           hideLabel
         />
 
+        {needsMaxBind && maxPhoneChanged && (
+          <p className={form.error}>
+            Номер телефона в базе университета изменился. Привяжите MAX заново, чтобы получать коды
+            входа.
+          </p>
+        )}
+
         {needsMaxBind && (
           <div className={form.bindBox}>
             <p className={form.hint}>
-              Чтобы получать код в MAX, один раз привяжите аккаунт к боту. Номер в MAX должен совпадать
-              с телефоном из базы университета
+              {maxPhoneChanged
+                ? 'Номер в MAX должен совпадать с актуальным телефоном из базы университета'
+                : 'Чтобы получать код в MAX, один раз привяжите аккаунт к боту. Номер в MAX должен совпадать с телефоном из базы университета'}
               {pendingIdentification.maskedPhone ? ` (${pendingIdentification.maskedPhone})` : ''}.
             </p>
             <ol className={form.bindSteps}>

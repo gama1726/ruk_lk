@@ -33,6 +33,7 @@ export type IdentifyResponseDto = {
   maskedPhone: string
   emailAvailable: boolean
   maxAvailable: boolean
+  maxPhoneChanged: boolean
 }
 
 /** Ответ `POST /api/auth/send-code` — до ввода кода */
@@ -53,6 +54,7 @@ export type PendingIdentification = {
   maskedPhone: string
   emailAvailable: boolean
   maxAvailable: boolean
+  maxPhoneChanged: boolean
 }
 
 export type PendingLogin = {
@@ -108,6 +110,7 @@ function toPendingIdentification(data: IdentifyResponseDto): PendingIdentificati
     maskedPhone: data.maskedPhone,
     emailAvailable: data.emailAvailable,
     maxAvailable: data.maxAvailable,
+    maxPhoneChanged: data.maxPhoneChanged ?? false,
   }
 }
 
@@ -224,6 +227,7 @@ export const useAuth = create<AuthState>((set) => ({
           maskedPhone: maskPhone('+79161234567'),
           emailAvailable: true,
           maxAvailable: true,
+          maxPhoneChanged: false,
         },
         pendingLogin: null,
         session: null,
