@@ -22,6 +22,7 @@ import { Schedule } from '@/pages/schedule'
 import { Education } from '@/pages/education'
 import { RecordBook, GradesRedirect } from '@/pages/record-book'
 import { Attendance } from '@/pages/attendance'
+import { EJournal } from '@/pages/e-journal'
 import { Debts } from '@/pages/debts'
 import { StudyPlan } from '@/pages/study-plan'
 import { Roadmap } from '@/pages/roadmap'
@@ -37,6 +38,7 @@ import { Portfolio } from '@/pages/portfolio'
 import { Library } from '@/pages/library'
 import { Settings } from '@/pages/settings'
 import { PassPhoto } from '@/pages/pass-photo'
+import { EsportsRedirect } from '@/pages/esports-redirect'
 import { AdminPassPhotosHe, AdminPassPhotosSpo } from '@/pages/admin-pass-photos'
 import { AdminPassPhotoLogin } from '@/pages/admin-pass-photo-login'
 
@@ -85,6 +87,7 @@ export const router = createBrowserRouter([
           { path: paths.grades, element: <GradesRedirect /> },
           { path: paths.recordBook, element: <RecordBook /> },
           { path: paths.attendance, element: <Attendance /> },
+          { path: paths.eJournal, element: <EJournal /> },
           { path: paths.debts, element: <Debts /> },
           { path: paths.studyPlan, element: <StudyPlan /> },
           { path: paths.roadmap, element: <Roadmap /> },
@@ -100,6 +103,7 @@ export const router = createBrowserRouter([
           { path: paths.library, element: <Library /> },
           { path: paths.settings, element: <Settings /> },
           { path: paths.passPhoto, element: <PassPhoto /> },
+          { path: paths.esports, element: <EsportsRedirect /> },
         ],
       },
     ],

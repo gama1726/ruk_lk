@@ -17,12 +17,14 @@ import {
   File,
   FileText,
   Folder,
+  Gamepad2,
   GraduationCap,
   Hand,
   LayoutGrid,
   List,
   Map,
   MessagesSquare,
+  NotebookPen,
   PackageX,
   PenLine,
   Settings,
@@ -47,7 +49,9 @@ export type NavIconId =
   | 'portfolio'
   | 'settings'
   | 'passPhoto'
+  | 'esports'
   | 'attendance'
+  | 'eJournal'
   | 'recordBook'
   | 'grades'
   | 'debts'
@@ -72,7 +76,9 @@ const icons: Record<NavIconId, LucideIcon> = {
   portfolio: LayoutGrid,
   settings: Settings,
   passPhoto: Camera,
+  esports: Gamepad2,
   attendance: CalendarCheck,
+  eJournal: NotebookPen,
   recordBook: FileText,
   grades: BarChart3,
   debts: PackageX,
