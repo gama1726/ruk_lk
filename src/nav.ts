@@ -36,7 +36,7 @@ export const sidebarGroups: NavGroup[] = [
     icon: 'study',
     items: [
       { to: paths.attendance, label: 'Посещаемость (dev)', icon: 'attendance' },
-      { to: paths.eJournal, label: 'Электронный журнал (dev)', icon: 'eJournal' },
+      { to: paths.eJournal, label: 'Электронный журнал', icon: 'eJournal' },
       { to: paths.recordBook, label: 'Электронная зачётная книжка', icon: 'recordBook' },
       { to: paths.debts, label: 'Академические задолженности', icon: 'debts' },
       { to: paths.library, label: 'Читательский билет', icon: 'library' },

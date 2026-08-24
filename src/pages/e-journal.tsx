@@ -1,170 +1,262 @@
 /**
- * @file Электронный журнал текущего контроля (mock → 1С).
+ * @file Электронный журнал — аналог бумажного: дисциплина → сетка дат и отметок.
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { programLabel } from '@/mocks/format'
 import {
-  filterJournal,
-  formatJournalDate,
-  formatJournalMark,
-  journalPeriods,
-  journalSubjects,
-  journalSummary,
-  markStatusKey,
-  type JournalPeriod,
+  cellLabel,
+  cellTone,
+  formatLessonDate,
+  journalColumnDate,
+  lessonsForSubject,
+  subjectStats,
+  subjectsForProgram,
 } from '@/mocks/e-journal'
+import type { JournalCellValue, JournalLesson } from '@/mocks/e-journal-types'
 import { useCurrentProgram } from '@/study'
-import {
-  ScreenHeader,
-  Select,
-  Button,
-  NoData,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableHeader,
-  TableCell,
-  StatusBadge,
-} from '@/ui'
+import { NoData, ScreenHeader } from '@/ui'
 import styles from './e-journal.module.css'
 
+function CellMark({ value }: { value: JournalCellValue }) {
+  const tone = cellTone(value)
+  const label = cellLabel(value)
+  return (
+    <span className={[styles.mark, styles[`mark_${tone}`]].join(' ')} aria-label={label || 'пусто'}>
+      {label || '·'}
+    </span>
+  )
+}
+
 /**
- * Журнал: сводка по дисциплинам и записи занятий с текущими баллами.
+ * Журнал: список дисциплин слева, ведомость с датами и оценками / «н».
  */
 export function EJournal() {
   const program = useCurrentProgram()
-  const subjects = useMemo(() => journalSubjects(program.id), [program.id])
+  const subjects = useMemo(() => subjectsForProgram(program.id), [program.id])
+  const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? '')
 
-  const [subject, setSubject] = useState('all')
-  const [period, setPeriod] = useState<JournalPeriod>('2026-spring')
-  const [appliedSubject, setAppliedSubject] = useState('all')
-  const [appliedPeriod, setAppliedPeriod] = useState<JournalPeriod>('2026-spring')
+  useEffect(() => {
+    if (!subjects.some((s) => s.id === subjectId)) {
+      setSubjectId(subjects[0]?.id ?? '')
+    }
+  }, [subjects, subjectId])
 
-  const summary = journalSummary(program.id)
-  const rows = filterJournal(program.id, appliedSubject, appliedPeriod)
+  const selected = subjects.find((s) => s.id === subjectId) ?? null
+  const rows = useMemo(
+    () => (selected ? lessonsForSubject(program.id, selected.id) : []),
+    [program.id, selected],
+  )
+  const stats = useMemo(() => subjectStats(rows), [rows])
+  const [activeLesson, setActiveLesson] = useState<JournalLesson | null>(null)
 
-  const subjectOptions = [
-    { value: 'all', label: 'Все дисциплины' },
-    ...subjects.map((s) => ({ value: s, label: s })),
-  ]
-  const periodOptions = journalPeriods.map((p) => ({ value: p.id, label: p.label }))
+  useEffect(() => {
+    setActiveLesson(null)
+  }, [subjectId])
 
-  const applyFilters = () => {
-    setAppliedSubject(subject)
-    setAppliedPeriod(period)
-  }
-
-  const resetFilters = () => {
-    setSubject('all')
-    setPeriod('2026-spring')
-    setAppliedSubject('all')
-    setAppliedPeriod('2026-spring')
+  if (subjects.length === 0) {
+    return (
+      <>
+        <ScreenHeader title="Электронный журнал" subtitle={programLabel(program)} />
+        <NoData title="Нет дисциплин" description="Журнал появится, когда будут данные из 1С." />
+      </>
+    )
   }
 
   return (
-    <>
+    <div className={styles.page}>
       <ScreenHeader
-        title="Электронный журнал (dev)"
-        subtitle={programLabel(program)}
+        title="Электронный журнал"
+        subtitle={`${programLabel(program)} · текущий контроль`}
       />
 
-      <div className={styles.filters}>
-        <Select
-          label="Дисциплина"
-          options={subjectOptions}
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-        />
-        <Select
-          label="Период"
-          options={periodOptions}
-          value={period}
-          onChange={(e) => setPeriod(e.target.value as JournalPeriod)}
-        />
-        <div>
-          <Button type="button" onClick={applyFilters}>
-            Показать
-          </Button>
-          <Button type="button" variant="ghost" onClick={resetFilters}>
-            Сбросить
-          </Button>
+      <div className={styles.layout}>
+        <aside className={styles.sidebar} aria-label="Дисциплины">
+          <p className={styles.sidebarTitle}>Дисциплины</p>
+          <ul className={styles.subjectList}>
+            {subjects.map((s) => {
+              const active = s.id === subjectId
+              const preview = subjectStats(lessonsForSubject(program.id, s.id))
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    className={[styles.subjectBtn, active ? styles.subjectBtnActive : '']
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => setSubjectId(s.id)}
+                    aria-current={active ? 'true' : undefined}
+                  >
+                    <span className={styles.subjectName}>{s.name}</span>
+                    <span className={styles.subjectMeta}>
+                      {preview.average != null ? `ср. ${preview.average}` : 'нет оценок'}
+                      {preview.absences > 0 ? ` · н: ${preview.absences}` : ''}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </aside>
+
+        <div className={styles.main}>
+          {selected ? (
+            <>
+              <header className={styles.sheetHead}>
+                <div>
+                  <h2 className={styles.sheetTitle}>{selected.name}</h2>
+                  <p className={styles.sheetSub}>
+                    {selected.teacher} · {selected.semesterLabel}
+                  </p>
+                </div>
+                <div className={styles.legend} aria-label="Обозначения">
+                  <span>
+                    <span className={[styles.mark, styles.mark_great].join(' ')}>5</span> отлично
+                  </span>
+                  <span>
+                    <span className={[styles.mark, styles.mark_good].join(' ')}>4</span> хорошо
+                  </span>
+                  <span>
+                    <span className={[styles.mark, styles.mark_mid].join(' ')}>3</span> удовл.
+                  </span>
+                  <span>
+                    <span className={[styles.mark, styles.mark_fail].join(' ')}>2</span> неуд.
+                  </span>
+                  <span>
+                    <span className={[styles.mark, styles.mark_absent].join(' ')}>н</span> неявка
+                  </span>
+                </div>
+              </header>
+
+              <div className={styles.stats} aria-label="Сводка">
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Средний балл</span>
+                  <strong className={styles.statValue}>
+                    {stats.average != null ? stats.average.toFixed(1) : '—'}
+                  </strong>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Оценок</span>
+                  <strong className={styles.statValue}>{stats.gradesCount}</strong>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Неявок</span>
+                  <strong className={[styles.statValue, stats.absences > 0 ? styles.statWarn : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  >
+                    {stats.absences}
+                  </strong>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Занятий</span>
+                  <strong className={styles.statValue}>{stats.lessons}</strong>
+                </div>
+              </div>
+
+              {rows.length === 0 ? (
+                <NoData title="Занятий пока нет" />
+              ) : (
+                <>
+                  <div className={styles.sheetWrap}>
+                    <table className={styles.sheet}>
+                      <caption className={styles.srOnly}>
+                        Журнал по дисциплине {selected.name}: даты занятий и отметки
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th className={styles.corner} scope="col">
+                            Студент
+                          </th>
+                          {rows.map((lesson) => {
+                            const { day, month } = journalColumnDate(lesson.date)
+                            return (
+                              <th key={lesson.id} className={styles.dateHead} scope="col">
+                                <button
+                                  type="button"
+                                  className={styles.dateBtn}
+                                  title={`${formatLessonDate(lesson.date)} · ${lesson.kind}: ${lesson.topic}`}
+                                  onClick={() => setActiveLesson(lesson)}
+                                >
+                                  <span className={styles.dateDay}>{day}</span>
+                                  <span className={styles.dateMonth}>{month}</span>
+                                </button>
+                              </th>
+                            )
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <th className={styles.nameCell} scope="row">
+                            Вы
+                          </th>
+                          {rows.map((lesson) => (
+                            <td key={lesson.id} className={styles.cell}>
+                              <button
+                                type="button"
+                                className={styles.cellBtn}
+                                onClick={() => setActiveLesson(lesson)}
+                                title={lesson.topic}
+                              >
+                                <CellMark value={lesson.value} />
+                              </button>
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <ol className={styles.timeline}>
+                    {rows.map((lesson) => (
+                      <li key={lesson.id}>
+                        <button
+                          type="button"
+                          className={[
+                            styles.timelineItem,
+                            activeLesson?.id === lesson.id ? styles.timelineItemActive : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          onClick={() => setActiveLesson(lesson)}
+                        >
+                          <span className={styles.timelineDate}>{formatLessonDate(lesson.date)}</span>
+                          <span className={styles.timelineBody}>
+                            <span className={styles.timelineKind}>{lesson.kind}</span>
+                            <span className={styles.timelineTopic}>{lesson.topic}</span>
+                          </span>
+                          <CellMark value={lesson.value} />
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              )}
+
+              {activeLesson ? (
+                <aside className={styles.detail} aria-live="polite">
+                  <p className={styles.detailDate}>{formatLessonDate(activeLesson.date)}</p>
+                  <p className={styles.detailKind}>{activeLesson.kind}</p>
+                  <p className={styles.detailTopic}>{activeLesson.topic}</p>
+                  <div className={styles.detailMark}>
+                    <span>Отметка</span>
+                    <CellMark value={activeLesson.value} />
+                    {activeLesson.value == null ? (
+                      <span className={styles.detailHint}>ещё не выставлена</span>
+                    ) : null}
+                    {activeLesson.value === 'н' ? (
+                      <span className={styles.detailHint}>неявка на занятие</span>
+                    ) : null}
+                  </div>
+                </aside>
+              ) : (
+                <p className={styles.hint}>Нажмите на дату или клетку — откроется тема занятия.</p>
+              )}
+            </>
+          ) : null}
         </div>
       </div>
-
-      {summary.length > 0 ? (
-        <section className={styles.summary} aria-label="Сводка по дисциплинам">
-          {summary.map((s) => (
-            <div key={s.subject} className={styles.summaryCard}>
-              <p className={styles.summaryTitle}>{s.subject}</p>
-              <p className={styles.summaryMeta}>
-                Средний балл (из 5): {s.average != null ? s.average : '—'}
-              </p>
-              <p className={styles.summaryMeta}>
-                Оценок: {s.graded}/{s.total}
-                {s.lastMark != null ? ` · последняя: ${s.lastMark}` : ''}
-              </p>
-            </div>
-          ))}
-        </section>
-      ) : null}
-
-      {rows.length === 0 ? (
-        <NoData title="Записей не найдено" description="Попробуйте другой фильтр." />
-      ) : (
-        <>
-          <div className={styles.tableWrap}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableHeader>Дата</TableHeader>
-                  <TableHeader>Дисциплина</TableHeader>
-                  <TableHeader>Вид</TableHeader>
-                  <TableHeader>Тема</TableHeader>
-                  <TableHeader>Преподаватель</TableHeader>
-                  <TableHeader>Оценка</TableHeader>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{formatJournalDate(r.date)}</TableCell>
-                    <TableCell>{r.subject}</TableCell>
-                    <TableCell>{r.kind}</TableCell>
-                    <TableCell>{r.topic}</TableCell>
-                    <TableCell>{r.teacher}</TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        status={markStatusKey(r.mark, r.maxPoints)}
-                        label={formatJournalMark(r)}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className={styles.cards}>
-            {rows.map((r) => (
-              <article key={r.id} className={styles.card}>
-                <strong>
-                  {formatJournalDate(r.date)} · {r.subject}
-                </strong>
-                <p>
-                  {r.kind} · {r.topic}
-                </p>
-                <p className={styles.cardMeta}>{r.teacher}</p>
-                <StatusBadge
-                  status={markStatusKey(r.mark, r.maxPoints)}
-                  label={formatJournalMark(r)}
-                />
-              </article>
-            ))}
-          </div>
-        </>
-      )}
-    </>
+    </div>
   )
 }
