@@ -67,7 +67,7 @@ export function EJournal() {
     <div className={styles.page}>
       <ScreenHeader
         title="Электронный журнал"
-        subtitle={`${programLabel(program)} · текущий контроль`}
+        subtitle={`${programLabel(program)} · демо-журнал, пока нет 1С`}
       />
 
       <div className={styles.layout}>

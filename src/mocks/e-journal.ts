@@ -116,13 +116,16 @@ const lessons: JournalLesson[] = [
 ]
 
 export function subjectsForProgram(programId: string): JournalSubject[] {
-  return journalSubjectsList.filter((s) => s.programId === programId)
+  const matched = journalSubjectsList.filter((s) => s.programId === programId)
+  if (matched.length > 0) return matched
+  // Пока нет API 1С — показываем демо-журнал, даже если программа из профиля другая
+  return journalSubjectsList.filter((s) => s.programId === 'b-2023')
 }
 
 export function lessonsForSubject(programId: string, subjectId: string): JournalLesson[] {
-  return lessons
-    .filter((l) => l.programId === programId && l.subjectId === subjectId)
-    .sort((a, b) => a.date.localeCompare(b.date))
+  const byProgram = lessons.filter((l) => l.programId === programId && l.subjectId === subjectId)
+  const rows = byProgram.length > 0 ? byProgram : lessons.filter((l) => l.subjectId === subjectId)
+  return [...rows].sort((a, b) => a.date.localeCompare(b.date))
 }
 
 export function subjectStats(rows: JournalLesson[]): JournalSubjectStats {
