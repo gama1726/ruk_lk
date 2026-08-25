@@ -16,15 +16,35 @@
   }
 }
 
+.filterActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}
+
 .summary {
   display: grid;
   gap: 1rem;
   margin-bottom: var(--page-gap);
 }
 
+@media (min-width: 768px) {
+  .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .summaryHead {
   display: flex;
   justify-content: space-between;
+  gap: 0.75rem;
   font-size: var(--font-size-md);
 }
 
@@ -62,18 +82,50 @@
   box-shadow: var(--shadow-sm);
 }
 
+.subjectCell {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.meta {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.timeCell {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.comment {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
 .cards {
   display: grid;
   gap: 1rem;
 }
 
 .card {
+  display: grid;
+  gap: 0.45rem;
   padding: 1.15rem 1.25rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   font-size: var(--font-size-md);
+}
+
+.cardLine {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 @media (min-width: 768px) {

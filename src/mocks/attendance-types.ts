@@ -19,9 +19,20 @@ export type AttendanceLesson = {
   id: string
   programId: string
   subject: string
+  /** YYYY-MM-DD */
   date: string
-  time: string
+  /** Начало пары ЧЧ:ММ */
+  start: string
+  /** Конец пары ЧЧ:ММ */
+  end: string
   mark: AttendanceMark
+  /** Фактический приход; null — не отмечался */
+  checkIn: string | null
+  /** Фактический уход; null — не отмечался / неявка */
+  checkOut: string | null
+  room?: string
+  teacher?: string
+  comment?: string
 }
 
 /**

@@ -6,6 +6,7 @@ import {
   attendanceSummary,
   filterAttendance,
   formatAttendanceDate,
+  formatCheckTime,
   markStatusKey,
   type AttendancePeriod,
 } from '@/mocks/attendance'
@@ -27,7 +28,7 @@ import {
 import styles from './attendance.module.css'
 
 /**
- * Страница посещаемости: фильтры, сводка по дисциплинам, журнал занятий.
+ * Страница посещаемости: фильтры, сводка, журнал с приходом и уходом.
  */
 export function Attendance() {
   const program = useCurrentProgram()
@@ -38,10 +39,19 @@ export function Attendance() {
   const [appliedSubject, setAppliedSubject] = useState('all')
   const [appliedPeriod, setAppliedPeriod] = useState<AttendancePeriod>('2026-spring')
 
-  const summary = attendanceSummary(program.id)
-  const rows = filterAttendance(program.id, appliedSubject, appliedPeriod)
+  const summary = useMemo(
+    () => attendanceSummary(program.id, appliedPeriod),
+    [program.id, appliedPeriod],
+  )
+  const rows = useMemo(
+    () => filterAttendance(program.id, appliedSubject, appliedPeriod),
+    [program.id, appliedSubject, appliedPeriod],
+  )
 
-  const subjectOptions = [{ value: 'all', label: 'Все дисциплины' }, ...subjects.map((s) => ({ value: s, label: s }))]
+  const subjectOptions = [
+    { value: 'all', label: 'Все дисциплины' },
+    ...subjects.map((s) => ({ value: s, label: s })),
+  ]
   const periodOptions = attendancePeriods.map((p) => ({ value: p.id, label: p.label }))
 
   const applyFilters = () => {
@@ -64,12 +74,22 @@ export function Attendance() {
 
   return (
     <>
-      <ScreenHeader title="Посещаемость (dev)" subtitle={programLabel(program)} />
+      <ScreenHeader title="Посещаемость" subtitle={programLabel(program)} />
 
       <div className={styles.filters}>
-        <Select label="Дисциплина" options={subjectOptions} value={subject} onChange={(e) => setSubject(e.target.value)} />
-        <Select label="Период" options={periodOptions} value={period} onChange={(e) => setPeriod(e.target.value as AttendancePeriod)} />
-        <div>
+        <Select
+          label="Дисциплина"
+          options={subjectOptions}
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+        />
+        <Select
+          label="Период"
+          options={periodOptions}
+          value={period}
+          onChange={(e) => setPeriod(e.target.value as AttendancePeriod)}
+        />
+        <div className={styles.filterActions}>
           <Button type="button" onClick={applyFilters}>
             Показать
           </Button>
@@ -107,7 +127,9 @@ export function Attendance() {
                 <TableRow>
                   <TableHeader>Дата</TableHeader>
                   <TableHeader>Дисциплина</TableHeader>
-                  <TableHeader>Время</TableHeader>
+                  <TableHeader>Пара</TableHeader>
+                  <TableHeader>Пришёл</TableHeader>
+                  <TableHeader>Ушёл</TableHeader>
                   <TableHeader>Статус</TableHeader>
                 </TableRow>
               </TableHead>
@@ -115,10 +137,25 @@ export function Attendance() {
                 {rows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>{formatAttendanceDate(r.date)}</TableCell>
-                    <TableCell>{r.subject}</TableCell>
-                    <TableCell>{r.time}</TableCell>
+                    <TableCell>
+                      <span className={styles.subjectCell}>
+                        <strong>{r.subject}</strong>
+                        {r.teacher ? <span className={styles.meta}>{r.teacher}</span> : null}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className={styles.subjectCell}>
+                        <span>
+                          {r.start}–{r.end}
+                        </span>
+                        {r.room ? <span className={styles.meta}>ауд. {r.room}</span> : null}
+                      </span>
+                    </TableCell>
+                    <TableCell className={styles.timeCell}>{formatCheckTime(r.checkIn)}</TableCell>
+                    <TableCell className={styles.timeCell}>{formatCheckTime(r.checkOut)}</TableCell>
                     <TableCell>
                       <StatusBadge status={markStatusKey(r.mark)} label={attendanceMarkLabel[r.mark]} />
+                      {r.comment ? <span className={styles.comment}>{r.comment}</span> : null}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -132,8 +169,16 @@ export function Attendance() {
                 <strong>
                   {formatAttendanceDate(r.date)} · {r.subject}
                 </strong>
-                <p>{r.time}</p>
+                <p className={styles.cardLine}>
+                  Пара: {r.start}–{r.end}
+                  {r.room ? ` · ауд. ${r.room}` : ''}
+                </p>
+                <p className={styles.cardLine}>
+                  Пришёл: {formatCheckTime(r.checkIn)} · Ушёл: {formatCheckTime(r.checkOut)}
+                </p>
+                {r.teacher ? <p className={styles.cardLine}>{r.teacher}</p> : null}
                 <StatusBadge status={markStatusKey(r.mark)} label={attendanceMarkLabel[r.mark]} />
+                {r.comment ? <p className={styles.comment}>{r.comment}</p> : null}
               </article>
             ))}
           </div>
