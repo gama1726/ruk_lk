@@ -24,7 +24,11 @@ public class StudentSessionAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path == null || !path.startsWith("/api/student");
+        if (path == null || !path.startsWith("/api/student")) {
+            return true;
+        }
+        // Редирект сам проверяет сессию и уводит незалогиненных на /login.
+        return path.equals("/api/student/esports/redirect");
     }
 
     @Override

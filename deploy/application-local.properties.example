@@ -51,3 +51,9 @@ app.admin.he.password=CHANGE_ME_HE
 
 # CORS — только если фронт и API на разных origin (обычно не нужно за nginx)
 # app.cors.allowed-origins=https://lk.example.com
+
+# Киберспорт РУК: тот же секрет, что STUDENT_EXCHANGE_SECRET на стороне киберспорта
+# app.esports.api-base-url=https://REPLACE_ESPORTS_API
+# app.esports.frontend-url=https://REPLACE_ESPORTS_SITE
+# app.esports.exchange-secret=CHANGE_ME
+# app.frontend.login-url=https://my.ruc.su/login
