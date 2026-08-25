@@ -1,58 +1,36 @@
 /**
- * @file Типы электронного журнала (аналог бумажного).
+ * @file Типы сводного электронного журнала.
  * @remarks Позже заменится DTO из 1С.
  */
 
-/** Вид занятия */
-export type JournalLessonKind = 'лекция' | 'практика' | 'лабораторная' | 'семинар' | 'контроль'
+export type JournalPassStatus = 'passed' | 'failed' | 'in_progress'
 
-/**
- * Отметка в клетке журнала.
- * - 2–5 — оценка
- * - `н` — неявка
- * - `н/б` — неявка по болезни
- * - `осв` — освобождён
- * - `з` / `нз` — зачёт / не зачёт
- * - `null` — пустая клетка
- */
-export type JournalCellValue = 2 | 3 | 4 | 5 | 'н' | 'н/б' | 'осв' | 'з' | 'нз' | null
-
-export type JournalSubjectSort = 'name' | 'average' | 'attention'
-
-export type JournalMonthFilter = 'all' | `${number}-${string}`
-
-/** Одна клетка / занятие в журнале */
-export type JournalLesson = {
+export type JournalSubjectRow = {
   id: string
-  programId: string
-  subjectId: string
-  date: string
-  kind: JournalLessonKind
-  topic: string
-  value: JournalCellValue
-  comment?: string
-}
-
-/** Дисциплина в списке выбора */
-export type JournalSubject = {
-  id: string
-  programId: string
   name: string
   teacher: string
-  semesterLabel: string
+  /** YYYY-MM-DD — дата последней отметки */
+  lastDate: string
+  attendancePercent: number
+  /** Текущие оценки / отметки для бейджей */
+  grades: Array<2 | 3 | 4 | 5 | 'н' | 'н/б' | 'з' | 'нз'>
+  finalScore: number | null
+  status: JournalPassStatus
+  semesterId: string
+  accent: 'purple' | 'blue' | 'green' | 'orange' | 'pink'
 }
 
-/** Сводка по выбранной дисциплине */
-export type JournalSubjectStats = {
-  average: number | null
-  gradesCount: number
+export type JournalSummary = {
+  average: number
+  averageMax: number
+  averageDelta: number
+  attendancePercent: number
   absences: number
-  excused: number
-  lessons: number
-  empty: number
-  attendancePercent: number | null
-  /** Допуск к аттестации: true / false / null (недостаточно данных) */
-  admitted: boolean | null
-  hasFail: boolean
-  needsAttention: boolean
+  closed: number
+  total: number
+}
+
+export type JournalSemester = {
+  id: string
+  label: string
 }
