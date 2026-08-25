@@ -1,5 +1,6 @@
 .page {
-  max-width: 1100px;
+  width: 100%;
+  max-width: none;
 }
 
 .bread {
@@ -63,7 +64,7 @@
 .stats {
   display: grid;
   gap: 1rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--page-gap);
 }
 
 @media (min-width: 640px) {
@@ -79,26 +80,27 @@
 }
 
 .stat {
-  padding: 1rem;
+  padding: 1.35rem 1.5rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .statValue {
-  font-size: var(--font-size-2xl);
-  font-weight: 600;
+  font-size: var(--font-size-stat);
+  font-weight: 700;
   color: var(--color-primary);
+}
+
+.statLabel {
+  margin-top: 0.35rem;
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
 }
 
 .statDanger {
   color: var(--color-danger);
-}
-
-.statLabel {
-  margin-top: 0.25rem;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
 }
 
 .bannerLink {
@@ -117,9 +119,9 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.25rem;
-  padding: 1rem 1.125rem;
-  border-radius: var(--radius-md);
+  margin-bottom: var(--page-gap);
+  padding: var(--panel-padding);
+  border-radius: var(--radius-xl);
   background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
 }
@@ -266,7 +268,7 @@
 .card {
   padding: 0;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
@@ -292,24 +294,29 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 .table th {
-  padding: 0.875rem 1rem;
+  padding: var(--table-head-padding);
   text-align: left;
+  font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-text-secondary);
-  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  background: #faf9fc;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
 
 .table td {
-  padding: 1rem;
+  padding: var(--table-cell-padding);
   vertical-align: top;
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-primary);
+}
+
+.table tbody tr:nth-child(even) td {
+  background: rgba(81, 48, 142, 0.02);
 }
 
 .table tbody tr:last-child td {
@@ -331,7 +338,7 @@
 .teacher {
   display: block;
   margin-top: 0.25rem;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
   line-height: 1.35;
 }
@@ -356,11 +363,11 @@
 }
 
 .mobileCard {
-  padding: 1rem;
+  padding: 1.15rem 1.25rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 .mobileCardHead {

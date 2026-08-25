@@ -223,7 +223,6 @@ export function EJournal() {
   return (
     <div className={styles.page}>
       <ScreenHeader
-        size="large"
         title="Электронный журнал"
         subtitle={`${programLabel(program)} · ${journalStudentName}`}
       />

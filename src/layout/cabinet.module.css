@@ -13,19 +13,19 @@
 
 .content {
   flex: 1;
-  padding: 1rem;
-  padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 1rem);
+  padding: 1.15rem;
+  padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 1.15rem);
 }
 
 @media (min-width: 768px) {
   .content {
-    padding: 1.25rem 1.5rem;
-    padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 1.25rem);
+    padding: 1.5rem 1.75rem;
+    padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 1.5rem);
   }
 }
 
 @media (min-width: 1024px) {
   .content {
-    padding: 1.5rem 2rem 2rem;
+    padding: 1.75rem 2.25rem 2.25rem;
   }
 }

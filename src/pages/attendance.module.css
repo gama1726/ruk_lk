@@ -1,7 +1,12 @@
 .filters {
   display: grid;
   gap: 1rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--page-gap);
+  padding: var(--panel-padding);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 @media (min-width: 640px) {
@@ -13,19 +18,14 @@
 
 .summary {
   display: grid;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.summaryRow {
-  display: grid;
-  gap: 0.375rem;
+  gap: 1rem;
+  margin-bottom: var(--page-gap);
 }
 
 .summaryHead {
   display: flex;
   justify-content: space-between;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 .bar {
@@ -52,17 +52,28 @@
   overflow-x: auto;
 }
 
+.summaryRow {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
 .cards {
   display: grid;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .card {
-  padding: 1rem;
+  padding: 1.15rem 1.25rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
-  font-size: var(--font-size-sm);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--font-size-md);
 }
 
 @media (min-width: 768px) {

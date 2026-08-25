@@ -3,17 +3,13 @@
   max-width: none;
 }
 
-.page :global(header) {
-  margin-bottom: 1.75rem;
-}
-
 .filters {
   display: grid;
   gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding: 1.25rem 1.5rem;
+  margin-bottom: var(--page-gap);
+  padding: var(--panel-padding);
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
 }
@@ -33,7 +29,7 @@
 .cards {
   display: grid;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--page-gap);
 }
 
 @media (min-width: 640px) {
@@ -53,7 +49,7 @@
   overflow: hidden;
   padding: 1.35rem 1.5rem 1.45rem;
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
 }
@@ -106,7 +102,7 @@
 
 .cardValue {
   margin: 0;
-  font-size: 2.25rem;
+  font-size: var(--font-size-stat);
   font-weight: 700;
   line-height: 1.1;
   color: var(--color-text-primary);
@@ -173,7 +169,7 @@
 
 .sidePanel {
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
@@ -382,7 +378,7 @@
 .tableWrap {
   overflow-x: auto;
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
 }
@@ -394,7 +390,7 @@
 }
 
 .table th {
-  padding: 1rem 1.25rem;
+  padding: var(--table-head-padding);
   text-align: left;
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -405,7 +401,7 @@
 }
 
 .table td {
-  padding: 1.1rem 1.25rem;
+  padding: var(--table-cell-padding);
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
   font-size: var(--font-size-md);
@@ -721,7 +717,7 @@ tr.rowClickable:focus-visible {
   gap: 0.75rem;
   padding: 1.15rem 1.25rem;
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
 }

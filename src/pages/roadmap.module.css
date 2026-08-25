@@ -1,5 +1,6 @@
 .page {
-  max-width: 1100px;
+  width: 100%;
+  max-width: none;
 }
 
 .bread {
@@ -93,8 +94,9 @@
 
 .card {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
   transition: border-color 320ms ease, box-shadow 320ms ease;
 }
@@ -124,7 +126,7 @@
 }
 
 .cardTitle {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
   font-weight: 600;
   line-height: 1.4;
 }
@@ -199,7 +201,7 @@
 }
 
 .detailValue {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
   color: var(--color-text-primary);
   line-height: 1.35;
   word-break: break-word;

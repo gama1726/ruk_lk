@@ -1,11 +1,13 @@
 .page {
-  max-width: 1200px;
+  width: 100%;
+  max-width: none;
 }
 
 .title {
-  margin: 0 0 1.25rem;
-  font-size: var(--font-size-2xl);
+  margin: 0 0 var(--page-gap);
+  font-size: var(--font-size-3xl);
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--color-text-primary);
 }
 
@@ -25,7 +27,7 @@
 
 .emptyWrap {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
