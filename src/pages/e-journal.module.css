@@ -426,6 +426,147 @@
   background: rgba(81, 48, 142, 0.03);
 }
 
+.rowClickable {
+  cursor: pointer;
+}
+
+tr.rowClickable:hover td {
+  background: rgba(81, 48, 142, 0.06);
+}
+
+tr.rowClickable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.mobileCard.rowClickable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.mobileCard.rowClickable:hover {
+  border-color: rgba(81, 48, 142, 0.25);
+}
+
+.detail {
+  display: grid;
+  gap: 1rem;
+}
+
+.detailMeta {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.detailTeacher {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.detailStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.detailTableWrap {
+  min-width: 0;
+}
+
+.detailTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.detailTable th {
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.detailTable td {
+  padding: 0.65rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  vertical-align: top;
+}
+
+.detailTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.detailDate {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.detailKind {
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.detailTopic {
+  margin: 0;
+  color: var(--color-text-primary);
+  line-height: 1.35;
+}
+
+.detailComment {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+.detailEmpty {
+  color: var(--color-text-muted);
+}
+
+.detailMobileList {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0.65rem;
+}
+
+.detailMobileItem {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-muted);
+}
+
+.detailMobileHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+}
+
+@media (max-width: 480px) {
+  .detailTable {
+    display: none;
+  }
+
+  .detailMobileList {
+    display: grid;
+  }
+}
+
 .subjectCell {
   display: flex;
   align-items: flex-start;

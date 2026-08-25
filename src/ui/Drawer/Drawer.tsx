@@ -6,9 +6,11 @@ export interface DrawerProps {
   title: string
   onClose: () => void
   children: ReactNode
+  /** Широкая панель для таблиц и детализации */
+  wide?: boolean
 }
 
-export function Drawer({ open, title, onClose, children }: DrawerProps) {
+export function Drawer({ open, title, onClose, children, wide = false }: DrawerProps) {
   useEffect(() => {
     if (!open) return
 
@@ -30,7 +32,12 @@ export function Drawer({ open, title, onClose, children }: DrawerProps) {
   return (
     <>
       <div className={styles.overlay} onClick={onClose} aria-hidden="true" />
-      <aside className={styles.drawer} role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <aside
+        className={[styles.drawer, wide ? styles.wide : ''].filter(Boolean).join(' ')}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+      >
         <div className={styles.header}>
           <h2 id="drawer-title" className={styles.title}>
             {title}

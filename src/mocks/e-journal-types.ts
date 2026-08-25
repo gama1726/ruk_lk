@@ -5,6 +5,22 @@
 
 export type JournalPassStatus = 'passed' | 'failed' | 'in_progress'
 
+export type JournalCellValue = 2 | 3 | 4 | 5 | 'н' | 'н/б' | 'осв' | 'з' | 'нз' | null
+
+export type JournalLessonKind = 'лекция' | 'практика' | 'лабораторная' | 'консультация' | 'экзамен'
+
+/** Одно занятие дисциплины с отметкой */
+export type JournalLesson = {
+  id: string
+  subjectId: string
+  /** YYYY-MM-DD */
+  date: string
+  kind: JournalLessonKind
+  topic: string
+  value: JournalCellValue
+  comment?: string
+}
+
 export type JournalSubjectRow = {
   id: string
   name: string

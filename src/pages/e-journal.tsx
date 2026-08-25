@@ -23,17 +23,22 @@ import {
   gradeTone,
   journalAttentionItems,
   journalAttentionSubjects,
+  journalLessonsForSubject,
+  journalRowById,
   journalSemesters,
   journalStudentName,
   journalSubjects,
   journalSummary,
   journalTeachers,
   journalUpcomingLessons,
+  kindShort,
+  markHint,
   statusLabel,
 } from '@/mocks/e-journal'
+import type { JournalSubjectRow } from '@/mocks/e-journal-types'
 import { paths } from '@/paths'
 import { useCurrentProgram } from '@/study'
-import { Button, NoData, ScreenHeader, Select } from '@/ui'
+import { Button, Drawer, NoData, ScreenHeader, Select } from '@/ui'
 import styles from './e-journal.module.css'
 
 const PAGE_SIZE = 6
@@ -43,6 +48,119 @@ const attentionIcons = {
   attendance: Armchair,
   grade: FileText,
 } as const
+
+function SubjectDetail({
+  row,
+  onClose,
+}: {
+  row: JournalSubjectRow
+  onClose: () => void
+}) {
+  const lessons = useMemo(() => journalLessonsForSubject(row.id), [row.id])
+
+  return (
+    <Drawer open wide title={row.name} onClose={onClose}>
+      <div className={styles.detail}>
+        <div className={styles.detailMeta}>
+          <p className={styles.detailTeacher}>{row.teacher}</p>
+          <div className={styles.detailStats}>
+            <span>Посещаемость: {row.attendancePercent}%</span>
+            <span>
+              Итог:{' '}
+              {row.finalScore != null ? row.finalScore.toFixed(2).replace('.', ',') : '—'}
+            </span>
+            <span
+              className={[
+                styles.status,
+                row.status === 'passed'
+                  ? styles.statusPass
+                  : row.status === 'failed'
+                    ? styles.statusFail
+                    : styles.statusProgress,
+              ].join(' ')}
+            >
+              {statusLabel(row.status)}
+            </span>
+          </div>
+        </div>
+
+        {lessons.length === 0 ? (
+          <NoData title="Нет занятий" description="По этой дисциплине пока нет отметок." />
+        ) : (
+          <div className={styles.detailTableWrap}>
+            <table className={styles.detailTable}>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Вид</th>
+                  <th>Тема</th>
+                  <th>Отметка</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lessons.map((lesson) => (
+                  <tr key={lesson.id}>
+                    <td className={styles.detailDate}>{formatJournalDate(lesson.date)}</td>
+                    <td className={styles.detailKind}>{kindShort(lesson.kind)}</td>
+                    <td className={styles.detailTopic}>
+                      {lesson.topic}
+                      {lesson.comment ? (
+                        <span className={styles.detailComment}>{lesson.comment}</span>
+                      ) : null}
+                    </td>
+                    <td>
+                      {lesson.value != null ? (
+                        <span
+                          className={[
+                            styles.grade,
+                            styles[`grade_${gradeTone(lesson.value)}`],
+                          ].join(' ')}
+                          title={markHint(lesson.value)}
+                        >
+                          {lesson.value}
+                        </span>
+                      ) : (
+                        <span className={styles.detailEmpty}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <ul className={styles.detailMobileList}>
+              {lessons.map((lesson) => (
+                <li key={`${lesson.id}-m`} className={styles.detailMobileItem}>
+                  <div className={styles.detailMobileHead}>
+                    <span className={styles.detailDate}>{formatJournalDate(lesson.date)}</span>
+                    <span className={styles.detailKind}>{kindShort(lesson.kind)}</span>
+                    {lesson.value != null ? (
+                      <span
+                        className={[
+                          styles.grade,
+                          styles[`grade_${gradeTone(lesson.value)}`],
+                        ].join(' ')}
+                        title={markHint(lesson.value)}
+                      >
+                        {lesson.value}
+                      </span>
+                    ) : (
+                      <span className={styles.detailEmpty}>—</span>
+                    )}
+                  </div>
+                  <p className={styles.detailTopic}>{lesson.topic}</p>
+                  {lesson.comment ? (
+                    <p className={styles.detailComment}>{lesson.comment}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </Drawer>
+  )
+}
 
 /**
  * Сводный журнал: фильтры, карточки метрик, таблица дисциплин.
@@ -54,6 +172,15 @@ export function EJournal() {
   const [teacher, setTeacher] = useState('all')
   const [visible, setVisible] = useState(PAGE_SIZE)
   const [attentionOnly, setAttentionOnly] = useState(false)
+  const [openedSubjectId, setOpenedSubjectId] = useState<string | null>(null)
+
+  const openedRow = useMemo(
+    () => (openedSubjectId ? journalRowById(openedSubjectId) : undefined),
+    [openedSubjectId],
+  )
+
+  const openSubject = (subjectId: string) => setOpenedSubjectId(subjectId)
+  const closeSubject = () => setOpenedSubjectId(null)
 
   const subjects = useMemo(() => journalSubjects(semesterId), [semesterId])
   const teachers = useMemo(() => journalTeachers(semesterId), [semesterId])
@@ -237,7 +364,20 @@ export function EJournal() {
                 </thead>
                 <tbody>
                   {visibleRows.map((row) => (
-                    <tr key={row.id}>
+                    <tr
+                      key={row.id}
+                      className={styles.rowClickable}
+                      onClick={() => openSubject(row.id)}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          openSubject(row.id)
+                        }
+                      }}
+                      role="button"
+                      aria-label={`Открыть журнал: ${row.name}`}
+                    >
                       <td>
                         <div className={styles.subjectCell}>
                           <span
@@ -299,7 +439,20 @@ export function EJournal() {
 
             <ul className={styles.mobileList}>
               {visibleRows.map((row) => (
-                <li key={row.id} className={styles.mobileCard}>
+                <li
+                  key={row.id}
+                  className={[styles.mobileCard, styles.rowClickable].join(' ')}
+                  onClick={() => openSubject(row.id)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      openSubject(row.id)
+                    }
+                  }}
+                  role="button"
+                  aria-label={`Открыть журнал: ${row.name}`}
+                >
                   <div className={styles.subjectCell}>
                     <span
                       className={[styles.dot, styles[`dot_${row.accent}`]].join(' ')}
@@ -412,7 +565,24 @@ export function EJournal() {
                   {attentionItems.map((item) => {
                     const Icon = attentionIcons[item.kind]
                     return (
-                      <li key={item.id} className={styles.attentionItem}>
+                      <li
+                        key={item.id}
+                        className={[styles.attentionItem, styles.rowClickable].join(' ')}
+                        onClick={() => {
+                          const row = allRows.find((r) => r.name === item.subject)
+                          if (row) openSubject(row.id)
+                        }}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            const row = allRows.find((r) => r.name === item.subject)
+                            if (row) openSubject(row.id)
+                          }
+                        }}
+                        role="button"
+                        aria-label={`Открыть журнал: ${item.subject}`}
+                      >
                         <span
                           className={[
                             styles.attentionIcon,
@@ -452,6 +622,8 @@ export function EJournal() {
             </section>
           </aside>
         </div>
+
+      {openedRow ? <SubjectDetail row={openedRow} onClose={closeSubject} /> : null}
     </div>
   )
 }

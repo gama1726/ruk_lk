@@ -5,6 +5,9 @@
 
 import type {
   JournalAttentionItem,
+  JournalCellValue,
+  JournalLesson,
+  JournalLessonKind,
   JournalPassStatus,
   JournalSemester,
   JournalSubjectRow,
@@ -166,6 +169,336 @@ const rows: JournalSubjectRow[] = [
     accent: 'blue',
   },
 ]
+
+const lessonTopics: Record<string, string[]> = {
+  mkt: [
+    'Введение в маркетинг',
+    'Сегментирование рынка',
+    'Маркетинговые исследования',
+    'Брендинг и позиционирование',
+    'Ценообразование',
+  ],
+  law: [
+    'Источники права',
+    'Гражданское право: субъекты',
+    'Договорное право',
+    'Трудовое право',
+    'Административная ответственность',
+  ],
+  web: [
+    'HTML и семантика',
+    'CSS: flex и grid',
+    'JavaScript: DOM',
+    'React: компоненты',
+    'React: состояние',
+    'Маршрутизация SPA',
+    'Работа с API',
+    'Деплой фронтенда',
+  ],
+  db: [
+    'Модель данных',
+    'SQL: выборки',
+    'JOIN и агрегации',
+    'Нормализация',
+    'Индексы',
+    'Транзакции',
+    'Проектирование БД',
+  ],
+  sec: [
+    'Угрозы ИБ',
+    'Криптография',
+    'Аутентификация',
+    'Сетевая безопасность',
+    'Политики доступа',
+    'Аудит',
+    'Защита веб-приложений',
+    'Инцидент-менеджмент',
+  ],
+  math: [
+    'Множества и отображения',
+    'Графы',
+    'Комбинаторика',
+    'Логика',
+    'Булевы функции',
+    'Конечные автоматы',
+    'Алгоритмы на графах',
+    'Рекуррентные соотношения',
+  ],
+  pe: [
+    'Бasketball',
+    'Volleyball',
+    'Athletics',
+    'Gym',
+    'Football',
+  ],
+  econ: [
+    'Организация предприятия',
+    'Организационная структура',
+    'Управление персоналом',
+    'Мотивация',
+    'Экономическая эффективность',
+  ],
+  eng: [
+    'Academic vocabulary',
+    'Presentations',
+    'Business correspondence',
+    'Negotiations',
+    'Case study',
+  ],
+  hist: [
+    'Россия в XIX веке',
+    'Реформы Александра II',
+    'Общественные движения',
+    'Первая мировая',
+    '1917 год',
+  ],
+}
+
+const detailedLessons: JournalLesson[] = [
+  {
+    id: 'web-1',
+    subjectId: 'web',
+    date: '2026-02-12',
+    kind: 'лекция',
+    topic: 'HTML и семантика',
+    value: 5,
+  },
+  {
+    id: 'web-2',
+    subjectId: 'web',
+    date: '2026-02-19',
+    kind: 'практика',
+    topic: 'CSS: flex и grid',
+    value: 4,
+  },
+  {
+    id: 'web-3',
+    subjectId: 'web',
+    date: '2026-02-26',
+    kind: 'практика',
+    topic: 'JavaScript: DOM',
+    value: 'н',
+    comment: 'Болел, справка предоставлена',
+  },
+  {
+    id: 'web-4',
+    subjectId: 'web',
+    date: '2026-03-05',
+    kind: 'лабораторная',
+    topic: 'React: компоненты',
+    value: 4,
+  },
+  {
+    id: 'web-5',
+    subjectId: 'web',
+    date: '2026-03-12',
+    kind: 'лабораторная',
+    topic: 'React: состояние',
+    value: 5,
+  },
+  {
+    id: 'web-6',
+    subjectId: 'web',
+    date: '2026-04-02',
+    kind: 'практика',
+    topic: 'Маршрутизация SPA',
+    value: 3,
+    comment: 'Не сдал лабораторную в срок',
+  },
+  {
+    id: 'web-7',
+    subjectId: 'web',
+    date: '2026-04-16',
+    kind: 'лабораторная',
+    topic: 'Работа с API',
+    value: 5,
+  },
+  {
+    id: 'web-8',
+    subjectId: 'web',
+    date: '2026-06-02',
+    kind: 'консультация',
+    topic: 'Деплой фронтенда',
+    value: 4,
+  },
+  {
+    id: 'db-1',
+    subjectId: 'db',
+    date: '2026-02-14',
+    kind: 'лекция',
+    topic: 'Модель данных',
+    value: 5,
+  },
+  {
+    id: 'db-2',
+    subjectId: 'db',
+    date: '2026-02-21',
+    kind: 'практика',
+    topic: 'SQL: выборки',
+    value: 4,
+  },
+  {
+    id: 'db-3',
+    subjectId: 'db',
+    date: '2026-03-07',
+    kind: 'лабораторная',
+    topic: 'JOIN и агрегации',
+    value: 5,
+  },
+  {
+    id: 'db-4',
+    subjectId: 'db',
+    date: '2026-03-21',
+    kind: 'практика',
+    topic: 'Нормализация',
+    value: 'н',
+  },
+  {
+    id: 'db-5',
+    subjectId: 'db',
+    date: '2026-04-04',
+    kind: 'лабораторная',
+    topic: 'Индексы',
+    value: 2,
+    comment: 'Контрольная работа — пересдача',
+  },
+  {
+    id: 'db-6',
+    subjectId: 'db',
+    date: '2026-04-18',
+    kind: 'практика',
+    topic: 'Транзакции',
+    value: 4,
+  },
+  {
+    id: 'db-7',
+    subjectId: 'db',
+    date: '2026-05-13',
+    kind: 'консультация',
+    topic: 'Проектирование БД',
+    value: 5,
+  },
+  {
+    id: 'law-1',
+    subjectId: 'law',
+    date: '2026-02-11',
+    kind: 'лекция',
+    topic: 'Источники права',
+    value: 3,
+  },
+  {
+    id: 'law-2',
+    subjectId: 'law',
+    date: '2026-02-25',
+    kind: 'практика',
+    topic: 'Гражданское право: субъекты',
+    value: 4,
+  },
+  {
+    id: 'law-3',
+    subjectId: 'law',
+    date: '2026-03-11',
+    kind: 'практика',
+    topic: 'Договорное право',
+    value: 3,
+  },
+  {
+    id: 'law-4',
+    subjectId: 'law',
+    date: '2026-04-08',
+    kind: 'лекция',
+    topic: 'Трудовое право',
+    value: 4,
+  },
+  {
+    id: 'law-5',
+    subjectId: 'law',
+    date: '2026-05-08',
+    kind: 'экзамен',
+    topic: 'Административная ответственность',
+    value: 3,
+    comment: 'Итоговая аттестация — не зачтено',
+  },
+]
+
+function shiftIsoDate(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00`)
+  d.setDate(d.getDate() + days)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const lessonKinds: JournalLessonKind[] = ['лекция', 'практика', 'лабораторная', 'практика', 'консультация']
+
+/** Занятия дисциплины по дням (мок → 1С) */
+export function journalLessonsForSubject(subjectId: string): JournalLesson[] {
+  const detailed = detailedLessons
+    .filter((l) => l.subjectId === subjectId)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
+
+  if (detailed.length > 0) return detailed
+
+  const row = rows.find((r) => r.id === subjectId)
+  if (!row) return []
+
+  const topics = lessonTopics[subjectId] ?? []
+  return row.grades.map((value, index) => {
+    const kind = lessonKinds[index % lessonKinds.length]
+    const topic = topics[index] ?? `Занятие ${index + 1}`
+    const date = shiftIsoDate(row.lastDate, -(row.grades.length - 1 - index) * 7)
+
+    return {
+      id: `${subjectId}-gen-${index}`,
+      subjectId,
+      date,
+      kind,
+      topic,
+      value,
+    }
+  })
+}
+
+/** Строка сводки по id дисциплины */
+export function journalRowById(subjectId: string): JournalSubjectRow | undefined {
+  return rows.find((r) => r.id === subjectId)
+}
+
+/** Короткая подпись вида занятия */
+export function kindShort(kind: JournalLessonKind): string {
+  switch (kind) {
+    case 'лекция':
+      return 'Лек'
+    case 'практика':
+      return 'Пр'
+    case 'лабораторная':
+      return 'Лаб'
+    case 'консультация':
+      return 'Конс'
+    case 'экзамен':
+      return 'Экз'
+  }
+}
+
+/** Пояснение отметки для подсказки */
+export function markHint(value: JournalCellValue): string {
+  if (value == null) return 'Нет отметки'
+  switch (value) {
+    case 'н':
+      return 'Неявка'
+    case 'н/б':
+      return 'Неявка по болезни'
+    case 'осв':
+      return 'Освобождение'
+    case 'з':
+      return 'Зачёт'
+    case 'нз':
+      return 'Не зачёт'
+    default:
+      return `Оценка ${value}`
+  }
+}
 
 /** Ближайшие занятия для боковой панели (мок, позже — из расписания 1С) */
 export const journalUpcomingLessons: JournalUpcomingLesson[] = [
@@ -351,11 +684,11 @@ export function attendanceLabel(percent: number): string {
   return 'Низкая посещаемость'
 }
 
-export function gradeTone(grade: JournalSubjectRow['grades'][number]): string {
+export function gradeTone(grade: JournalCellValue): string {
   if (grade === 5 || grade === 'з') return 'great'
   if (grade === 4) return 'good'
   if (grade === 3) return 'mid'
   if (grade === 2 || grade === 'нз') return 'fail'
-  if (grade === 'н' || grade === 'н/б') return 'absent'
+  if (grade === 'н' || grade === 'н/б' || grade === 'осв') return 'absent'
   return 'mid'
 }

@@ -20,6 +20,10 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+.wide {
+  width: min(560px, 92vw);
+}
+
 .header {
   display: flex;
   align-items: center;
