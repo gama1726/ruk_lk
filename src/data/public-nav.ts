@@ -17,6 +17,5 @@ export type PublicNavItem = {
 export const publicNav: PublicNavItem[] = [
   { to: paths.resources, label: 'Ресурсы' },
   { href: moodleEostudUrl, label: 'Дистанционное обучение' },
-  { to: paths.support, label: 'Техническая поддержка (dev)' },
-  { to: paths.support, label: 'Обращение в приёмную (dev)' },
+  { to: paths.support, label: 'Техническая поддержка' },
 ]

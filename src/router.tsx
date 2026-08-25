@@ -31,8 +31,6 @@ import { Orders } from '@/pages/orders'
 import { Services } from '@/pages/services'
 import { Requests } from '@/pages/requests'
 import { Payments } from '@/pages/payments'
-import { Dormitory } from '@/pages/dormitory'
-import { BypassList } from '@/pages/bypass-list'
 import { Psychologist } from '@/pages/psychologist'
 import { Portfolio } from '@/pages/portfolio'
 import { Library } from '@/pages/library'
@@ -96,8 +94,6 @@ export const router = createBrowserRouter([
           { path: paths.services, element: <Services /> },
           { path: paths.requests, element: <Requests /> },
           { path: paths.payments, element: <Payments /> },
-          { path: paths.dormitory, element: <Dormitory /> },
-          { path: paths.bypassList, element: <BypassList /> },
           { path: paths.psychologist, element: <Psychologist /> },
           { path: paths.portfolio, element: <Portfolio /> },
           { path: paths.library, element: <Library /> },

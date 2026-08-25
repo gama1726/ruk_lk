@@ -1,5 +1,6 @@
 /**
  * @file Мок заявлений и хранилище в сессии.
+ * @remarks Студент: Мишичкин Г.Д. После F5 — снова seed.
  */
 
 import { create } from 'zustand'
@@ -8,30 +9,57 @@ import { requestTypes } from './requests-types'
 
 const seed: RequestItem[] = [
   {
-    id: 'req-1042',
+    id: 'req-1187',
     typeId: 'study-place',
     typeLabel: 'Справка с места учёбы',
-    createdAt: '2026-06-10',
+    createdAt: '2026-05-28',
     status: 'ready',
-    comment: 'Для работодателя',
+    comment: 'Для оформления пропуска на практику в ООО «Кооператив-Цифра»',
     delivery: 'Лично в деканате',
   },
   {
-    id: 'req-1058',
+    id: 'req-1172',
     typeId: 'study-period',
     typeLabel: 'Справка о периоде обучения',
-    createdAt: '2026-06-14',
+    createdAt: '2026-05-20',
     status: 'processing',
-    comment: 'Нужна с печатью',
+    comment: 'Нужна с гербовой печатью, срок — до 1 июня',
     delivery: 'Электронная копия',
   },
   {
-    id: 'req-1011',
+    id: 'req-1154',
     typeId: 'dean',
     typeLabel: 'Заявление в деканат',
-    createdAt: '2026-05-20',
+    createdAt: '2026-05-12',
+    status: 'sent',
+    comment: 'Прошу разрешить сдачу задолженности по дисциплине «Право» в дополнительную сессию',
+    delivery: 'Лично в деканате',
+  },
+  {
+    id: 'req-1120',
+    typeId: 'academic-leave',
+    typeLabel: 'Заявление на академический отпуск',
+    createdAt: '2026-04-03',
+    status: 'rejected',
+    comment: 'По семейным обстоятельствам. Отказано: недостаточно документов',
+    delivery: 'Лично в деканате',
+  },
+  {
+    id: 'req-1098',
+    typeId: 'dean',
+    typeLabel: 'Заявление в деканат',
+    createdAt: '2026-03-18',
     status: 'archived',
-    comment: 'Перенос сессии',
+    comment: 'Перенос консультации по «Web-технологиям» на 25 марта',
+    delivery: 'Электронная копия',
+  },
+  {
+    id: 'req-1042',
+    typeId: 'study-place',
+    typeLabel: 'Справка с места учёбы',
+    createdAt: '2026-02-10',
+    status: 'archived',
+    comment: 'Для оформления социальной карты студента',
     delivery: 'Лично в деканате',
   },
 ]

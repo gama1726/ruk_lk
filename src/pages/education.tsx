@@ -10,12 +10,12 @@ import styles from './services.module.css'
 
 const items = [
   { to: paths.attendance, title: 'Посещаемость (dev)', note: 'Журнал и процент по дисциплинам' },
-  { to: paths.eJournal, title: 'Электронный журнал (dev)', note: 'Оценки и неявки по дисциплинам' },
+  { to: paths.eJournal, title: 'Электронный журнал', note: 'Оценки и неявки по дисциплинам' },
   { to: paths.recordBook, title: 'Зачётная книжка', note: 'Оценки, БРС и средний балл' },
   { to: paths.debts, title: 'Задолженности', note: 'Академические долги' },
   { to: paths.studyPlan, title: 'Учебный план', note: 'Дисциплины, практика и ГИА' },
   { to: paths.roadmap, title: 'Траектория обучения', note: 'Дисциплины по семестрам' },
-  { to: paths.teachers, title: 'Преподаватели (dev)', note: 'Контакты и консультации' },
+  { to: paths.teachers, title: 'Преподаватели', note: 'Контакты и консультации' },
   { to: paths.orders, title: 'Приказы', note: 'Приказы по обучению' },
 ] as const
 
