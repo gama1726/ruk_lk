@@ -34,3 +34,29 @@ export type JournalSemester = {
   id: string
   label: string
 }
+
+/** Ближайшее занятие в боковой панели журнала */
+export type JournalUpcomingLesson = {
+  id: string
+  /** YYYY-MM-DD */
+  date: string
+  subject: string
+  start: string
+  end: string
+  room: string
+  teacher: string
+}
+
+export type JournalAttentionKind = 'failed' | 'attendance' | 'grade'
+
+/** Предупреждение в блоке «Требует внимания» */
+export type JournalAttentionItem = {
+  id: string
+  kind: JournalAttentionKind
+  title: string
+  subject: string
+  detail?: string
+  /** Относительная подпись времени */
+  time: string
+  accent: 'purple' | 'orange' | 'pink' | 'green'
+}

@@ -3,24 +3,46 @@
  */
 
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  AlertTriangle,
+  Armchair,
+  Calendar,
+  CalendarDays,
+  CircleCheck,
+  CircleX,
+  FileText,
+  Star,
+} from 'lucide-react'
 import { programLabel } from '@/mocks/format'
 import {
   attendanceLabel,
   filterJournalRows,
   formatJournalDate,
+  formatUpcomingDate,
   gradeTone,
+  journalAttentionItems,
+  journalAttentionSubjects,
   journalSemesters,
   journalStudentName,
   journalSubjects,
   journalSummary,
   journalTeachers,
+  journalUpcomingLessons,
   statusLabel,
 } from '@/mocks/e-journal'
+import { paths } from '@/paths'
 import { useCurrentProgram } from '@/study'
 import { Button, NoData, ScreenHeader, Select } from '@/ui'
 import styles from './e-journal.module.css'
 
 const PAGE_SIZE = 6
+
+const attentionIcons = {
+  failed: CircleX,
+  attendance: Armchair,
+  grade: FileText,
+} as const
 
 /**
  * Сводный журнал: фильтры, карточки метрик, таблица дисциплин.
@@ -31,14 +53,21 @@ export function EJournal() {
   const [subject, setSubject] = useState('all')
   const [teacher, setTeacher] = useState('all')
   const [visible, setVisible] = useState(PAGE_SIZE)
+  const [attentionOnly, setAttentionOnly] = useState(false)
 
   const subjects = useMemo(() => journalSubjects(semesterId), [semesterId])
   const teachers = useMemo(() => journalTeachers(semesterId), [semesterId])
   const summary = useMemo(() => journalSummary(semesterId), [semesterId])
-  const rows = useMemo(
+  const attentionItems = useMemo(() => journalAttentionItems(semesterId), [semesterId])
+  const attentionSubjects = useMemo(() => journalAttentionSubjects(semesterId), [semesterId])
+  const allRows = useMemo(
     () => filterJournalRows(semesterId, subject, teacher),
     [semesterId, subject, teacher],
   )
+  const rows = useMemo(() => {
+    if (!attentionOnly) return allRows
+    return allRows.filter((r) => attentionSubjects.includes(r.name))
+  }, [allRows, attentionOnly, attentionSubjects])
 
   const visibleRows = rows.slice(0, visible)
   const hasMore = visible < rows.length
@@ -48,6 +77,7 @@ export function EJournal() {
     setSubject('all')
     setTeacher('all')
     setVisible(PAGE_SIZE)
+    setAttentionOnly(false)
   }
 
   const onSemesterChange = (id: string) => {
@@ -55,6 +85,7 @@ export function EJournal() {
     setSubject('all')
     setTeacher('all')
     setVisible(PAGE_SIZE)
+    setAttentionOnly(false)
   }
 
   const deltaText =
@@ -109,11 +140,11 @@ export function EJournal() {
 
       <section className={styles.cards} aria-label="Сводка">
         <article className={[styles.card, styles.cardAvg].join(' ')}>
-          <div className={styles.cardTop}>
-            <span className={styles.cardIcon} aria-hidden>
-              ★
-            </span>
+          <div className={styles.cardHead}>
             <span className={styles.cardLabel}>Средний балл</span>
+            <span className={styles.cardIconWrap} aria-hidden>
+              <Star className={styles.cardIconSvg} strokeWidth={2} />
+            </span>
           </div>
           <p className={styles.cardValue}>
             {summary.average.toFixed(2).replace('.', ',')}{' '}
@@ -124,11 +155,11 @@ export function EJournal() {
         </article>
 
         <article className={[styles.card, styles.cardAtt].join(' ')}>
-          <div className={styles.cardTop}>
-            <span className={styles.cardIcon} aria-hidden>
-              ▦
-            </span>
+          <div className={styles.cardHead}>
             <span className={styles.cardLabel}>Посещаемость</span>
+            <span className={styles.cardIconWrap} aria-hidden>
+              <Calendar className={styles.cardIconSvg} strokeWidth={2} />
+            </span>
           </div>
           <p className={styles.cardValue}>{summary.attendancePercent}%</p>
           <p className={styles.cardHint}>{attendanceLabel(summary.attendancePercent)}</p>
@@ -141,11 +172,11 @@ export function EJournal() {
         </article>
 
         <article className={[styles.card, styles.cardAbs].join(' ')}>
-          <div className={styles.cardTop}>
-            <span className={styles.cardIcon} aria-hidden>
-              ○
-            </span>
+          <div className={styles.cardHead}>
             <span className={styles.cardLabel}>Пропуски</span>
+            <span className={styles.cardIconWrap} aria-hidden>
+              <Armchair className={styles.cardIconSvg} strokeWidth={2} />
+            </span>
           </div>
           <p className={styles.cardValue}>{summary.absences}</p>
           <p className={styles.cardHint}>Занятий пропущено</p>
@@ -158,11 +189,11 @@ export function EJournal() {
         </article>
 
         <article className={[styles.card, styles.cardDone].join(' ')}>
-          <div className={styles.cardTop}>
-            <span className={styles.cardIcon} aria-hidden>
-              ✓
-            </span>
+          <div className={styles.cardHead}>
             <span className={styles.cardLabel}>Закрыто дисциплин</span>
+            <span className={styles.cardIconWrap} aria-hidden>
+              <CircleCheck className={styles.cardIconSvg} strokeWidth={2} />
+            </span>
           </div>
           <p className={styles.cardValue}>
             {summary.closed} <span className={styles.cardMax}>/ {summary.total}</span>
@@ -179,148 +210,248 @@ export function EJournal() {
         </article>
       </section>
 
-      {rows.length === 0 ? (
-        <NoData title="Нет дисциплин" description="Измените фильтры или выберите другой семестр." />
-      ) : (
-        <>
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Дисциплина</th>
-                  <th>Дата</th>
-                  <th>Посещаемость</th>
-                  <th>Текущие оценки</th>
-                  <th>Итоговый балл</th>
-                  <th>Статус</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleRows.map((row) => (
-                  <tr key={row.id}>
-                    <td>
-                      <div className={styles.subjectCell}>
-                        <span
-                          className={[styles.dot, styles[`dot_${row.accent}`]].join(' ')}
-                          aria-hidden
-                        />
-                        <span>
-                          <span className={styles.subjectName}>{row.name}</span>
-                          <span className={styles.subjectTeacher}>{row.teacher}</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td className={styles.muted}>{formatJournalDate(row.lastDate)}</td>
-                    <td>
-                      <span
-                        className={
-                          row.attendancePercent < 75 ? styles.attLow : styles.attOk
-                        }
-                      >
-                        {row.attendancePercent}%
-                      </span>
-                    </td>
-                    <td>
-                      <div className={styles.grades}>
-                        {row.grades.map((g, i) => (
+      <div className={styles.contentLayout}>
+        <div className={styles.main}>
+          {rows.length === 0 ? (
+            <NoData
+              title={attentionOnly ? 'Нет предупреждений' : 'Нет дисциплин'}
+              description={
+                attentionOnly
+                  ? 'По выбранным фильтрам проблемных дисциплин не найдено.'
+                  : 'Измените фильтры или выберите другой семестр.'
+              }
+            />
+          ) : (
+            <>
+              <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Дисциплина</th>
+                    <th>Дата</th>
+                    <th>Посещаемость</th>
+                    <th>Текущие оценки</th>
+                    <th>Итоговый балл</th>
+                    <th>Статус</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <div className={styles.subjectCell}>
                           <span
-                            key={`${row.id}-${i}`}
-                            className={[styles.grade, styles[`grade_${gradeTone(g)}`]].join(' ')}
-                          >
-                            {g}
+                            className={[styles.dot, styles[`dot_${row.accent}`]].join(' ')}
+                            aria-hidden
+                          />
+                          <span>
+                            <span className={styles.subjectName}>{row.name}</span>
+                            <span className={styles.subjectTeacher}>{row.teacher}</span>
                           </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className={styles.final}>
+                        </div>
+                      </td>
+                      <td className={styles.muted}>{formatJournalDate(row.lastDate)}</td>
+                      <td>
+                        <span
+                          className={
+                            row.attendancePercent < 75 ? styles.attLow : styles.attOk
+                          }
+                        >
+                          {row.attendancePercent}%
+                        </span>
+                      </td>
+                      <td>
+                        <div className={styles.grades}>
+                          {row.grades.map((g, i) => (
+                            <span
+                              key={`${row.id}-${i}`}
+                              className={[styles.grade, styles[`grade_${gradeTone(g)}`]].join(' ')}
+                            >
+                              {g}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className={styles.final}>
+                        {row.finalScore != null
+                          ? row.finalScore.toFixed(2).replace('.', ',')
+                          : '—'}
+                      </td>
+                      <td>
+                        <span
+                          className={[
+                            styles.status,
+                            row.status === 'passed'
+                              ? styles.statusPass
+                              : row.status === 'failed'
+                                ? styles.statusFail
+                                : styles.statusProgress,
+                          ].join(' ')}
+                        >
+                          {statusLabel(row.status)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <ul className={styles.mobileList}>
+              {visibleRows.map((row) => (
+                <li key={row.id} className={styles.mobileCard}>
+                  <div className={styles.subjectCell}>
+                    <span
+                      className={[styles.dot, styles[`dot_${row.accent}`]].join(' ')}
+                      aria-hidden
+                    />
+                    <span>
+                      <span className={styles.subjectName}>{row.name}</span>
+                      <span className={styles.subjectTeacher}>{row.teacher}</span>
+                    </span>
+                  </div>
+                  <div className={styles.mobileMeta}>
+                    <span>{formatJournalDate(row.lastDate)}</span>
+                    <span>{row.attendancePercent}%</span>
+                    <span
+                      className={[
+                        styles.status,
+                        row.status === 'passed'
+                          ? styles.statusPass
+                          : row.status === 'failed'
+                            ? styles.statusFail
+                            : styles.statusProgress,
+                      ].join(' ')}
+                    >
+                      {statusLabel(row.status)}
+                    </span>
+                  </div>
+                  <div className={styles.grades}>
+                    {row.grades.map((g, i) => (
+                      <span
+                        key={`${row.id}-m-${i}`}
+                        className={[styles.grade, styles[`grade_${gradeTone(g)}`]].join(' ')}
+                      >
+                        {g}
+                      </span>
+                    ))}
+                  </div>
+                  <p className={styles.mobileFinal}>
+                    Итог:{' '}
+                    <strong>
                       {row.finalScore != null
                         ? row.finalScore.toFixed(2).replace('.', ',')
                         : '—'}
-                    </td>
-                    <td>
-                      <span
-                        className={[
-                          styles.status,
-                          row.status === 'passed'
-                            ? styles.statusPass
-                            : row.status === 'failed'
-                              ? styles.statusFail
-                              : styles.statusProgress,
-                        ].join(' ')}
-                      >
-                        {statusLabel(row.status)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </strong>
+                  </p>
+                </li>
+              ))}
+            </ul>
 
-          <ul className={styles.mobileList}>
-            {visibleRows.map((row) => (
-              <li key={row.id} className={styles.mobileCard}>
-                <div className={styles.subjectCell}>
-                  <span
-                    className={[styles.dot, styles[`dot_${row.accent}`]].join(' ')}
-                    aria-hidden
-                  />
-                  <span>
-                    <span className={styles.subjectName}>{row.name}</span>
-                    <span className={styles.subjectTeacher}>{row.teacher}</span>
-                  </span>
-                </div>
-                <div className={styles.mobileMeta}>
-                  <span>{formatJournalDate(row.lastDate)}</span>
-                  <span>{row.attendancePercent}%</span>
-                  <span
-                    className={[
-                      styles.status,
-                      row.status === 'passed'
-                        ? styles.statusPass
-                        : row.status === 'failed'
-                          ? styles.statusFail
-                          : styles.statusProgress,
-                    ].join(' ')}
-                  >
-                    {statusLabel(row.status)}
-                  </span>
-                </div>
-                <div className={styles.grades}>
-                  {row.grades.map((g, i) => (
-                    <span
-                      key={`${row.id}-m-${i}`}
-                      className={[styles.grade, styles[`grade_${gradeTone(g)}`]].join(' ')}
-                    >
-                      {g}
-                    </span>
-                  ))}
-                </div>
-                <p className={styles.mobileFinal}>
-                  Итог:{' '}
-                  <strong>
-                    {row.finalScore != null
-                      ? row.finalScore.toFixed(2).replace('.', ',')
-                      : '—'}
-                  </strong>
-                </p>
-              </li>
-            ))}
-          </ul>
+            {hasMore ? (
+              <div className={styles.moreWrap}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setVisible((n) => n + PAGE_SIZE)}
+                >
+                  Показать ещё
+                </Button>
+              </div>
+            ) : null}
+            </>
+          )}
+        </div>
 
-          {hasMore ? (
-            <div className={styles.moreWrap}>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setVisible((n) => n + PAGE_SIZE)}
-              >
-                Показать ещё
-              </Button>
-            </div>
-          ) : null}
-        </>
-      )}
+        <aside className={styles.aside} aria-label="Боковая панель">
+            <section className={styles.sidePanel}>
+              <header className={styles.sidePanelHead}>
+                <span className={[styles.sidePanelIcon, styles.sidePanelIconSchedule].join(' ')} aria-hidden>
+                  <CalendarDays className={styles.sidePanelIconSvg} strokeWidth={2} />
+                </span>
+                <h2 className={styles.sidePanelTitle}>Ближайшие занятия</h2>
+              </header>
+              <ul className={styles.sidePanelList}>
+                {journalUpcomingLessons.map((lesson) => {
+                  const { day, month } = formatUpcomingDate(lesson.date)
+                  return (
+                    <li key={lesson.id} className={styles.upcomingItem}>
+                      <div className={styles.upcomingDate}>
+                        <span className={styles.upcomingDay}>{day}</span>
+                        <span className={styles.upcomingMonth}>{month}</span>
+                      </div>
+                      <div className={styles.upcomingInfo}>
+                        <span className={styles.upcomingSubject}>{lesson.subject}</span>
+                        <span className={styles.upcomingMeta}>
+                          {lesson.start} – {lesson.end}, ауд. {lesson.room}
+                        </span>
+                        <span className={styles.upcomingMeta}>{lesson.teacher}</span>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+              <footer className={styles.sidePanelFoot}>
+                <Link to={paths.schedule} className={styles.sidePanelLink}>
+                  Полное расписание →
+                </Link>
+              </footer>
+            </section>
+
+            <section className={styles.sidePanel}>
+              <header className={styles.sidePanelHead}>
+                <span className={[styles.sidePanelIcon, styles.sidePanelIconAlert].join(' ')} aria-hidden>
+                  <AlertTriangle className={styles.sidePanelIconSvg} strokeWidth={2} />
+                </span>
+                <h2 className={styles.sidePanelTitle}>Требует внимания</h2>
+              </header>
+              {attentionItems.length === 0 ? (
+                <p className={styles.sidePanelEmpty}>Всё в порядке — предупреждений нет</p>
+              ) : (
+                <ul className={styles.sidePanelList}>
+                  {attentionItems.map((item) => {
+                    const Icon = attentionIcons[item.kind]
+                    return (
+                      <li key={item.id} className={styles.attentionItem}>
+                        <span
+                          className={[
+                            styles.attentionIcon,
+                            styles[`attentionIcon_${item.accent}`],
+                          ].join(' ')}
+                          aria-hidden
+                        >
+                          <Icon className={styles.attentionIconSvg} strokeWidth={2} />
+                        </span>
+                        <div className={styles.attentionInfo}>
+                          <span className={styles.attentionTitle}>{item.title}</span>
+                          <span className={styles.attentionSubject}>
+                            по дисциплине «{item.subject}»
+                            {item.detail ? ` · ${item.detail}` : ''}
+                          </span>
+                          <span className={styles.attentionTime}>{item.time}</span>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+              <footer className={styles.sidePanelFoot}>
+                <button
+                  type="button"
+                  className={styles.sidePanelLink}
+                  onClick={() => {
+                    setAttentionOnly(true)
+                    setSubject('all')
+                    setTeacher('all')
+                    setVisible(PAGE_SIZE)
+                  }}
+                >
+                  Все предупреждения →
+                </button>
+              </footer>
+            </section>
+          </aside>
+        </div>
     </div>
   )
 }

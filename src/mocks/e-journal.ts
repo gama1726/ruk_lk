@@ -4,10 +4,12 @@
  */
 
 import type {
+  JournalAttentionItem,
   JournalPassStatus,
   JournalSemester,
   JournalSubjectRow,
   JournalSummary,
+  JournalUpcomingLesson,
 } from './e-journal-types'
 
 export const journalStudentName = 'Мишичкин Г.Д.'
@@ -164,6 +166,108 @@ const rows: JournalSubjectRow[] = [
     accent: 'blue',
   },
 ]
+
+/** Ближайшие занятия для боковой панели (мок, позже — из расписания 1С) */
+export const journalUpcomingLessons: JournalUpcomingLesson[] = [
+  {
+    id: 'u-mkt',
+    date: '2026-05-23',
+    subject: 'Маркетинг',
+    start: '10:00',
+    end: '11:30',
+    room: '405',
+    teacher: 'Петров И.И.',
+  },
+  {
+    id: 'u-law',
+    date: '2026-05-24',
+    subject: 'Право',
+    start: '12:10',
+    end: '13:30',
+    room: 'А-108',
+    teacher: 'Николаев Д.А.',
+  },
+  {
+    id: 'u-web',
+    date: '2026-05-25',
+    subject: 'Web-технологии',
+    start: '14:00',
+    end: '15:20',
+    room: 'В-102',
+    teacher: 'Петрова А.В.',
+  },
+]
+
+const monthGenitive = [
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
+] as const
+
+/** День и месяц для блока «Ближайшие занятия» */
+export function formatUpcomingDate(iso: string): { day: string; month: string } {
+  const [, m, d] = iso.split('-')
+  return { day: d, month: monthGenitive[parseInt(m, 10) - 1] }
+}
+
+/**
+ * Дисциплины и события, требующие внимания студента.
+ * @param semesterId - выбранный семестр
+ */
+export function journalAttentionItems(semesterId: string): JournalAttentionItem[] {
+  const list = rows.filter((r) => r.semesterId === semesterId)
+  const items: JournalAttentionItem[] = []
+
+  for (const row of list) {
+    if (row.status === 'failed') {
+      items.push({
+        id: `${row.id}-failed`,
+        kind: 'failed',
+        title: 'Не зачтено',
+        subject: row.name,
+        time: '3 дня назад',
+        accent: 'pink',
+      })
+    }
+    if (row.attendancePercent < 75) {
+      items.push({
+        id: `${row.id}-att`,
+        kind: 'attendance',
+        title: 'Низкая посещаемость',
+        subject: row.name,
+        detail: `${row.attendancePercent}%`,
+        time: row.attendancePercent < 70 ? 'Вчера' : '2 дня назад',
+        accent: 'orange',
+      })
+    }
+    if (row.grades.some((g) => g === 2 || g === 'нз')) {
+      items.push({
+        id: `${row.id}-grade`,
+        kind: 'grade',
+        title: 'Оценка ниже 3',
+        subject: row.name,
+        time: 'Сегодня, 09:15',
+        accent: 'purple',
+      })
+    }
+  }
+
+  return items.slice(0, 4)
+}
+
+/** Имена дисциплин из блока «Требует внимания» */
+export function journalAttentionSubjects(semesterId: string): string[] {
+  return [...new Set(journalAttentionItems(semesterId).map((i) => i.subject))]
+}
 
 export function journalTeachers(semesterId: string): string[] {
   const set = new Set(
