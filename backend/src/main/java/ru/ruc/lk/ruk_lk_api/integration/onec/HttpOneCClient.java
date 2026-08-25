@@ -56,6 +56,8 @@ public class HttpOneCClient implements OneCClient {
             ));
         } catch (HttpClientErrorException e) {
             return Optional.empty();
+        } catch (org.springframework.web.client.RestClientException e) {
+            return Optional.empty();
         }
 
     }
@@ -72,6 +74,8 @@ public class HttpOneCClient implements OneCClient {
             }
             return Optional.of(profile);
         } catch (HttpClientErrorException e) {
+            return Optional.empty();
+        } catch (org.springframework.web.client.RestClientException e) {
             return Optional.empty();
         }
     }
