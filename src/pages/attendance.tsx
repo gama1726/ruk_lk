@@ -1,21 +1,18 @@
 import { useMemo, useState } from 'react'
 import { programLabel } from '@/mocks/format'
 import {
-  attendancePeriods,
-  attendanceSubjects,
-  attendanceSummary,
-  filterAttendance,
+  attendancePeriodPresets,
+  attendanceSummaryForRange,
+  filterAttendanceDays,
   formatAttendanceDate,
-  formatCheckTime,
-  markStatusKey,
-  type AttendancePeriod,
+  formatStayDuration,
 } from '@/mocks/attendance'
-import { attendanceMarkLabel } from '@/mocks/attendance-types'
 import { useCurrentProgram } from '@/study'
 import {
   ScreenHeader,
   Select,
   Button,
+  Input,
   NoData,
   Table,
   TableHead,
@@ -23,71 +20,86 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-  StatusBadge,
 } from '@/ui'
 import styles from './attendance.module.css'
 
+const DEFAULT_PRESET = attendancePeriodPresets[0]
+
 /**
- * Страница посещаемости: фильтры, сводка, журнал с приходом и уходом.
+ * Выгрузка проходов в вуз: приход и уход по дням за выбранный период.
  */
 export function Attendance() {
   const program = useCurrentProgram()
-  const subjects = useMemo(() => attendanceSubjects(program.id), [program.id])
 
-  const [subject, setSubject] = useState('all')
-  const [period, setPeriod] = useState<AttendancePeriod>('2026-spring')
-  const [appliedSubject, setAppliedSubject] = useState('all')
-  const [appliedPeriod, setAppliedPeriod] = useState<AttendancePeriod>('2026-spring')
+  const [presetId, setPresetId] = useState(DEFAULT_PRESET.id)
+  const [from, setFrom] = useState(DEFAULT_PRESET.from)
+  const [to, setTo] = useState(DEFAULT_PRESET.to)
+  const [appliedFrom, setAppliedFrom] = useState(DEFAULT_PRESET.from)
+  const [appliedTo, setAppliedTo] = useState(DEFAULT_PRESET.to)
 
-  const summary = useMemo(
-    () => attendanceSummary(program.id, appliedPeriod),
-    [program.id, appliedPeriod],
-  )
   const rows = useMemo(
-    () => filterAttendance(program.id, appliedSubject, appliedPeriod),
-    [program.id, appliedSubject, appliedPeriod],
+    () => filterAttendanceDays(appliedFrom, appliedTo),
+    [appliedFrom, appliedTo],
+  )
+  const summary = useMemo(
+    () => attendanceSummaryForRange(appliedFrom, appliedTo),
+    [appliedFrom, appliedTo],
   )
 
-  const subjectOptions = [
-    { value: 'all', label: 'Все дисциплины' },
-    ...subjects.map((s) => ({ value: s, label: s })),
-  ]
-  const periodOptions = attendancePeriods.map((p) => ({ value: p.id, label: p.label }))
+  const presetOptions = attendancePeriodPresets.map((p) => ({ value: p.id, label: p.label }))
+
+  const onPresetChange = (id: string) => {
+    setPresetId(id)
+    const preset = attendancePeriodPresets.find((p) => p.id === id)
+    if (!preset || preset.id === 'custom') return
+    setFrom(preset.from)
+    setTo(preset.to)
+  }
 
   const applyFilters = () => {
-    setAppliedSubject(subject)
-    setAppliedPeriod(period)
+    setAppliedFrom(from)
+    setAppliedTo(to)
   }
 
   const resetFilters = () => {
-    setSubject('all')
-    setPeriod('2026-spring')
-    setAppliedSubject('all')
-    setAppliedPeriod('2026-spring')
-  }
-
-  const barClass = (percent: number) => {
-    if (percent < 70) return styles.barFillBad
-    if (percent < 80) return styles.barFillLow
-    return styles.barFill
+    setPresetId(DEFAULT_PRESET.id)
+    setFrom(DEFAULT_PRESET.from)
+    setTo(DEFAULT_PRESET.to)
+    setAppliedFrom(DEFAULT_PRESET.from)
+    setAppliedTo(DEFAULT_PRESET.to)
   }
 
   return (
     <>
-      <ScreenHeader title="Посещаемость" subtitle={programLabel(program)} />
+      <ScreenHeader
+        title="Посещаемость"
+        subtitle={`${programLabel(program)} · проходы на территорию вуза`}
+      />
 
       <div className={styles.filters}>
         <Select
-          label="Дисциплина"
-          options={subjectOptions}
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-        />
-        <Select
           label="Период"
-          options={periodOptions}
-          value={period}
-          onChange={(e) => setPeriod(e.target.value as AttendancePeriod)}
+          options={presetOptions}
+          value={presetId}
+          onChange={(e) => onPresetChange(e.target.value)}
+        />
+        <Input
+          label="С даты"
+          type="date"
+          value={from}
+          onChange={(e) => {
+            setPresetId('custom')
+            setFrom(e.target.value)
+          }}
+        />
+        <Input
+          label="По дату"
+          type="date"
+          value={to}
+          onChange={(e) => {
+            setPresetId('custom')
+            setTo(e.target.value)
+          }}
         />
         <div className={styles.filterActions}>
           <Button type="button" onClick={applyFilters}>
@@ -99,26 +111,28 @@ export function Attendance() {
         </div>
       </div>
 
-      {summary.length > 0 ? (
-        <section className={styles.summary} aria-label="Сводка по дисциплинам">
-          {summary.map((s) => (
-            <div key={s.subject} className={styles.summaryRow}>
-              <div className={styles.summaryHead}>
-                <span>{s.subject}</span>
-                <span>
-                  {s.percent}% · {s.present}/{s.total}
-                </span>
-              </div>
-              <div className={styles.bar}>
-                <div className={barClass(s.percent)} style={{ width: `${s.percent}%` }} />
-              </div>
-            </div>
-          ))}
+      {summary.days > 0 ? (
+        <section className={styles.summary} aria-label="Сводка за период">
+          <div className={styles.summaryRow}>
+            <span className={styles.summaryLabel}>Дней в вузе</span>
+            <span className={styles.summaryValue}>{summary.days}</span>
+          </div>
+          <div className={styles.summaryRow}>
+            <span className={styles.summaryLabel}>Самый ранний приход</span>
+            <span className={styles.summaryValue}>{summary.earliest}</span>
+          </div>
+          <div className={styles.summaryRow}>
+            <span className={styles.summaryLabel}>Самый поздний уход</span>
+            <span className={styles.summaryValue}>{summary.latest}</span>
+          </div>
         </section>
       ) : null}
 
       {rows.length === 0 ? (
-        <NoData title="Занятий не найдено" description="Попробуйте другой фильтр." />
+        <NoData
+          title="Нет проходов"
+          description="За выбранный период отметок о приходе и уходе нет."
+        />
       ) : (
         <>
           <div className={styles.tableWrap}>
@@ -126,62 +140,42 @@ export function Attendance() {
               <TableHead>
                 <TableRow>
                   <TableHeader>Дата</TableHeader>
-                  <TableHeader>Дисциплина</TableHeader>
-                  <TableHeader>Пара</TableHeader>
-                  <TableHeader>Пришёл</TableHeader>
-                  <TableHeader>Ушёл</TableHeader>
-                  <TableHeader>Статус</TableHeader>
+                  <TableHeader>Пришёл в вуз</TableHeader>
+                  <TableHeader>Ушёл из вуза</TableHeader>
+                  <TableHeader>Время в вузе</TableHeader>
+                  <TableHeader>КПП</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>{formatAttendanceDate(r.date)}</TableCell>
-                    <TableCell>
-                      <span className={styles.subjectCell}>
-                        <strong>{r.subject}</strong>
-                        {r.teacher ? <span className={styles.meta}>{r.teacher}</span> : null}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className={styles.subjectCell}>
-                        <span>
-                          {r.start}–{r.end}
-                        </span>
-                        {r.room ? <span className={styles.meta}>ауд. {r.room}</span> : null}
-                      </span>
-                    </TableCell>
-                    <TableCell className={styles.timeCell}>{formatCheckTime(r.checkIn)}</TableCell>
-                    <TableCell className={styles.timeCell}>{formatCheckTime(r.checkOut)}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={markStatusKey(r.mark)} label={attendanceMarkLabel[r.mark]} />
-                      {r.comment ? <span className={styles.comment}>{r.comment}</span> : null}
-                    </TableCell>
+                    <TableCell className={styles.timeCell}>{r.checkIn}</TableCell>
+                    <TableCell className={styles.timeCell}>{r.checkOut}</TableCell>
+                    <TableCell>{formatStayDuration(r.checkIn, r.checkOut)}</TableCell>
+                    <TableCell className={styles.gateCell}>{r.gate ?? '—'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
 
-          <div className={styles.cards}>
+          <ul className={styles.cards}>
             {rows.map((r) => (
-              <article key={r.id} className={styles.card}>
-                <strong>
-                  {formatAttendanceDate(r.date)} · {r.subject}
-                </strong>
+              <li key={r.id} className={styles.card}>
+                <strong>{formatAttendanceDate(r.date)}</strong>
                 <p className={styles.cardLine}>
-                  Пара: {r.start}–{r.end}
-                  {r.room ? ` · ауд. ${r.room}` : ''}
+                  Пришёл: <span className={styles.timeCell}>{r.checkIn}</span>
+                  {' · '}
+                  Ушёл: <span className={styles.timeCell}>{r.checkOut}</span>
                 </p>
                 <p className={styles.cardLine}>
-                  Пришёл: {formatCheckTime(r.checkIn)} · Ушёл: {formatCheckTime(r.checkOut)}
+                  В вузе: {formatStayDuration(r.checkIn, r.checkOut)}
                 </p>
-                {r.teacher ? <p className={styles.cardLine}>{r.teacher}</p> : null}
-                <StatusBadge status={markStatusKey(r.mark)} label={attendanceMarkLabel[r.mark]} />
-                {r.comment ? <p className={styles.comment}>{r.comment}</p> : null}
-              </article>
+                {r.gate ? <p className={styles.cardLine}>{r.gate}</p> : null}
+              </li>
             ))}
-          </div>
+          </ul>
         </>
       )}
     </>
