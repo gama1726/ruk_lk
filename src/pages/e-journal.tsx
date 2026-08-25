@@ -223,6 +223,7 @@ export function EJournal() {
   return (
     <div className={styles.page}>
       <ScreenHeader
+        size="large"
         title="Электронный журнал"
         subtitle={`${programLabel(program)} · ${journalStudentName}`}
       />
@@ -278,7 +279,6 @@ export function EJournal() {
             <span className={styles.cardMax}>/ {summary.averageMax.toFixed(2).replace('.', ',')}</span>
           </p>
           <p className={styles.cardHint}>{deltaText}</p>
-          <div className={[styles.spark, styles.sparkUp].join(' ')} aria-hidden />
         </article>
 
         <article className={[styles.card, styles.cardAtt].join(' ')}>
@@ -307,12 +307,6 @@ export function EJournal() {
           </div>
           <p className={styles.cardValue}>{summary.absences}</p>
           <p className={styles.cardHint}>Занятий пропущено</p>
-          <div className={styles.bar}>
-            <div
-              className={[styles.barFill, styles.barAbs].join(' ')}
-              style={{ width: `${Math.min(100, summary.absences * 6)}%` }}
-            />
-          </div>
         </article>
 
         <article className={[styles.card, styles.cardDone].join(' ')}>
