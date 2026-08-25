@@ -1,46 +1,25 @@
 /**
- * @file Типы посещаемости.
+ * @file Типы выгрузки посещаемости (приход / уход в вуз).
  */
 
-/** Отметка на занятии */
-export type AttendanceMark = 'present' | 'absent' | 'excused' | 'late'
-
-export const attendanceMarkLabel: Record<AttendanceMark, string> = {
-  present: 'присутствовал',
-  absent: 'отсутствовал',
-  excused: 'уважительная причина',
-  late: 'опоздание',
-}
-
-/**
- * Одно занятие в журнале посещаемости.
- */
-export type AttendanceLesson = {
+/** Одна запись: день в вузе */
+export type AttendanceDay = {
   id: string
-  programId: string
-  subject: string
   /** YYYY-MM-DD */
   date: string
-  /** Начало пары ЧЧ:ММ */
-  start: string
-  /** Конец пары ЧЧ:ММ */
-  end: string
-  mark: AttendanceMark
-  /** Фактический приход; null — не отмечался */
-  checkIn: string | null
-  /** Фактический уход; null — не отмечался / неявка */
-  checkOut: string | null
-  room?: string
-  teacher?: string
-  comment?: string
+  /** Время первого прохода на территорию */
+  checkIn: string
+  /** Время последнего выхода с территории */
+  checkOut: string
+  /** Корпус / КПП (опционально) */
+  gate?: string
 }
 
-/**
- * Сводка по дисциплине за период.
- */
-export type AttendanceSummary = {
-  subject: string
-  percent: number
-  total: number
-  present: number
+export type AttendancePeriodPreset = {
+  id: string
+  label: string
+  /** YYYY-MM-DD */
+  from: string
+  /** YYYY-MM-DD */
+  to: string
 }

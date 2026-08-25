@@ -9,7 +9,7 @@ import { ScreenHeader, Card } from '@/ui'
 import styles from './services.module.css'
 
 const items = [
-  { to: paths.attendance, title: 'Посещаемость', note: 'Приход и уход по занятиям' },
+  { to: paths.attendance, title: 'Посещаемость', note: 'Приход и уход из вуза по дням' },
   { to: paths.eJournal, title: 'Электронный журнал', note: 'Оценки и неявки по дисциплинам' },
   { to: paths.recordBook, title: 'Зачётная книжка', note: 'Оценки, БРС и средний балл' },
   { to: paths.debts, title: 'Задолженности', note: 'Академические долги' },
