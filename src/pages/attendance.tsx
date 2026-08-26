@@ -1,11 +1,22 @@
-import { useMemo, useState } from 'react'
+/**
+ * @file Выгрузка проходов в вуз: API (Perco) или мок.
+ */
+
+import { useEffect, useMemo, useState } from 'react'
+import { ApiError } from '@/apiClient'
 import { programLabel } from '@/mocks/format'
+import {
+  buildAttendancePeriodPresets,
+  fetchStudentAttendance,
+  formatAttendanceDate,
+  formatStayDuration,
+  isAttendanceApiEnabled,
+  type StudentAttendanceDto,
+} from '@/attendance'
 import {
   attendancePeriodPresets,
   attendanceSummaryForRange,
   filterAttendanceDays,
-  formatAttendanceDate,
-  formatStayDuration,
 } from '@/mocks/attendance'
 import { useCurrentProgram } from '@/study'
 import {
@@ -23,34 +34,85 @@ import {
 } from '@/ui'
 import styles from './attendance.module.css'
 
-const DEFAULT_PRESET = attendancePeriodPresets[0]
-
 /**
  * Выгрузка проходов в вуз: приход и уход по дням за выбранный период.
  */
 export function Attendance() {
   const program = useCurrentProgram()
+  const apiEnabled = isAttendanceApiEnabled()
 
-  const [presetId, setPresetId] = useState(DEFAULT_PRESET.id)
-  const [from, setFrom] = useState(DEFAULT_PRESET.from)
-  const [to, setTo] = useState(DEFAULT_PRESET.to)
-  const [appliedFrom, setAppliedFrom] = useState(DEFAULT_PRESET.from)
-  const [appliedTo, setAppliedTo] = useState(DEFAULT_PRESET.to)
-
-  const rows = useMemo(
-    () => filterAttendanceDays(appliedFrom, appliedTo),
-    [appliedFrom, appliedTo],
+  const presets = useMemo(
+    () => (apiEnabled ? buildAttendancePeriodPresets() : attendancePeriodPresets),
+    [apiEnabled],
   )
-  const summary = useMemo(
-    () => attendanceSummaryForRange(appliedFrom, appliedTo),
-    [appliedFrom, appliedTo],
-  )
+  const defaultPreset = presets[0]
 
-  const presetOptions = attendancePeriodPresets.map((p) => ({ value: p.id, label: p.label }))
+  const [presetId, setPresetId] = useState(defaultPreset.id)
+  const [from, setFrom] = useState(defaultPreset.from)
+  const [to, setTo] = useState(defaultPreset.to)
+  const [appliedFrom, setAppliedFrom] = useState(defaultPreset.from)
+  const [appliedTo, setAppliedTo] = useState(defaultPreset.to)
+
+  const [apiData, setApiData] = useState<StudentAttendanceDto | null>(null)
+  const [loading, setLoading] = useState(apiEnabled)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!apiEnabled) {
+      setLoading(false)
+      return
+    }
+    if (!appliedFrom || !appliedTo) {
+      setApiData(null)
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    void (async () => {
+      try {
+        const result = await fetchStudentAttendance(appliedFrom, appliedTo)
+        if (!cancelled) setApiData(result)
+      } catch (e) {
+        if (!cancelled) {
+          setApiData(null)
+          setError(e instanceof ApiError ? e.message : 'Не удалось загрузить проходы')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [apiEnabled, appliedFrom, appliedTo])
+
+  const rows = useMemo(() => {
+    if (apiEnabled) return apiData?.days ?? []
+    return filterAttendanceDays(appliedFrom, appliedTo)
+  }, [apiEnabled, apiData, appliedFrom, appliedTo])
+
+  const summary = useMemo(() => {
+    if (apiEnabled) {
+      return (
+        apiData?.summary ?? {
+          days: 0,
+          earliest: null as string | null,
+          latest: null as string | null,
+        }
+      )
+    }
+    return attendanceSummaryForRange(appliedFrom, appliedTo)
+  }, [apiEnabled, apiData, appliedFrom, appliedTo])
+
+  const presetOptions = presets.map((p) => ({ value: p.id, label: p.label }))
 
   const onPresetChange = (id: string) => {
     setPresetId(id)
-    const preset = attendancePeriodPresets.find((p) => p.id === id)
+    const preset = presets.find((p) => p.id === id)
     if (!preset || preset.id === 'custom') return
     setFrom(preset.from)
     setTo(preset.to)
@@ -62,11 +124,11 @@ export function Attendance() {
   }
 
   const resetFilters = () => {
-    setPresetId(DEFAULT_PRESET.id)
-    setFrom(DEFAULT_PRESET.from)
-    setTo(DEFAULT_PRESET.to)
-    setAppliedFrom(DEFAULT_PRESET.from)
-    setAppliedTo(DEFAULT_PRESET.to)
+    setPresetId(defaultPreset.id)
+    setFrom(defaultPreset.from)
+    setTo(defaultPreset.to)
+    setAppliedFrom(defaultPreset.from)
+    setAppliedTo(defaultPreset.to)
   }
 
   return (
@@ -102,16 +164,19 @@ export function Attendance() {
           }}
         />
         <div className={styles.filterActions}>
-          <Button type="button" onClick={applyFilters}>
+          <Button type="button" onClick={applyFilters} disabled={loading}>
             Показать
           </Button>
-          <Button type="button" variant="ghost" onClick={resetFilters}>
+          <Button type="button" variant="ghost" onClick={resetFilters} disabled={loading}>
             Сбросить
           </Button>
         </div>
       </div>
 
-      {summary.days > 0 ? (
+      {loading ? <p>Загрузка…</p> : null}
+      {error ? <p className={styles.error}>{error}</p> : null}
+
+      {!loading && !error && summary.days > 0 ? (
         <section className={styles.summary} aria-label="Сводка за период">
           <div className={styles.summaryRow}>
             <span className={styles.summaryLabel}>Дней в вузе</span>
@@ -128,12 +193,18 @@ export function Attendance() {
         </section>
       ) : null}
 
-      {rows.length === 0 ? (
+      {!loading && !error && rows.length === 0 ? (
         <NoData
           title="Нет проходов"
-          description="За выбранный период отметок о приходе и уходе нет."
+          description={
+            apiEnabled
+              ? 'За выбранный период в СКУД нет отметок о приходе и уходе.'
+              : 'За выбранный период отметок о приходе и уходе нет.'
+          }
         />
-      ) : (
+      ) : null}
+
+      {!loading && !error && rows.length > 0 ? (
         <>
           <div className={styles.tableWrap}>
             <Table>
@@ -177,7 +248,7 @@ export function Attendance() {
             ))}
           </ul>
         </>
-      )}
+      ) : null}
     </>
   )
 }

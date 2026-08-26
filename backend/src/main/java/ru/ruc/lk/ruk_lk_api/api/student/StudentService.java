@@ -15,6 +15,7 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RequestEmailChangeResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentCurriculumResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentLibraryResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentNewsResponse;
@@ -28,6 +29,9 @@ import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaApiClient;
 import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaBookItem;
 import ru.ruc.lk.ruk_lk_api.integration.megaapi.MegaReaderRecord;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
+import ru.ruc.lk.ruk_lk_api.integration.perco.PercoAccessEvent;
+import ru.ruc.lk.ruk_lk_api.integration.perco.PercoClient;
+import ru.ruc.lk.ruk_lk_api.integration.perco.PercoException;
 import ru.ruc.lk.ruk_lk_api.integration.rucnews.RucNewsClient;
 import ru.ruc.lk.ruk_lk_api.integration.rucnews.RucNewsItem;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
@@ -74,6 +78,7 @@ public class StudentService {
     private final MegaApiClient megaApiClient;
     private final RucNewsClient rucNewsClient;
     private final VerificationEmailSender emailSender;
+    private final PercoClient percoClient;
     private final String fixedCode;
     private final Duration otpTtl;
     private final int otpMaxAttempts;
@@ -86,6 +91,7 @@ public class StudentService {
         MegaApiClient megaApiClient,
         RucNewsClient rucNewsClient,
         VerificationEmailSender emailSender,
+        PercoClient percoClient,
         @Value("${app.auth.fixed-code:}") String fixedCode,
         @Value("${app.auth.otp-ttl-seconds:300}") long otpTtlSeconds,
         @Value("${app.auth.otp-max-attempts:5}") int otpMaxAttempts,
@@ -97,6 +103,7 @@ public class StudentService {
         this.megaApiClient = megaApiClient;
         this.rucNewsClient = rucNewsClient;
         this.emailSender = emailSender;
+        this.percoClient = percoClient;
         this.fixedCode = fixedCode;
         this.otpTtl = Duration.ofSeconds(Math.max(60, otpTtlSeconds));
         this.otpMaxAttempts = Math.max(1, otpMaxAttempts);
@@ -421,6 +428,33 @@ public class StudentService {
             ))
             .toList();
         return new StudentNewsResponse("ok", mapped);
+    }
+
+    /**
+     * Проходы на территорию вуза из Perco-Web за период.
+     */
+    public StudentAttendanceResponse getAttendance(HttpSession session, LocalDate from, LocalDate to) {
+        StudentSession student = requireStudent(session);
+        if (from == null || to == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите даты from и to");
+        }
+        LocalDate begin = from.isBefore(to) ? from : to;
+        LocalDate end = from.isBefore(to) ? to : from;
+        if (begin.plusDays(400).isBefore(end)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Период не больше 400 дней");
+        }
+
+        try {
+            List<PercoAccessEvent> events = percoClient.fetchAccessEvents(student.studentId(), begin, end);
+            return AttendanceMapper.toResponse(events);
+        } catch (PercoException e) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                e.getMessage() != null && !e.getMessage().isBlank()
+                    ? e.getMessage()
+                    : "Не удалось загрузить проходы из СКУД"
+            );
+        }
     }
 
     /**

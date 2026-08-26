@@ -6,6 +6,8 @@ import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +76,118 @@ public class HttpPercoClient implements PercoClient {
         maybeUpdateDivisionAndAccess(staff, staffId);
 
         log.info("Фото загружено в Perco-Web для зачётки {}, staffId={}", zachetka, staffId);
+    }
+
+    @Override
+    public List<PercoAccessEvent> fetchAccessEvents(String zachetka, LocalDate from, LocalDate to)
+        throws PercoException {
+        if (zachetka == null || zachetka.isBlank()) {
+            throw new PercoException("Не указан номер зачётки для Perco-Web");
+        }
+        if (from == null || to == null) {
+            throw new PercoException("Укажите период проходов");
+        }
+        LocalDate begin = from.isBefore(to) ? from : to;
+        LocalDate end = from.isBefore(to) ? to : from;
+        String tabel = zachetka.trim();
+
+        authenticate();
+
+        List<PercoAccessEvent> all = new ArrayList<>();
+        int page = 0;
+        int rowsPerPage = 500;
+        int guard = 0;
+        while (guard++ < 50) {
+            PercoAccessEventsResponse response = fetchAccessEventsPage(tabel, begin, end, page, rowsPerPage);
+            List<PercoAccessEvent> batch = response == null || response.rows() == null
+                ? List.of()
+                : response.rows();
+            for (PercoAccessEvent event : batch) {
+                String eventTabel = event.resolvedTabelNumber();
+                if (eventTabel != null && tabel.equalsIgnoreCase(eventTabel)) {
+                    all.add(event);
+                } else if (eventTabel == null && batch.size() == 1) {
+                    all.add(event);
+                }
+            }
+            int total = response != null && response.total() != null ? response.total() : batch.size();
+            int loaded = (page + 1) * rowsPerPage;
+            if (batch.isEmpty() || loaded >= total) {
+                break;
+            }
+            page++;
+        }
+
+        log.info(
+            "Perco проходы: зачётка={}, {}..{}, событий={}",
+            tabel,
+            begin,
+            end,
+            all.size()
+        );
+        return all;
+    }
+
+    private PercoAccessEventsResponse fetchAccessEventsPage(
+        String tabel,
+        LocalDate begin,
+        LocalDate end,
+        int page,
+        int rows
+    ) throws PercoException {
+        try {
+            return restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                    .path("/api/accessReports/events")
+                    .queryParam("token", token)
+                    .queryParam("group", "staff")
+                    .queryParam("dateBegin", begin.toString())
+                    .queryParam("dateEnd", end.toString())
+                    .queryParam("searchString", tabel)
+                    .queryParam("page", page)
+                    .queryParam("rows", rows)
+                    .queryParam("sidx", "time_label")
+                    .queryParam("sord", "asc")
+                    .build())
+                .header("Authorization", "Bearer " + token)
+                .retrieve()
+                .body(PercoAccessEventsResponse.class);
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 401) {
+                token = null;
+                authenticate();
+                try {
+                    return restClient.get()
+                        .uri(uriBuilder -> uriBuilder
+                            .path("/api/accessReports/events")
+                            .queryParam("token", token)
+                            .queryParam("group", "staff")
+                            .queryParam("dateBegin", begin.toString())
+                            .queryParam("dateEnd", end.toString())
+                            .queryParam("searchString", tabel)
+                            .queryParam("page", page)
+                            .queryParam("rows", rows)
+                            .queryParam("sidx", "time_label")
+                            .queryParam("sord", "asc")
+                            .build())
+                        .header("Authorization", "Bearer " + token)
+                        .retrieve()
+                        .body(PercoAccessEventsResponse.class);
+                } catch (RestClientResponseException retry) {
+                    log.error(
+                        "Perco accessReports HTTP {}: {}",
+                        retry.getStatusCode(),
+                        retry.getResponseBodyAsString()
+                    );
+                    throw new PercoException("Не удалось получить проходы из Perco-Web", retry);
+                }
+            }
+            log.error("Perco accessReports HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new PercoException("Не удалось получить проходы из Perco-Web", e);
+        } catch (ResourceAccessException e) {
+            log.error("Perco accessReports I/O: {}", e.getMessage());
+            throw new PercoException("Не удалось подключиться к Perco-Web: " + rootMessage(e), e);
+        }
     }
 
     private void authenticate() throws PercoException {

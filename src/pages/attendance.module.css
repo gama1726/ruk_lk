@@ -23,6 +23,11 @@
   align-items: end;
 }
 
+.error {
+  color: var(--color-danger, #b42318);
+  margin: 0 0 var(--page-gap);
+}
+
 .summary {
   display: grid;
   gap: 1rem;
