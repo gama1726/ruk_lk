@@ -67,7 +67,7 @@ export function isPaymentsApiEnabled(): boolean {
   return isApiConfigured()
 }
 
-/** Сумма с копейками при необходимости. */
+/** Сумма с копейками при необходимости (справочные суммы из 1С). */
 export function rubMoney(amount: number): string {
   const fraction = Math.abs(amount % 1) > 0.001 ? 2 : 0
   return new Intl.NumberFormat('ru-RU', {
@@ -78,6 +78,14 @@ export function rubMoney(amount: number): string {
   }).format(amount)
 }
 
+/**
+ * Сумма для оплаты: только целые рубли (копейки вверх, чтобы покрыть долг).
+ */
+export function toPayRubles(amount: number): number {
+  if (!Number.isFinite(amount) || amount <= 0) return 0
+  return Math.ceil(amount - 1e-9)
+}
+
 /** Минимальная сумма на pay.ruc.su */
 export const PAY_MIN_AMOUNT = 5
 
@@ -86,7 +94,7 @@ const PAY_BASE = 'https://pay.ruc.su/payqr/'
 /**
  * Ссылка на сервис оплаты РУК.
  * @param contract - номер договора (как в 1С)
- * @param amount - сумма в рублях
+ * @param amount - сумма в целых рублях
  * @param returnUrl - куда вернуться после оплаты
  */
 export function buildPayUrl(
@@ -94,9 +102,10 @@ export function buildPayUrl(
   amount: number,
   returnUrl = 'https://my.ruc.su/payments',
 ): string {
+  const whole = toPayRubles(amount)
   const params = new URLSearchParams({
     contract: contract.trim(),
-    summa: String(Math.round(amount * 100) / 100),
+    summa: String(whole),
     returnUrl,
   })
   return `${PAY_BASE}?${params.toString()}`
@@ -111,10 +120,14 @@ export function openPayGateway(contract: string | null | undefined, amount: numb
   if (!number) {
     return 'Нет номера договора для оплаты'
   }
-  if (!Number.isFinite(amount) || amount < PAY_MIN_AMOUNT) {
+  if (!Number.isFinite(amount) || Math.abs(amount % 1) > 1e-9) {
+    return 'Укажите сумму целым числом (без копеек)'
+  }
+  const whole = Math.trunc(amount)
+  if (whole < PAY_MIN_AMOUNT) {
     return `Укажите сумму не меньше ${PAY_MIN_AMOUNT} ₽`
   }
-  window.open(buildPayUrl(number, amount), '_blank', 'noopener,noreferrer')
+  window.open(buildPayUrl(number, whole), '_blank', 'noopener,noreferrer')
   return null
 }
 

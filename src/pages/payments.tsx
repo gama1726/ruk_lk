@@ -17,6 +17,7 @@ import {
   openPayGateway,
   PAY_MIN_AMOUNT,
   rubMoney,
+  toPayRubles,
   type StudentPaymentsDto,
 } from '@/payments'
 import { ScreenHeader, Button, Input, StatusBadge, Table, TableHead, TableBody, TableRow, TableHeader, TableCell, NoData } from '@/ui'
@@ -44,8 +45,8 @@ function displayDate(iso: string, display: string): string {
 }
 
 function defaultPayAmount(data: StudentPaymentsDto): number {
-  if (data.totals.totalToPay > 0) return Math.round(data.totals.totalToPay * 100) / 100
-  if (data.nextAmount > 0) return Math.round(data.nextAmount * 100) / 100
+  if (data.totals.totalToPay > 0) return toPayRubles(data.totals.totalToPay)
+  if (data.nextAmount > 0) return toPayRubles(data.nextAmount)
   return PAY_MIN_AMOUNT
 }
 
@@ -126,11 +127,14 @@ export function Payments() {
   const contract = data.contract
 
   const onPay = () => {
-    const normalized = payAmount.replace(',', '.').trim()
-    const amount = Number(normalized)
+    const digits = payAmount.replace(/\D/g, '').trim()
+    const amount = Number(digits)
     const err = openPayGateway(contract?.number, amount)
     setPayError(err)
   }
+
+  const payTotal = toPayRubles(totals.totalToPay)
+  const payNext = toPayRubles(data.nextAmount)
 
   return (
     <>
@@ -189,41 +193,41 @@ export function Payments() {
           <div className={styles.payBox}>
             <Input
               label="Сумма к оплате, ₽"
-              type="number"
-              inputMode="decimal"
-              min={PAY_MIN_AMOUNT}
-              step="0.01"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="off"
               value={payAmount}
               error={payError ?? undefined}
-              hint={`Минимум ${PAY_MIN_AMOUNT} ₽. Можно оплатить любую сумму по договору.`}
+              hint={`Минимум ${PAY_MIN_AMOUNT} ₽, только целые рубли (без копеек).`}
               onChange={(e) => {
-                setPayAmount(e.target.value)
+                setPayAmount(e.target.value.replace(/\D/g, ''))
                 setPayError(null)
               }}
             />
             <div className={styles.payQuick}>
-              {totals.totalToPay > 0 && (
+              {payTotal > 0 && (
                 <button
                   type="button"
                   className={styles.chip}
                   onClick={() => {
-                    setPayAmount(String(Math.round(totals.totalToPay * 100) / 100))
+                    setPayAmount(String(payTotal))
                     setPayError(null)
                   }}
                 >
-                  К оплате {rubMoney(totals.totalToPay)}
+                  К оплате {rubMoney(payTotal)}
                 </button>
               )}
-              {data.nextAmount > 0 && Math.abs(data.nextAmount - totals.totalToPay) > 0.01 && (
+              {payNext > 0 && Math.abs(payNext - payTotal) > 0 && (
                 <button
                   type="button"
                   className={styles.chip}
                   onClick={() => {
-                    setPayAmount(String(Math.round(data.nextAmount * 100) / 100))
+                    setPayAmount(String(payNext))
                     setPayError(null)
                   }}
                 >
-                  Ближайший {rubMoney(data.nextAmount)}
+                  Ближайший {rubMoney(payNext)}
                 </button>
               )}
             </div>
