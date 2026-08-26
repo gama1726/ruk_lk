@@ -7,7 +7,7 @@ import { useEffect, useState, type FormEvent, type MouseEvent } from 'react'
 import { useAuth } from '@/auth'
 import { ApiError, isApiConfigured } from '@/apiClient'
 import { maskPhone } from '@/mocks/format'
-import { updateStudentEmail } from '@/profile'
+import { confirmEmailChange, requestEmailChange } from '@/profile'
 import { useStudentProfile } from '@/student-profile-store'
 import {
   notificationLabels,
@@ -44,6 +44,8 @@ export function Settings() {
   const [emailSaved, setEmailSaved] = useState(false)
   const [emailBusy, setEmailBusy] = useState(false)
   const [emailMessage, setEmailMessage] = useState<string>()
+  const [codeSentTo, setCodeSentTo] = useState<string>()
+  const [codeDraft, setCodeDraft] = useState('')
 
   useEffect(() => {
     if (contactsFromApi && profileStatus === 'idle') {
@@ -53,29 +55,34 @@ export function Settings() {
 
   useEffect(() => {
     setEmailDraft(currentEmail)
+    setCodeSentTo(undefined)
+    setCodeDraft('')
   }, [currentEmail])
 
   const handleSignOut = (_e: MouseEvent<HTMLButtonElement>) => {
     void signOut()
   }
 
-  const handleEmail = async (e: FormEvent) => {
-    e.preventDefault()
+  const resetEmailFeedback = () => {
     setEmailSaved(false)
     setEmailMessage(undefined)
     setEmailError(undefined)
+  }
+
+  const handleRequestCode = async (e: FormEvent) => {
+    e.preventDefault()
+    resetEmailFeedback()
 
     if (contactsFromApi) {
       setEmailBusy(true)
       try {
-        const result = await updateStudentEmail(emailDraft)
-        patchEmail(result.email)
-        setEmailDraft(result.email)
-        setEmailSaved(true)
-        setEmailMessage(result.message || 'Почта обновлена')
+        const result = await requestEmailChange(emailDraft)
+        setCodeSentTo(result.maskedEmail)
+        setCodeDraft('')
+        setEmailMessage(result.message)
       } catch (err) {
         const message =
-          err instanceof ApiError ? err.message : 'Не удалось изменить почту'
+          err instanceof ApiError ? err.message : 'Не удалось отправить код'
         setEmailError(message)
       } finally {
         setEmailBusy(false)
@@ -91,11 +98,40 @@ export function Settings() {
     }
   }
 
+  const handleConfirmCode = async (e: FormEvent) => {
+    e.preventDefault()
+    resetEmailFeedback()
+    setEmailBusy(true)
+    try {
+      const result = await confirmEmailChange(codeDraft)
+      patchEmail(result.email)
+      setEmailDraft(result.email)
+      setCodeSentTo(undefined)
+      setCodeDraft('')
+      setEmailSaved(true)
+      setEmailMessage(result.message || 'Почта обновлена')
+    } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : 'Не удалось подтвердить смену почты'
+      setEmailError(message)
+    } finally {
+      setEmailBusy(false)
+    }
+  }
+
+  const handleCancelCode = () => {
+    setCodeSentTo(undefined)
+    setCodeDraft('')
+    resetEmailFeedback()
+  }
+
   const handlePhone = (e: FormEvent) => {
     e.preventDefault()
     const err = setPhone(phoneDraft)
     setPhoneError(err ?? undefined)
   }
+
+  const awaitingCode = contactsFromApi && Boolean(codeSentTo)
 
   return (
     <>
@@ -112,24 +148,57 @@ export function Settings() {
       <section className={styles.section} id="email">
         <h2 className={styles.sectionTitle}>Контакты</h2>
         <Card>
-          <form className={styles.form} onSubmit={(e) => void handleEmail(e)}>
-            <Input
-              label="Личная почта"
-              type="email"
-              value={emailDraft}
-              error={emailError}
-              disabled={emailBusy || (contactsFromApi && profileStatus === 'loading')}
-              onChange={(e) => {
-                setEmailDraft(e.target.value)
-                setEmailSaved(false)
-                setEmailMessage(undefined)
-              }}
-            />
-            <Button type="submit" loading={emailBusy}>
-              Сохранить почту
-            </Button>
-            {emailSaved && emailMessage ? <p className={styles.success}>{emailMessage}</p> : null}
-          </form>
+          {!awaitingCode ? (
+            <form className={styles.form} onSubmit={(e) => void handleRequestCode(e)}>
+              <Input
+                label="Личная почта"
+                type="email"
+                value={emailDraft}
+                error={emailError}
+                disabled={emailBusy || (contactsFromApi && profileStatus === 'loading')}
+                onChange={(e) => {
+                  setEmailDraft(e.target.value)
+                  resetEmailFeedback()
+                }}
+              />
+              {contactsFromApi ? (
+                <p className={styles.hint}>
+                  На новый адрес придёт код подтверждения. Почта в базе изменится только после ввода кода.
+                </p>
+              ) : null}
+              <Button type="submit" loading={emailBusy}>
+                {contactsFromApi ? 'Отправить код' : 'Сохранить почту'}
+              </Button>
+              {emailSaved && emailMessage ? <p className={styles.success}>{emailMessage}</p> : null}
+            </form>
+          ) : (
+            <form className={styles.form} onSubmit={(e) => void handleConfirmCode(e)}>
+              <p className={styles.hint}>
+                Код отправлен на <strong>{codeSentTo}</strong>. Проверьте входящие и папку «Спам».
+              </p>
+              <Input
+                label="Код из письма"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={codeDraft}
+                error={emailError}
+                disabled={emailBusy}
+                onChange={(e) => {
+                  setCodeDraft(e.target.value.replace(/\D/g, '').slice(0, 6))
+                  resetEmailFeedback()
+                }}
+              />
+              <div className={styles.emailActions}>
+                <Button type="submit" loading={emailBusy} disabled={codeDraft.length < 6}>
+                  Подтвердить смену почты
+                </Button>
+                <Button type="button" variant="ghost" disabled={emailBusy} onClick={handleCancelCode}>
+                  Изменить адрес
+                </Button>
+              </div>
+              {emailMessage && !emailError ? <p className={styles.hint}>{emailMessage}</p> : null}
+            </form>
+          )}
 
           {contactsFromApi ? (
             <div className={styles.form} id="phone" style={{ marginTop: '1.25rem' }}>

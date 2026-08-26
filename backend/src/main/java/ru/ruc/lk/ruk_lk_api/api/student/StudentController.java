@@ -1,14 +1,16 @@
 package ru.ruc.lk.ruk_lk_api.api.student;
 
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.format.annotation.DateTimeFormat;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.ConfirmEmailChangeRequest;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.RequestEmailChangeResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentCurriculumResponse;
@@ -39,9 +41,22 @@ public class StudentController{
         return studentService.getProfile(session);
     }
 
-    @PutMapping("/email")
-    public UpdateEmailResponse updateEmail(@RequestBody UpdateEmailRequest body, HttpSession session) {
-        return studentService.updateEmail(session, body != null ? body.email() : null);
+    /** Отправить код подтверждения на новую почту. */
+    @PostMapping("/email/request")
+    public RequestEmailChangeResponse requestEmailChange(
+        @RequestBody UpdateEmailRequest body,
+        HttpSession session
+    ) {
+        return studentService.requestEmailChange(session, body != null ? body.email() : null);
+    }
+
+    /** Подтвердить код и сменить почту в 1С. */
+    @PostMapping("/email/confirm")
+    public UpdateEmailResponse confirmEmailChange(
+        @RequestBody ConfirmEmailChangeRequest body,
+        HttpSession session
+    ) {
+        return studentService.confirmEmailChange(session, body);
     }
 
     @GetMapping("/record-book")

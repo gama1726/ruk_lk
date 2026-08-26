@@ -36,6 +36,36 @@ public class UnisenderEmailSender implements VerificationEmailSender {
 
     @Override
     public void sendLoginCode(String toEmail, String recipientName, String code) {
+        sendCode(
+            toEmail,
+            recipientName,
+            code,
+            "Код для входа в личный кабинет РУК",
+            "Код для входа в личный кабинет РУК",
+            "login_code"
+        );
+    }
+
+    @Override
+    public void sendEmailChangeCode(String toEmail, String recipientName, String code) {
+        sendCode(
+            toEmail,
+            recipientName,
+            code,
+            "Код для смены почты в личном кабинете РУК",
+            "Код для подтверждения смены почты в личном кабинете РУК",
+            "email_change_code"
+        );
+    }
+
+    private void sendCode(
+        String toEmail,
+        String recipientName,
+        String code,
+        String subject,
+        String codeLabel,
+        String tag
+    ) {
         String safeName = recipientName == null || recipientName.isBlank()
             ? "Студент"
             : recipientName.trim();
@@ -43,11 +73,11 @@ public class UnisenderEmailSender implements VerificationEmailSender {
 
         String html = """
             <p>%s</p>
-            <p>Код для входа в личный кабинет РУК: <strong>%s</strong></p>
+            <p>%s: <strong>%s</strong></p>
             <p>Никому не сообщайте этот код.</p>
-            """.formatted(greeting, code);
+            """.formatted(greeting, codeLabel, code);
 
-        String plaintext = greeting + "\n\nКод для входа в личный кабинет РУК: " + code
+        String plaintext = greeting + "\n\n" + codeLabel + ": " + code
             + "\n\nНикому не сообщайте этот код.";
 
         var body = new UnisenderSendRequest.Body(html, plaintext);
@@ -57,7 +87,7 @@ public class UnisenderEmailSender implements VerificationEmailSender {
         );
         var message = new UnisenderSendRequest.Message(
             List.of(recipient),
-            "Код для входа в личный кабинет РУК",
+            subject,
             fromEmail,
             FROM_NAME,
             "ru",
@@ -65,7 +95,7 @@ public class UnisenderEmailSender implements VerificationEmailSender {
             0,
             0,
             body,
-            List.of("login_code")
+            List.of(tag)
         );
 
         try {
@@ -79,7 +109,7 @@ public class UnisenderEmailSender implements VerificationEmailSender {
             if (response == null || !"success".equals(response.status())) {
                 throw new EmailSendException("UniSender вернул не success");
             }
-            log.info("Код входа отправлен на {}, job_id={}", maskEmail(toEmail), response.job_id());
+            log.info("Код ({}) отправлен на {}, job_id={}", tag, maskEmail(toEmail), response.job_id());
         } catch (RestClientResponseException e) {
             log.error("UniSender HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new EmailSendException("Не удалось отправить письмо", e);

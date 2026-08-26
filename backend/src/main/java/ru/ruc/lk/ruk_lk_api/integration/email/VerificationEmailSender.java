@@ -8,4 +8,9 @@ public interface VerificationEmailSender {
      * @param code 6 цифр
      */
     void sendLoginCode(String toEmail, String recipientName, String code);
+
+    /**
+     * Код для подтверждения смены личной почты (на новый адрес).
+     */
+    void sendEmailChangeCode(String toEmail, String recipientName, String code);
 }

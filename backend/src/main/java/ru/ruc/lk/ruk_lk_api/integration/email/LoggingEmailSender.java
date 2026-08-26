@@ -15,4 +15,9 @@ public class LoggingEmailSender implements VerificationEmailSender {
     public void sendLoginCode(String toEmail, String recipientName, String code) {
         log.info("DEV: код входа для {} ({}): {}", toEmail, recipientName, code);
     }
+
+    @Override
+    public void sendEmailChangeCode(String toEmail, String recipientName, String code) {
+        log.info("DEV: код смены почты для {} ({}): {}", toEmail, recipientName, code);
+    }
 }
