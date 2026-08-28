@@ -32,6 +32,9 @@ import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.integration.perco.PercoAccessEvent;
 import ru.ruc.lk.ruk_lk_api.integration.perco.PercoClient;
 import ru.ruc.lk.ruk_lk_api.integration.perco.PercoException;
+import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent;
+import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioClient;
+import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioException;
 import ru.ruc.lk.ruk_lk_api.integration.rucnews.RucNewsClient;
 import ru.ruc.lk.ruk_lk_api.integration.rucnews.RucNewsItem;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
@@ -81,6 +84,7 @@ public class StudentService {
     private final RucNewsClient rucNewsClient;
     private final VerificationEmailSender emailSender;
     private final PercoClient percoClient;
+    private final ZKBioClient zkbioClient;
     private final String fixedCode;
     private final Duration otpTtl;
     private final int otpMaxAttempts;
@@ -94,6 +98,7 @@ public class StudentService {
         RucNewsClient rucNewsClient,
         VerificationEmailSender emailSender,
         PercoClient percoClient,
+        ZKBioClient zkbioClient,
         @Value("${app.auth.fixed-code:}") String fixedCode,
         @Value("${app.auth.otp-ttl-seconds:300}") long otpTtlSeconds,
         @Value("${app.auth.otp-max-attempts:5}") int otpMaxAttempts,
@@ -106,6 +111,7 @@ public class StudentService {
         this.rucNewsClient = rucNewsClient;
         this.emailSender = emailSender;
         this.percoClient = percoClient;
+        this.zkbioClient = zkbioClient;
         this.fixedCode = fixedCode;
         this.otpTtl = Duration.ofSeconds(Math.max(60, otpTtlSeconds));
         this.otpMaxAttempts = Math.max(1, otpMaxAttempts);
@@ -433,8 +439,9 @@ public class StudentService {
     }
 
     /**
-     * Проходы на территорию вуза из Perco-Web за период.
-     * Дни с очными занятиями по расписанию без прохода СКУД помечаются как отсутствие.
+     * Проходы на территорию: Perco (головной вуз) или ZKBio (Казань ККИ).
+     * Для головного вуза дни без прохода, но с очными парами по расписанию — отсутствие.
+     * Для Казани — только фактические проходы из СКУД.
      */
     public StudentAttendanceResponse getAttendance(HttpSession session, LocalDate from, LocalDate to) {
         StudentSession student = requireStudent(session);
@@ -442,13 +449,6 @@ public class StudentService {
         OneCProfileResponse profile = onecClient
             .fetchProfile(student.studentId())
             .orElse(null);
-        if (profile != null
-            && CampusSupport.isBranchCampus(profile.faculty(), profile.department())) {
-            throw new ResponseStatusException(
-                HttpStatus.FORBIDDEN,
-                "Посещаемость доступна только для головного вуза"
-            );
-        }
 
         if (from == null || to == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите даты from и to");
@@ -459,10 +459,24 @@ public class StudentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Период не больше 400 дней");
         }
 
+        if (profile != null && CampusSupport.isKazanKkiCampus(profile.faculty(), profile.department())) {
+            return getKazanAttendance(student, begin, end);
+        }
+
+        if (profile != null
+            && CampusSupport.isBranchCampus(profile.faculty(), profile.department())) {
+            throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Посещаемость для этого филиала пока недоступна"
+            );
+        }
+
         try {
-            List<PercoAccessEvent> events = percoClient.fetchAccessEvents(student.studentId(), begin, end);
+            List<SkudAccessEvent> events = mapPercoEvents(
+                percoClient.fetchAccessEvents(student.studentId(), begin, end)
+            );
             Set<LocalDate> campusDays = campusLessonDates(session, student, begin, end);
-            return AttendanceMapper.toResponse(events, campusDays);
+            return AttendanceMapper.toResponse("perco", events, campusDays);
         } catch (PercoException e) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY,
@@ -471,6 +485,44 @@ public class StudentService {
                     : "Не удалось загрузить проходы из СКУД"
             );
         }
+    }
+
+    private StudentAttendanceResponse getKazanAttendance(
+        StudentSession student,
+        LocalDate begin,
+        LocalDate end
+    ) {
+        if (!zkbioClient.isEnabled()) {
+            throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Посещаемость Казанского филиала временно недоступна"
+            );
+        }
+        try {
+            List<SkudAccessEvent> events = zkbioClient.fetchAccessEvents(student.studentId(), begin, end);
+            return AttendanceMapper.toResponse("zkbio", events, Set.of());
+        } catch (ZKBioException e) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                e.getMessage() != null && !e.getMessage().isBlank()
+                    ? e.getMessage()
+                    : "Не удалось загрузить проходы из ZKBio"
+            );
+        }
+    }
+
+    private static List<SkudAccessEvent> mapPercoEvents(List<PercoAccessEvent> events) {
+        if (events == null || events.isEmpty()) {
+            return List.of();
+        }
+        List<SkudAccessEvent> mapped = new ArrayList<>(events.size());
+        for (PercoAccessEvent event : events) {
+            if (event == null) {
+                continue;
+            }
+            mapped.add(new SkudAccessEvent(event.resolvedTimeLabel(), event.resolvedGate()));
+        }
+        return mapped;
     }
 
     /** Даты с очными занятиями в аудитории за период (по расписанию группы). */

@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAttendanceDayResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAttendanceSummaryResponse;
-import ru.ruc.lk.ruk_lk_api.integration.perco.PercoAccessEvent;
+import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent;
 
 final class AttendanceMapper {
 
@@ -41,18 +41,19 @@ final class AttendanceMapper {
     private AttendanceMapper() {}
 
     static StudentAttendanceResponse toResponse(
-        List<PercoAccessEvent> events,
+        String source,
+        List<SkudAccessEvent> events,
         Set<LocalDate> campusLessonDates
     ) {
         Map<LocalDate, DayAgg> byDay = new LinkedHashMap<>();
 
-        for (PercoAccessEvent event : events) {
-            ParsedInstant parsed = parse(event.resolvedTimeLabel());
+        for (SkudAccessEvent event : events) {
+            ParsedInstant parsed = parse(event.timeLabel());
             if (parsed == null) {
                 continue;
             }
             DayAgg agg = byDay.computeIfAbsent(parsed.date(), DayAgg::new);
-            agg.accept(parsed.time(), event.resolvedGate());
+            agg.accept(parsed.time(), event.gate());
         }
 
         Set<LocalDate> allDates = new LinkedHashSet<>(byDay.keySet());
@@ -111,7 +112,7 @@ final class AttendanceMapper {
         }
 
         return new StudentAttendanceResponse(
-            "perco",
+            source,
             days,
             new StudentAttendanceSummaryResponse(present, absent, earliest, latest)
         );

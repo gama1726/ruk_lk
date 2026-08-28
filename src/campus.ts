@@ -1,5 +1,5 @@
 /**
- * @file Признаки кампуса: головной вуз vs филиал.
+ * @file Признаки кампуса: головной вуз, филиалы, ZKBio (Казань ККИ).
  */
 
 /** Подразделение относится к филиалу (не головной кампус). */
@@ -10,14 +10,28 @@ export function isBranchCampus(...parts: Array<string | null | undefined>): bool
   })
 }
 
+/** Казанский филиал ККИ — посещаемость через ZKBio. */
+export function isKazanKkiCampus(...parts: Array<string | null | undefined>): boolean {
+  if (!isBranchCampus(...parts)) return false
+  const haystack = parts
+    .filter((p): p is string => Boolean(p?.trim()))
+    .join(' ')
+    .toLocaleLowerCase('ru-RU')
+  return (
+    haystack.includes('казан') &&
+    (haystack.includes('кки') || haystack.includes('kci') || haystack.includes('кооператив'))
+  )
+}
+
 /**
- * Посещаемость (Perco головного вуза) доступна только не-филиалам.
- * Пока профиль не загружен — не скрываем пункт (чтобы не мигать у головных).
+ * Раздел «Посещаемость»: головной вуз (Perco) или Казань ККИ (ZKBio).
+ * Пока профиль не загружен — не скрываем пункт.
  */
 export function isAttendanceNavVisible(profile: {
   faculty?: string
   department?: string
 } | null): boolean {
   if (!profile) return true
-  return !isBranchCampus(profile.faculty, profile.department)
+  if (!isBranchCampus(profile.faculty, profile.department)) return true
+  return isKazanKkiCampus(profile.faculty, profile.department)
 }
