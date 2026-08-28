@@ -8,16 +8,21 @@ public record StudentAttendanceResponse(
     List<StudentAttendanceDayResponse> days,
     StudentAttendanceSummaryResponse summary
 ) {
+    /**
+     * @param status {@code present} — был проход; {@code absent} — были занятия в вузе, прохода нет
+     */
     public record StudentAttendanceDayResponse(
         String id,
         String date,
         String checkIn,
         String checkOut,
-        String gate
+        String gate,
+        String status
     ) {}
 
     public record StudentAttendanceSummaryResponse(
         int days,
+        int absentDays,
         String earliest,
         String latest
     ) {}

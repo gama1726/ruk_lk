@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
+import { isAttendanceNavVisible } from '@/campus'
 import { NavIcon } from '@/icons/nav'
 import { paths } from '@/paths'
-import { menu, mobileTabs } from '@/nav'
+import { buildMenu, mobileTabs } from '@/nav'
+import { useStudentProfile } from '@/student-profile-store'
 import { Drawer } from '@/ui/Drawer/Drawer'
 import { MenuLink } from './nav-link'
 import styles from './mobile-nav.module.css'
@@ -12,6 +14,15 @@ export function MobileNav() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const signOut = useAuth((s) => s.signOut)
+  const profile = useStudentProfile((s) => s.profile)
+  const status = useStudentProfile((s) => s.status)
+  const load = useStudentProfile((s) => s.load)
+
+  useEffect(() => {
+    if (status === 'idle') void load()
+  }, [status, load])
+
+  const menu = buildMenu({ attendance: isAttendanceNavVisible(profile) })
 
   const handleExit = () => {
     void signOut().then(() => navigate(paths.login))

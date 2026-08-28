@@ -36,7 +36,13 @@
 
 @media (min-width: 640px) {
   .summary {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 960px) {
+  .summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -63,6 +69,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.summaryAbsent {
+  color: var(--color-danger, #b42318);
+}
+
 .tableWrap {
   overflow-x: auto;
 }
@@ -75,6 +85,24 @@
 
 .gateCell {
   color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.rowAbsent {
+  background: color-mix(in srgb, var(--color-danger, #b42318) 8%, var(--color-surface));
+}
+
+.rowAbsent td {
+  color: var(--color-danger, #b42318);
+}
+
+.absentCell {
+  font-weight: 700;
+  color: var(--color-danger, #b42318);
+}
+
+.absentGate {
+  color: var(--color-danger, #b42318);
   font-size: var(--font-size-sm);
 }
 
@@ -95,6 +123,22 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   font-size: var(--font-size-md);
+}
+
+.cardAbsent {
+  border-color: color-mix(in srgb, var(--color-danger, #b42318) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger, #b42318) 8%, var(--color-surface));
+}
+
+.absentTitle {
+  color: var(--color-danger, #b42318);
+}
+
+.absentStatus {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-danger, #b42318);
 }
 
 .cardLine {

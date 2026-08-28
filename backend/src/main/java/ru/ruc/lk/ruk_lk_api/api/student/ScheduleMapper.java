@@ -73,14 +73,33 @@ final class ScheduleMapper {
     static List<LocalDate> weekAnchorsForMonth(int year, int month) {
         LocalDate first = LocalDate.of(year, month, 1);
         LocalDate last = first.withDayOfMonth(first.lengthOfMonth());
-        LocalDate monday = first.minusDays((first.getDayOfWeek().getValue() + 6) % 7);
+        return weekAnchorsForRange(first, last);
+    }
+
+    /** Понедельники недель, пересекающих диапазон дат. */
+    static List<LocalDate> weekAnchorsForRange(LocalDate begin, LocalDate end) {
+        LocalDate from = begin.isBefore(end) ? begin : end;
+        LocalDate to = begin.isBefore(end) ? end : begin;
+        LocalDate monday = from.minusDays((from.getDayOfWeek().getValue() + 6) % 7);
 
         List<LocalDate> anchors = new ArrayList<>();
-        while (!monday.isAfter(last)) {
+        while (!monday.isAfter(to)) {
             anchors.add(monday);
             monday = monday.plusDays(7);
         }
         return anchors;
+    }
+
+    /** Дата занятия из поля API {@code dd.MM.yyyy}. */
+    static LocalDate parseApiDay(String apiDate) {
+        if (apiDate == null || apiDate.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(apiDate.trim(), API_DAY);
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private static List<ScheduleLessonResponse> flattenLessons(Map<String, List<ScheduleApiLesson>> schedule) {

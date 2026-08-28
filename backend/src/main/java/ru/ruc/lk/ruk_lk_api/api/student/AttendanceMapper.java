@@ -5,9 +5,14 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,6 +22,9 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAtt
 import ru.ruc.lk.ruk_lk_api.integration.perco.PercoAccessEvent;
 
 final class AttendanceMapper {
+
+    static final String STATUS_PRESENT = "present";
+    static final String STATUS_ABSENT = "absent";
 
     private static final DateTimeFormatter TIME_OUT = DateTimeFormatter.ofPattern("HH:mm");
     private static final List<DateTimeFormatter> DATE_TIME_FORMATS = List.of(
@@ -32,7 +40,10 @@ final class AttendanceMapper {
 
     private AttendanceMapper() {}
 
-    static StudentAttendanceResponse toResponse(List<PercoAccessEvent> events) {
+    static StudentAttendanceResponse toResponse(
+        List<PercoAccessEvent> events,
+        Set<LocalDate> campusLessonDates
+    ) {
         Map<LocalDate, DayAgg> byDay = new LinkedHashMap<>();
 
         for (PercoAccessEvent event : events) {
@@ -44,25 +55,53 @@ final class AttendanceMapper {
             agg.accept(parsed.time(), event.resolvedGate());
         }
 
-        List<StudentAttendanceDayResponse> days = byDay.entrySet().stream()
-            .sorted(Map.Entry.<LocalDate, DayAgg>comparingByKey().reversed())
-            .map(e -> {
-                DayAgg agg = e.getValue();
-                String checkIn = agg.earliest.format(TIME_OUT);
-                String checkOut = agg.latest.format(TIME_OUT);
-                return new StudentAttendanceDayResponse(
-                    "d-" + e.getKey(),
-                    e.getKey().toString(),
-                    checkIn,
-                    checkOut,
-                    agg.gate
-                );
-            })
-            .toList();
+        Set<LocalDate> allDates = new LinkedHashSet<>(byDay.keySet());
+        LocalDate today = LocalDate.now();
+        if (campusLessonDates != null) {
+            for (LocalDate date : campusLessonDates) {
+                if (date != null && !date.isAfter(today) && !byDay.containsKey(date)) {
+                    allDates.add(date);
+                }
+            }
+        }
+
+        List<LocalDate> sorted = new ArrayList<>(allDates);
+        sorted.sort(Comparator.reverseOrder());
+
+        List<StudentAttendanceDayResponse> days = new ArrayList<>(sorted.size());
+        for (LocalDate date : sorted) {
+            DayAgg agg = byDay.get(date);
+            if (agg != null) {
+                days.add(new StudentAttendanceDayResponse(
+                    "d-" + date,
+                    date.toString(),
+                    agg.earliest.format(TIME_OUT),
+                    agg.latest.format(TIME_OUT),
+                    agg.gate,
+                    STATUS_PRESENT
+                ));
+            } else {
+                days.add(new StudentAttendanceDayResponse(
+                    "d-" + date,
+                    date.toString(),
+                    "",
+                    "",
+                    "По расписанию были занятия — прохода на территорию нет",
+                    STATUS_ABSENT
+                ));
+            }
+        }
 
         String earliest = null;
         String latest = null;
+        int present = 0;
+        int absent = 0;
         for (StudentAttendanceDayResponse day : days) {
+            if (STATUS_ABSENT.equals(day.status())) {
+                absent++;
+                continue;
+            }
+            present++;
             if (earliest == null || day.checkIn().compareTo(earliest) < 0) {
                 earliest = day.checkIn();
             }
@@ -74,8 +113,27 @@ final class AttendanceMapper {
         return new StudentAttendanceResponse(
             "perco",
             days,
-            new StudentAttendanceSummaryResponse(days.size(), earliest, latest)
+            new StudentAttendanceSummaryResponse(present, absent, earliest, latest)
         );
+    }
+
+    /** Аудитория похожа на очное занятие в корпусе (не онлайн / не пустая). */
+    static boolean isOnCampusClassroom(String classroom) {
+        if (classroom == null || classroom.isBlank()) {
+            return false;
+        }
+        String normalized = classroom.trim().toLowerCase(Locale.ROOT);
+        if (normalized.contains("онлайн")
+            || normalized.contains("online")
+            || normalized.contains("дистанц")
+            || normalized.contains("вебинар")
+            || normalized.equals("до")
+            || normalized.equals("сдо")
+            || normalized.contains("teams")
+            || normalized.contains("zoom")) {
+            return false;
+        }
+        return true;
     }
 
     private static ParsedInstant parse(String raw) {

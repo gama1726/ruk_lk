@@ -51,8 +51,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -432,9 +434,22 @@ public class StudentService {
 
     /**
      * Проходы на территорию вуза из Perco-Web за период.
+     * Дни с очными занятиями по расписанию без прохода СКУД помечаются как отсутствие.
      */
     public StudentAttendanceResponse getAttendance(HttpSession session, LocalDate from, LocalDate to) {
         StudentSession student = requireStudent(session);
+
+        OneCProfileResponse profile = onecClient
+            .fetchProfile(student.studentId())
+            .orElse(null);
+        if (profile != null
+            && CampusSupport.isBranchCampus(profile.faculty(), profile.department())) {
+            throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Посещаемость доступна только для головного вуза"
+            );
+        }
+
         if (from == null || to == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите даты from и to");
         }
@@ -446,7 +461,8 @@ public class StudentService {
 
         try {
             List<PercoAccessEvent> events = percoClient.fetchAccessEvents(student.studentId(), begin, end);
-            return AttendanceMapper.toResponse(events);
+            Set<LocalDate> campusDays = campusLessonDates(session, student, begin, end);
+            return AttendanceMapper.toResponse(events, campusDays);
         } catch (PercoException e) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY,
@@ -454,6 +470,44 @@ public class StudentService {
                     ? e.getMessage()
                     : "Не удалось загрузить проходы из СКУД"
             );
+        }
+    }
+
+    /** Даты с очными занятиями в аудитории за период (по расписанию группы). */
+    private Set<LocalDate> campusLessonDates(
+        HttpSession session,
+        StudentSession student,
+        LocalDate begin,
+        LocalDate end
+    ) {
+        try {
+            ScheduleSessionContext context = scheduleContext(session, student);
+            List<LocalDate> anchors = ScheduleMapper.weekAnchorsForRange(begin, end);
+            List<ScheduleWeekApiResponse> weeks = fetchWeeksParallel(context, anchors);
+            Set<LocalDate> dates = new LinkedHashSet<>();
+            for (ScheduleWeekApiResponse week : weeks) {
+                if (week == null || week.schedule() == null) {
+                    continue;
+                }
+                for (var dayLessons : week.schedule().values()) {
+                    if (dayLessons == null) {
+                        continue;
+                    }
+                    for (var lesson : dayLessons) {
+                        if (lesson == null || !AttendanceMapper.isOnCampusClassroom(lesson.classroom())) {
+                            continue;
+                        }
+                        LocalDate date = ScheduleMapper.parseApiDay(lesson.data());
+                        if (date != null && !date.isBefore(begin) && !date.isAfter(end)) {
+                            dates.add(date);
+                        }
+                    }
+                }
+            }
+            return dates;
+        } catch (RuntimeException ex) {
+            // Расписание недоступно — показываем только проходы СКУД
+            return Set.of();
         }
     }
 

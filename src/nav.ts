@@ -70,10 +70,16 @@ export const sidebarGroups: NavGroup[] = [
 ]
 
 /** Полное меню для drawer на mobile */
-export const menu = [
-  { title: 'Разделы', items: sidebarTop },
-  ...sidebarGroups.map((g) => ({ title: g.label, items: g.items })),
-]
+export function buildMenu(options?: { attendance?: boolean }) {
+  const groups = getSidebarGroups(options)
+  return [
+    { title: 'Разделы', items: sidebarTop },
+    ...groups.map((g) => ({ title: g.label, items: g.items })),
+  ]
+}
+
+/** @deprecated Используйте {@link buildMenu} с учётом филиала */
+export const menu = buildMenu()
 
 /** Короткий набор вкладок внизу экрана на mobile */
 export const mobileTabs: NavItem[] = [
@@ -82,3 +88,17 @@ export const mobileTabs: NavItem[] = [
   { to: paths.news, label: 'Новости', icon: 'news' },
   { to: paths.services, label: 'Сервисы', icon: 'services' },
 ]
+
+/** Группы сайдбара; {@code attendance: false} — скрыть посещаемость (филиалы). */
+export function getSidebarGroups(options?: { attendance?: boolean }): NavGroup[] {
+  const showAttendance = options?.attendance !== false
+  return sidebarGroups.map((group) => {
+    if (group.id !== 'study') return group
+    return {
+      ...group,
+      items: showAttendance
+        ? group.items
+        : group.items.filter((item) => item.to !== paths.attendance),
+    }
+  })
+}

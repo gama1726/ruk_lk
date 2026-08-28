@@ -10,10 +10,12 @@ import {
   filterAttendanceDays as mockFilter,
   formatAttendanceDate,
   formatStayDuration,
+  isAttendanceAbsent,
 } from '@/mocks/attendance'
 
 export type AttendanceSummaryDto = {
   days: number
+  absentDays?: number
   earliest: string | null
   latest: string | null
 }
@@ -86,6 +88,7 @@ export function buildAttendancePeriodPresets(today = new Date()) {
 export {
   formatAttendanceDate,
   formatStayDuration,
+  isAttendanceAbsent,
   mockPresets as attendancePeriodPresets,
   mockFilter as filterAttendanceDays,
   mockSummary as attendanceSummaryForRange,

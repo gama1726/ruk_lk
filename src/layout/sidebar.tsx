@@ -1,14 +1,29 @@
+import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import logo from '@/assets/ruk-logo.png'
+import { isAttendanceNavVisible } from '@/campus'
 import { SocialIcon } from '@/icons/social'
 import { socialLinks } from '@/mocks/public-nav'
 import { paths } from '@/paths'
-import { sidebarTop, sidebarGroups } from '@/nav'
+import { sidebarTop, getSidebarGroups } from '@/nav'
+import { useStudentProfile } from '@/student-profile-store'
 import { MenuLink } from './nav-link'
 import { NavGroupBlock } from './nav-group'
 import styles from './sidebar.module.css'
 
 export function Sidebar() {
+  const profile = useStudentProfile((s) => s.profile)
+  const status = useStudentProfile((s) => s.status)
+  const load = useStudentProfile((s) => s.load)
+
+  useEffect(() => {
+    if (status === 'idle') void load()
+  }, [status, load])
+
+  const groups = getSidebarGroups({
+    attendance: isAttendanceNavVisible(profile),
+  })
+
   return (
     <nav className={styles.sidebar} aria-label="Разделы кабинета">
       <div className={styles.head}>
@@ -29,7 +44,7 @@ export function Sidebar() {
           ))}
         </ul>
 
-        {sidebarGroups.map((group) => (
+        {groups.map((group) => (
           <NavGroupBlock key={group.id} group={group} />
         ))}
       </div>
