@@ -17,18 +17,18 @@ final class CampusSupport {
     }
 
     /** Казанский филиал колледжа кооперации (ККИ) — ZKBio. */
-    static boolean isKazanKkiCampus(String faculty, String department) {
-        if (!isBranchCampus(faculty, department)) {
+    static boolean isKazanKkiCampus(String... parts) {
+        if (!isBranchCampus(parts)) {
             return false;
         }
-        String haystack = joinLower(faculty, department);
+        String haystack = joinLower(parts);
         return haystack.contains("казан")
             && (haystack.contains("кки") || haystack.contains("kci") || haystack.contains("кооператив"));
     }
 
     /** Посещаемость Perco — головной вуз (не филиал). */
-    static boolean isHeadCampusAttendance(String faculty, String department) {
-        return !isBranchCampus(faculty, department);
+    static boolean isHeadCampusAttendance(String... parts) {
+        return !isBranchCampus(parts);
     }
 
     private static String joinLower(String... parts) {

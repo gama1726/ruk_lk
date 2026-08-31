@@ -30,8 +30,10 @@ export function isKazanKkiCampus(...parts: Array<string | null | undefined>): bo
 export function isAttendanceNavVisible(profile: {
   faculty?: string
   department?: string
+  branch?: string
 } | null): boolean {
   if (!profile) return true
-  if (!isBranchCampus(profile.faculty, profile.department)) return true
-  return isKazanKkiCampus(profile.faculty, profile.department)
+  const parts = [profile.faculty, profile.department, profile.branch]
+  if (!isBranchCampus(...parts)) return true
+  return isKazanKkiCampus(...parts)
 }

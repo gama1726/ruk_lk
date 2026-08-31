@@ -168,6 +168,8 @@ public class StudentService {
 
             blankToEmpty(profile.faculty()),
 
+            blankToEmpty(profile.branch()),
+
             blankToEmpty(profile.department()),
 
             formatDirection(profile.direction(), profile.specialization()),
@@ -459,12 +461,13 @@ public class StudentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Период не больше 400 дней");
         }
 
-        if (profile != null && CampusSupport.isKazanKkiCampus(profile.faculty(), profile.department())) {
+        if (profile != null && CampusSupport.isKazanKkiCampus(
+            profile.faculty(), profile.department(), profile.branch())) {
             return getKazanAttendance(student, begin, end);
         }
 
-        if (profile != null
-            && CampusSupport.isBranchCampus(profile.faculty(), profile.department())) {
+        if (profile != null && CampusSupport.isBranchCampus(
+            profile.faculty(), profile.department(), profile.branch())) {
             throw new ResponseStatusException(
                 HttpStatus.FORBIDDEN,
                 "Посещаемость для этого филиала пока недоступна"

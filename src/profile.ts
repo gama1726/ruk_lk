@@ -17,6 +17,8 @@ export type StudentProfileDto = {
   funding: string
   status: string
   faculty: string
+  /** Филиал из 1С, напр. «Казанский кооперативный институт (филиал)…» */
+  branch: string
   department: string
   direction: string
   level: string
@@ -52,6 +54,7 @@ export function mockStudentProfile(): StudentProfileDto {
     funding: student.funding,
     status: program?.status ?? '',
     faculty: program?.faculty ?? '',
+    branch: '',
     department: program?.department ?? '',
     direction: program?.direction ?? '',
     level: program?.level ?? '',
