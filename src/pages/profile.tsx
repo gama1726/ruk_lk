@@ -15,7 +15,7 @@ import {
   passPhotoImageUrl,
   passPhotoStatusLabel,
 } from '@/pass-photo'
-import { Card, StudentAvatar } from '@/ui'
+import { Card, StudentAvatar, BranchBanner } from '@/ui'
 import styles from './profile.module.css'
 
 type FieldProps = {
@@ -137,6 +137,8 @@ export function Profile() {
 
   return (
     <div className={styles.page}>
+      <BranchBanner branchLabel={displayProfile.branch} variant="student" />
+
       <Card padding="lg" className={styles.hero}>
         <div className={styles.heroInner}>
           <StudentAvatar

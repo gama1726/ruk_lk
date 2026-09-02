@@ -18,6 +18,7 @@ import { ParentCabinetShell } from '@/layout/parent-cabinet'
 import { RequireParentSession } from '@/layout/require-parent-session'
 import { ParentGuestOnly } from '@/layout/parent-guest-only'
 import { ParentSurvey } from '@/pages/parent-survey'
+import { ParentContacts } from '@/pages/parent-contacts'
 import { ParentProfile } from '@/pages/parent-profile'
 import { ParentSchedule } from '@/pages/parent-schedule'
 import { ParentRecordBook } from '@/pages/parent-record-book'
@@ -134,6 +135,7 @@ export const router = createBrowserRouter([
           { path: paths.parentHome, element: <ParentProfile /> },
           { path: paths.parentProfile, element: <Navigate to={paths.parentHome} replace /> },
           { path: paths.parentSurvey, element: <ParentSurvey /> },
+          { path: paths.parentContacts, element: <ParentContacts /> },
           { path: paths.parentSchedule, element: <ParentSchedule /> },
           { path: paths.parentRecordBook, element: <ParentRecordBook /> },
           { path: paths.parentAttendance, element: <ParentAttendance /> },

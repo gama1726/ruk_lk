@@ -8,12 +8,12 @@ import { formatShortDate } from '@/mocks/payment'
 import {
   fetchParentProfile,
   isParentProfileApiEnabled,
-  universityContacts,
+  parentUniversityContacts,
   type ParentProfileDto,
 } from '@/parent-profile'
 import { useParentAuth } from '@/parent-auth'
 import { paths } from '@/paths'
-import { Card, Loader, ParentAvatar, ScreenHeader } from '@/ui'
+import { Card, Loader, ParentAvatar, ScreenHeader, BranchBanner } from '@/ui'
 import styles from './parent-profile.module.css'
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -136,10 +136,13 @@ export function ParentProfile() {
   const contract = profile.contract
   const recordBookNumber = student?.studentId || profile.studentId
   const studentStatus = student?.status?.trim() || 'Обучается в РУК'
+  const universityContacts = parentUniversityContacts(student)
 
   return (
     <div className={styles.page}>
       <ScreenHeader title="Профиль" />
+
+      <BranchBanner branchLabel={student?.branch} variant="parent" />
 
       {!profile.dataAccessAllowed ? (
         <div className={styles.alert} role="alert">
@@ -272,17 +275,27 @@ export function ParentProfile() {
               </dl>
 
               <div className={styles.contactsBlock}>
-                <h3 className={styles.contactsTitle}>Контакты университета</h3>
+                <h3 className={styles.contactsTitle}>
+                  {universityContacts.branch.id === 'main'
+                    ? 'Контакты университета'
+                    : 'Контакты филиала'}
+                </h3>
+                {universityContacts.branch.id !== 'main' ? (
+                  <p className={styles.contactsBranchName}>{universityContacts.branch.name}</p>
+                ) : null}
                 <div className={styles.contactsList}>
                   <a href={universityContacts.phoneHref} className={styles.contactItem}>
                     <Phone size={18} strokeWidth={1.75} aria-hidden="true" />
                     <span>{universityContacts.phone}</span>
                   </a>
-                  <a href={`mailto:${universityContacts.email}`} className={styles.contactItem}>
+                  <a href={universityContacts.emailHref} className={styles.contactItem}>
                     <Mail size={18} strokeWidth={1.75} aria-hidden="true" />
                     <span>{universityContacts.email}</span>
                   </a>
                 </div>
+                <Link to={paths.parentContacts} className={styles.inlineLink}>
+                  Все контакты университета
+                </Link>
               </div>
             </Card>
           </div>

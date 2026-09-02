@@ -1,0 +1,135 @@
+.banner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem 1.25rem;
+  padding: 1.125rem 1.25rem;
+  border-radius: var(--radius-xl);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 14%, transparent);
+  background:
+    radial-gradient(circle at 0% 50%, rgba(81, 48, 142, 0.12), transparent 42%),
+    linear-gradient(135deg, #f8f5fd 0%, #efe8f8 48%, #f7f4fc 100%);
+  box-shadow: var(--shadow-sm);
+}
+
+.crestWrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 4.75rem;
+  height: 4.75rem;
+  display: grid;
+  place-items: center;
+}
+
+.crestGlow {
+  position: absolute;
+  inset: 0.125rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(81, 48, 142, 0.22) 0%, rgba(81, 48, 142, 0) 72%);
+  pointer-events: none;
+}
+
+.crestImage {
+  position: relative;
+  z-index: 1;
+  width: 4rem;
+  height: 4rem;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(81, 48, 142, 0.18));
+}
+
+.crestFallback {
+  position: relative;
+  z-index: 1;
+  width: 4rem;
+  height: 4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-inverse);
+  background: linear-gradient(145deg, #6b46a8 0%, var(--color-primary) 100%);
+  border: 2px solid rgba(249, 178, 51, 0.55);
+  box-shadow: 0 4px 12px rgba(81, 48, 142, 0.22);
+}
+
+.body {
+  min-width: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.25rem, 2.4vw, var(--font-size-2xl));
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--color-primary);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+  line-height: 1.35;
+}
+
+.badge {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 0.4375rem 0.875rem;
+  border-radius: 999px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badgeParent {
+  color: var(--color-text-inverse);
+  background: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(81, 48, 142, 0.24);
+}
+
+.badgeStudentMain {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.badgeStudentBranch {
+  color: var(--color-text-inverse);
+  background: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(81, 48, 142, 0.24);
+}
+
+@media (max-width: 639px) {
+  .banner {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'crest body'
+      'badge badge';
+  }
+
+  .crestWrap {
+    grid-area: crest;
+  }
+
+  .body {
+    grid-area: body;
+  }
+
+  .badge {
+    grid-area: badge;
+    justify-self: start;
+  }
+}

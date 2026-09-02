@@ -180,7 +180,7 @@ public class ParentAuthService {
 
         if (delivery == LoginCodeChannel.MAX) {
             try {
-                maxSender.sendLoginCode(maxUserId, "родитель", code);
+                maxSender.sendLoginCode(maxUserId, maxLoginRecipientName(member), code);
             } catch (MaxSendException e) {
                 throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
@@ -536,6 +536,15 @@ public class ParentAuthService {
             }
         }
         return null;
+    }
+
+    /** Имя в сообщении MAX после привязки номера в боте. */
+    private static String maxLoginRecipientName(PendingParentMember member) {
+        String name = member.parentFullName();
+        if (name != null && !name.isBlank()) {
+            return name.trim();
+        }
+        return "родитель";
     }
 
     private static String blankToEmpty(String value) {

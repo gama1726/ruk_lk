@@ -4,6 +4,10 @@
 
 import { apiGet, isApiConfigured } from '@/apiClient'
 import type { StudentProfileDto } from '@/profile'
+import {
+  universityContactsForBranch,
+  universityContactsShort,
+} from '@/mocks/university-contacts'
 
 export type ParentProfileContractDto = {
   funding: string
@@ -31,11 +35,11 @@ export type ParentProfileDto = {
   contract: ParentProfileContractDto | null
 }
 
-export const universityContacts = {
-  phone: '+7 (495) 640-57-22',
-  phoneHref: 'tel:+74956405722',
-  email: 'info@ruc.su',
-} as const
+export const universityContacts = universityContactsShort
+
+export function parentUniversityContacts(student: StudentProfileDto | null | undefined) {
+  return universityContactsForBranch(student?.branch)
+}
 
 export async function fetchParentProfile(): Promise<ParentProfileDto> {
   return apiGet<ParentProfileDto>('/api/parent/profile')
