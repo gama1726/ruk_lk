@@ -2,7 +2,6 @@
  * @file Отображение филиала: короткое название, герб, подписи для плашки профиля.
  */
 
-import mainCrest from '@/assets/ruk-logo.png'
 import { resolveUniversityBranch, type UniversityBranch } from '@/mocks/university-contacts'
 
 export const universityLegalName = 'Российский университет кооперации'
@@ -29,6 +28,7 @@ const branchDisplayById: Readonly<
 
 /** Имена файлов гербов в public/branches/ (по умолчанию {id}.png). */
 const branchCrestFiles: Partial<Record<string, string>> = {
+  main: 'main.jpg',
   kazan: 'kazan.jpg',
 }
 
@@ -43,7 +43,6 @@ export type BranchDisplayInfo = {
 }
 
 export function branchCrestSrc(branchId: string): string {
-  if (branchId === 'main') return mainCrest
   const file = branchCrestFiles[branchId] ?? `${branchId}.png`
   return `/branches/${file}`
 }
