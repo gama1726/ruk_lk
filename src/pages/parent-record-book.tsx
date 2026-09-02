@@ -21,7 +21,7 @@ export function ParentRecordBook() {
   const loading = isApiConfigured() && (status === 'loading' || status === 'idle')
 
   return (
-    <ParentDataSection title="Зачётная книжка">
+    <ParentDataSection title="Зачётная книжка ребёнка">
       <RecordBookPanel
         rows={rows}
         semesters={semesters}

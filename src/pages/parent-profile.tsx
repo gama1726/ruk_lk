@@ -25,11 +25,11 @@ function Field({ label, value }: { label: string; value: string }) {
   )
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string }) {
   return (
     <div className={styles.infoRow}>
       <dt className={styles.infoLabel}>{label}</dt>
-      <dd className={styles.infoValue}>{value || '—'}</dd>
+      <dd className={[styles.infoValue, valueClassName].filter(Boolean).join(' ')}>{value || '—'}</dd>
     </div>
   )
 }
@@ -84,6 +84,12 @@ function formatContractDate(date: string, displayDate: string): string {
   return '—'
 }
 
+function isContractOverdue(contract: ParentProfileDto['contract']): boolean {
+  if (!contract) return false
+  if (contract.paymentStatus === 'overdue') return true
+  return /просроч/i.test(contract.paymentStatusLabel)
+}
+
 export function ParentProfile() {
   const session = useParentAuth((s) => s.session)
   const [profile, setProfile] = useState<ParentProfileDto | null>(null)
@@ -133,10 +139,7 @@ export function ParentProfile() {
 
   return (
     <div className={styles.page}>
-      <ScreenHeader
-        title="Профиль"
-        subtitle="Ваши контакты и сведения о ребёнке в университете"
-      />
+      <ScreenHeader title="Профиль" />
 
       {!profile.dataAccessAllowed ? (
         <div className={styles.alert} role="alert">
@@ -159,9 +162,6 @@ export function ParentProfile() {
               {profile.relation ? <span className={styles.relationBadge}>{profile.relation}</span> : null}
               {profile.isCustomer ? (
                 <span className={styles.customerBadge}>Заказчик / плательщик</span>
-              ) : null}
-              {profile.studentId ? (
-                <span className={styles.linkedBadge}>Зачётка {profile.studentId}</span>
               ) : null}
             </div>
 
@@ -202,7 +202,6 @@ export function ParentProfile() {
               <h3 className={styles.studentName}>{student?.fullName || profile.studentFullName}</h3>
               <dl className={styles.studentMeta}>
                 <InfoRow label="Зачётка" value={recordBookNumber} />
-                {student?.faculty ? <InfoRow label="Факультет" value={student.faculty} /> : null}
               </dl>
               <div className={styles.badges}>
                 {student?.group ? (
@@ -218,7 +217,7 @@ export function ParentProfile() {
               </div>
             </Card>
 
-            <Card title="Статус" padding="lg" className={styles.statusCard}>
+            <Card title="Статус успеваемости" padding="lg" className={styles.statusCard}>
               {!hasDebts ? (
                 <div className={styles.statusOk}>
                   <span className={styles.statusIconWrap} aria-hidden="true">
@@ -229,7 +228,7 @@ export function ParentProfile() {
                       />
                     </svg>
                   </span>
-                  <p className={styles.statusTitle}>Нет академических задолженностей</p>
+                  <p className={styles.statusTitle}>У ребёнка нет академических задолженностей</p>
                   <p className={styles.statusHint}>Информация актуальна на сегодня</p>
                 </div>
               ) : (
@@ -261,7 +260,11 @@ export function ParentProfile() {
               <dl className={styles.infoList}>
                 <InfoRow label="Основа" value={contract?.funding ?? student?.funding ?? ''} />
                 <InfoRow label="Договор" value={contract?.contractNumber ? `№ ${contract.contractNumber}` : ''} />
-                <InfoRow label="Статус договора" value={contract?.paymentStatusLabel ?? ''} />
+                <InfoRow
+                  label="Статус договора"
+                  value={contract?.paymentStatusLabel ?? ''}
+                  valueClassName={isContractOverdue(contract) ? styles.infoValueDanger : undefined}
+                />
                 <InfoRow
                   label="Дата заключения"
                   value={formatContractDate(contract?.contractDate ?? '', contract?.contractDisplayDate ?? '')}

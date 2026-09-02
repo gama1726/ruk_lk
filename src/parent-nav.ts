@@ -23,7 +23,7 @@ export const parentSidebarGroups: { id: string; label: string; icon: NavIconId; 
     icon: 'program',
     items: [
       { to: paths.parentSchedule, label: 'Расписание', icon: 'schedule' },
-      { to: paths.parentRecordBook, label: 'Зачётная книжка', icon: 'recordBook' },
+      { to: paths.parentRecordBook, label: 'Зачётная книжка ребёнка', icon: 'recordBook' },
       { to: paths.parentAttendance, label: 'Посещаемость', icon: 'attendance' },
       { to: paths.parentOrders, label: 'Приказы', icon: 'orders' },
     ],

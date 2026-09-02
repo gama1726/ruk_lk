@@ -322,6 +322,11 @@
   text-align: left;
 }
 
+.infoValueDanger {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
 .contactsBlock {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
