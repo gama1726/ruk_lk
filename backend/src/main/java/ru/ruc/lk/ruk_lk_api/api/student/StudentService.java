@@ -59,6 +59,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -85,6 +86,7 @@ public class StudentService {
     private final VerificationEmailSender emailSender;
     private final PercoClient percoClient;
     private final ZKBioClient zkbioClient;
+    private final AttendanceCache attendanceCache;
     private final String fixedCode;
     private final Duration otpTtl;
     private final int otpMaxAttempts;
@@ -99,6 +101,7 @@ public class StudentService {
         VerificationEmailSender emailSender,
         PercoClient percoClient,
         ZKBioClient zkbioClient,
+        AttendanceCache attendanceCache,
         @Value("${app.auth.fixed-code:}") String fixedCode,
         @Value("${app.auth.otp-ttl-seconds:300}") long otpTtlSeconds,
         @Value("${app.auth.otp-max-attempts:5}") int otpMaxAttempts,
@@ -112,6 +115,7 @@ public class StudentService {
         this.emailSender = emailSender;
         this.percoClient = percoClient;
         this.zkbioClient = zkbioClient;
+        this.attendanceCache = attendanceCache;
         this.fixedCode = fixedCode;
         this.otpTtl = Duration.ofSeconds(Math.max(60, otpTtlSeconds));
         this.otpMaxAttempts = Math.max(1, otpMaxAttempts);
@@ -462,7 +466,7 @@ public class StudentService {
 
         if (profile != null && CampusSupport.isKazanKkiCampus(
             profile.faculty(), profile.department(), profile.branch())) {
-            return getKazanAttendance(session, student, begin, end);
+            return getKazanAttendance(session, student, profile, begin, end);
         }
 
         if (profile != null && CampusSupport.isBranchCampus(
@@ -473,25 +477,54 @@ public class StudentService {
             );
         }
 
+        Optional<StudentAttendanceResponse> cached = attendanceCache.get(
+            student.studentId(),
+            begin,
+            end,
+            "perco"
+        );
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+
+        Optional<String> groupName = profileGroup(profile);
         try {
-            List<SkudAccessEvent> events = mapPercoEvents(
-                percoClient.fetchAccessEvents(student.studentId(), begin, end)
+            CompletableFuture<List<SkudAccessEvent>> eventsFuture = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return mapPercoEvents(
+                        percoClient.fetchAccessEvents(student.studentId(), begin, end)
+                    );
+                } catch (PercoException e) {
+                    throw new CompletionException(e);
+                }
+            });
+            CompletableFuture<Set<LocalDate>> campusDaysFuture = CompletableFuture.supplyAsync(
+                () -> campusLessonDates(session, student, begin, end, groupName)
             );
-            Set<LocalDate> campusDays = campusLessonDates(session, student, begin, end);
-            return AttendanceMapper.toResponse("perco", events, campusDays);
-        } catch (PercoException e) {
-            throw new ResponseStatusException(
-                HttpStatus.BAD_GATEWAY,
-                e.getMessage() != null && !e.getMessage().isBlank()
-                    ? e.getMessage()
-                    : "Не удалось загрузить проходы из СКУД"
-            );
+
+            List<SkudAccessEvent> events = eventsFuture.join();
+            Set<LocalDate> campusDays = campusDaysFuture.join();
+            StudentAttendanceResponse response = AttendanceMapper.toResponse("perco", events, campusDays);
+            attendanceCache.put(student.studentId(), begin, end, "perco", response);
+            return response;
+        } catch (CompletionException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof PercoException percoEx) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    percoEx.getMessage() != null && !percoEx.getMessage().isBlank()
+                        ? percoEx.getMessage()
+                        : "Не удалось загрузить проходы из СКУД"
+                );
+            }
+            throw ex;
         }
     }
 
     private StudentAttendanceResponse getKazanAttendance(
         HttpSession session,
         StudentSession student,
+        OneCProfileResponse profile,
         LocalDate begin,
         LocalDate end
     ) {
@@ -501,18 +534,54 @@ public class StudentService {
                 "Посещаемость Казанского филиала временно недоступна"
             );
         }
-        try {
-            List<SkudAccessEvent> events = zkbioClient.fetchAccessEvents(student.studentId(), begin, end);
-            Set<LocalDate> campusDays = campusLessonDates(session, student, begin, end);
-            return AttendanceMapper.toResponse("zkbio", events, campusDays);
-        } catch (ZKBioException e) {
-            throw new ResponseStatusException(
-                HttpStatus.BAD_GATEWAY,
-                e.getMessage() != null && !e.getMessage().isBlank()
-                    ? e.getMessage()
-                    : "Не удалось загрузить проходы из ZKBio"
-            );
+
+        Optional<StudentAttendanceResponse> cached = attendanceCache.get(
+            student.studentId(),
+            begin,
+            end,
+            "zkbio"
+        );
+        if (cached.isPresent()) {
+            return cached.get();
         }
+
+        Optional<String> groupName = profileGroup(profile);
+        try {
+            CompletableFuture<List<SkudAccessEvent>> eventsFuture = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return zkbioClient.fetchAccessEvents(student.studentId(), begin, end);
+                } catch (ZKBioException e) {
+                    throw new CompletionException(e);
+                }
+            });
+            CompletableFuture<Set<LocalDate>> campusDaysFuture = CompletableFuture.supplyAsync(
+                () -> campusLessonDates(session, student, begin, end, groupName)
+            );
+
+            List<SkudAccessEvent> events = eventsFuture.join();
+            Set<LocalDate> campusDays = campusDaysFuture.join();
+            StudentAttendanceResponse response = AttendanceMapper.toResponse("zkbio", events, campusDays);
+            attendanceCache.put(student.studentId(), begin, end, "zkbio", response);
+            return response;
+        } catch (CompletionException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof ZKBioException zkbioEx) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    zkbioEx.getMessage() != null && !zkbioEx.getMessage().isBlank()
+                        ? zkbioEx.getMessage()
+                        : "Не удалось загрузить проходы из ZKBio"
+                );
+            }
+            throw ex;
+        }
+    }
+
+    private static Optional<String> profileGroup(OneCProfileResponse profile) {
+        if (profile == null || profile.group() == null || profile.group().isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(profile.group().trim());
     }
 
     private static List<SkudAccessEvent> mapPercoEvents(List<PercoAccessEvent> events) {
@@ -534,10 +603,15 @@ public class StudentService {
         HttpSession session,
         StudentSession student,
         LocalDate begin,
-        LocalDate end
+        LocalDate end,
+        Optional<String> groupFromProfile
     ) {
         try {
-            ScheduleSessionContext context = scheduleContext(session, student);
+            ScheduleSessionContext context = scheduleContextService.require(
+                session,
+                student,
+                () -> groupFromProfile
+            );
             List<LocalDate> anchors = ScheduleMapper.weekAnchorsForRange(begin, end);
             List<ScheduleWeekApiResponse> weeks = fetchWeeksParallel(context, anchors);
             Set<LocalDate> dates = new LinkedHashSet<>();
