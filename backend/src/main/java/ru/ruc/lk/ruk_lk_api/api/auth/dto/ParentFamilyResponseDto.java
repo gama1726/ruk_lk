@@ -2,8 +2,4 @@ package ru.ruc.lk.ruk_lk_api.api.auth.dto;
 
 import java.util.List;
 
-public record ParentFamilyResponseDto(
-    String studentId,
-    boolean studentAdult,
-    List<ParentMemberOptionDto> members
-) {}
+public record ParentFamilyResponseDto(List<ParentMemberOptionDto> members) {}

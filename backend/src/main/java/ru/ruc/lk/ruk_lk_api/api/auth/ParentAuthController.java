@@ -12,7 +12,6 @@ import org.springframework.web.server.ResponseStatusException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
-import ru.ruc.lk.ruk_lk_api.api.auth.dto.AuthChannelsDto;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.MaxBindLinkResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.ParentDeliveryOptionsDto;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.ParentFamilyResponseDto;
@@ -33,11 +32,6 @@ public class ParentAuthController {
     public ParentAuthController(ParentAuthService parentAuthService, AuthIpRateLimiter authIpRateLimiter) {
         this.parentAuthService = parentAuthService;
         this.authIpRateLimiter = authIpRateLimiter;
-    }
-
-    @GetMapping("/channels")
-    public AuthChannelsDto channels() {
-        return parentAuthService.loginChannels();
     }
 
     @PostMapping("/identify")

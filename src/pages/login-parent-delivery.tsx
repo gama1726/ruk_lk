@@ -4,8 +4,8 @@
 
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { useAuth, type LoginCodeChannel } from '@/auth'
 import { useParentAuth } from '@/parent-auth'
-import type { LoginCodeChannel } from '@/auth'
 import { paths } from '@/paths'
 import { LoginChannelPicker } from '@/blocks/login-channel-picker'
 import { AuthCard } from '@/blocks/auth-card'
@@ -18,7 +18,7 @@ export function ParentLoginDelivery() {
   const navigate = useNavigate()
   const pendingDelivery = useParentAuth((s) => s.pendingDelivery)
   const sendLoginCode = useParentAuth((s) => s.sendLoginCode)
-  const fetchLoginChannels = useParentAuth((s) => s.fetchLoginChannels)
+  const fetchLoginChannels = useAuth((s) => s.fetchLoginChannels)
   const fetchMaxBindLink = useParentAuth((s) => s.fetchMaxBindLink)
   const refreshPendingDelivery = useParentAuth((s) => s.refreshPendingDelivery)
   const [channel, setChannel] = useState<LoginCodeChannel>('EMAIL')
@@ -152,12 +152,6 @@ export function ParentLoginDelivery() {
       <AuthCard>
         <p className={card.sectionLabel}>Куда отправить код</p>
         <p className={form.hint}>Выберите способ получения кода.</p>
-
-        {!pendingDelivery.canSendCode && (
-          <p className={form.error}>
-            Для входа не указаны email и телефон в базе университета. Обратитесь в деканат.
-          </p>
-        )}
 
         <form className={form.form} onSubmit={(e) => void handleSubmit(e)}>
           <LoginChannelPicker

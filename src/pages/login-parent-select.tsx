@@ -46,13 +46,10 @@ export function ParentLoginSelect() {
     <>
       <AuthCard>
         <p className={card.sectionLabel}>Кто вы?</p>
-        <p className={form.hint}>Выберите вашу роль. ФИО не показываем — только способ входа на следующем шаге.</p>
-
         <div className={styles.wrap}>
           <div className={styles.grid}>
             {pendingFamily.members.map((member) => {
               const Icon = roleIcon(member.relationKind)
-              const title = roleTitle(member.relationKind, member.relation)
               const disabled = !member.loginAvailable || busyIndex !== null
               return (
                 <button
@@ -63,21 +60,16 @@ export function ParentLoginSelect() {
                   onClick={() => void handleSelect(member.memberIndex)}
                 >
                   <Icon className={styles.icon} />
-                  <span className={styles.title}>{title}</span>
-                  {member.isCustomer && <span className={styles.badge}>Заказчик по договору</span>}
+                  <span className={styles.title}>{roleTitle(member.relationKind)}</span>
                   {!member.loginAvailable && (
-                    <span className={styles.hint}>
-                      Нет email и телефона в базе. Обратитесь в деканат.
-                    </span>
+                    <span className={styles.hint}>Нет контактов в базе. Обратитесь в деканат.</span>
                   )}
                 </button>
               )
             })}
           </div>
         </div>
-
         {error && <p className={form.error}>{error}</p>}
-
         <p className={card.forgotRow}>
           <Link to={paths.loginParent}>Назад</Link>
         </p>

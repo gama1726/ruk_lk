@@ -4,7 +4,6 @@ public record ParentDeliveryOptionsDto(
     boolean emailAvailable,
     boolean maxAvailable,
     boolean maxPhoneChanged,
-    boolean maxEnabled,
     String maskedEmail,
     String maskedPhone,
     boolean canSendCode

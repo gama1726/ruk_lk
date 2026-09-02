@@ -11,16 +11,11 @@ export type ParentRelationKind = 'father' | 'mother' | 'guardian'
 
 export type ParentMemberOption = {
   memberIndex: number
-  relation: string
   relationKind: ParentRelationKind
-  isCustomer: boolean
-  servicesBlocked: boolean
   loginAvailable: boolean
 }
 
 export type ParentFamilyState = {
-  studentId: string
-  studentAdult: boolean
   members: ParentMemberOption[]
 }
 
@@ -28,7 +23,6 @@ export type ParentDeliveryState = {
   emailAvailable: boolean
   maxAvailable: boolean
   maxPhoneChanged: boolean
-  maxEnabled: boolean
   maskedEmail: string | null
   maskedPhone: string | null
   canSendCode: boolean
@@ -66,7 +60,6 @@ type ParentAuthState = {
   restoreSession: () => Promise<void>
   identify: (studentId: string) => Promise<string | null>
   selectMember: (memberIndex: number) => Promise<string | null>
-  fetchLoginChannels: () => Promise<{ maxEnabled: boolean }>
   fetchMaxBindLink: () => Promise<{ url: string } | string>
   refreshPendingDelivery: () => Promise<string | null>
   sendLoginCode: (channel: LoginCodeChannel) => Promise<string | null>
@@ -87,35 +80,6 @@ function toSession(me: ParentMeResponseDto): ParentSession {
   }
 }
 
-function mockFamily(): ParentFamilyState {
-  return {
-    studentId: '831857',
-    studentAdult: true,
-    members: [
-      {
-        memberIndex: 0,
-        relation: 'Отец',
-        relationKind: 'father',
-        isCustomer: true,
-        servicesBlocked: false,
-        loginAvailable: true,
-      },
-    ],
-  }
-}
-
-function mockDelivery(): ParentDeliveryState {
-  return {
-    emailAvailable: false,
-    maxAvailable: false,
-    maxPhoneChanged: false,
-    maxEnabled: true,
-    maskedEmail: null,
-    maskedPhone: '+7 (916) ***-**-67',
-    canSendCode: true,
-  }
-}
-
 export const useParentAuth = create<ParentAuthState>((set) => ({
   session: null,
   pendingFamily: null,
@@ -132,13 +96,7 @@ export const useParentAuth = create<ParentAuthState>((set) => ({
     set({ status: 'loading' })
     try {
       const me = await apiGet<ParentMeResponseDto>('/api/auth/parent/me')
-      set({
-        session: toSession(me),
-        pendingFamily: null,
-        pendingDelivery: null,
-        pendingChallenge: null,
-        status: 'ready',
-      })
+      set({ session: toSession(me), pendingFamily: null, pendingDelivery: null, pendingChallenge: null, status: 'ready' })
       return
     } catch (error) {
       if (!(error instanceof ApiError && error.status === 401)) {
@@ -151,13 +109,7 @@ export const useParentAuth = create<ParentAuthState>((set) => ({
       const challenge = await apiGet<{ deliveryHint: string; channel: LoginCodeChannel }>(
         '/api/auth/parent/pending-challenge'
       )
-      set({
-        session: null,
-        pendingFamily: null,
-        pendingDelivery: null,
-        pendingChallenge: challenge,
-        status: 'ready',
-      })
+      set({ session: null, pendingFamily: null, pendingDelivery: null, pendingChallenge: challenge, status: 'ready' })
       return
     } catch {
       // continue
@@ -165,13 +117,7 @@ export const useParentAuth = create<ParentAuthState>((set) => ({
 
     try {
       const delivery = await apiGet<ParentDeliveryState>('/api/auth/parent/pending-delivery')
-      set({
-        session: null,
-        pendingFamily: null,
-        pendingDelivery: delivery,
-        pendingChallenge: null,
-        status: 'ready',
-      })
+      set({ session: null, pendingFamily: null, pendingDelivery: delivery, pendingChallenge: null, status: 'ready' })
       return
     } catch {
       // continue
@@ -179,14 +125,7 @@ export const useParentAuth = create<ParentAuthState>((set) => ({
 
     try {
       const family = await apiGet<ParentFamilyState>('/api/auth/parent/pending-family')
-      set({
-        session: null,
-        pendingFamily: family,
-        pendingDelivery: null,
-        pendingChallenge: null,
-        status: 'ready',
-      })
-      return
+      set({ session: null, pendingFamily: family, pendingDelivery: null, pendingChallenge: null, status: 'ready' })
     } catch {
       set({ session: null, pendingFamily: null, pendingDelivery: null, pendingChallenge: null, status: 'ready' })
     }
@@ -197,7 +136,14 @@ export const useParentAuth = create<ParentAuthState>((set) => ({
     if (!trimmedId) return 'Укажите номер зачётки ребёнка'
 
     if (!isApiConfigured()) {
-      set({ pendingFamily: mockFamily(), pendingDelivery: null, pendingChallenge: null, session: null })
+      set({
+        pendingFamily: {
+          members: [{ memberIndex: 0, relationKind: 'father', loginAvailable: true }],
+        },
+        pendingDelivery: null,
+        pendingChallenge: null,
+        session: null,
+      })
       return null
     }
 
@@ -216,7 +162,18 @@ export const useParentAuth = create<ParentAuthState>((set) => ({
 
   async selectMember(memberIndex) {
     if (!isApiConfigured()) {
-      set({ pendingDelivery: mockDelivery(), pendingChallenge: null, session: null })
+      set({
+        pendingDelivery: {
+          emailAvailable: false,
+          maxAvailable: false,
+          maxPhoneChanged: false,
+          maskedEmail: null,
+          maskedPhone: '+7 (***) ***-**-67',
+          canSendCode: true,
+        },
+        pendingChallenge: null,
+        session: null,
+      })
       return null
     }
 
@@ -227,18 +184,6 @@ export const useParentAuth = create<ParentAuthState>((set) => ({
     } catch (error) {
       if (error instanceof ApiError) return error.message || 'Не удалось выбрать родителя'
       return error instanceof Error ? error.message : 'Не удалось выбрать родителя'
-    }
-  },
-
-  async fetchLoginChannels() {
-    if (!isApiConfigured()) {
-      return { maxEnabled: true }
-    }
-    try {
-      const channels = await apiGet<{ maxEnabled: boolean }>('/api/auth/parent/channels')
-      return channels
-    } catch {
-      return { maxEnabled: false }
     }
   },
 
@@ -256,7 +201,6 @@ export const useParentAuth = create<ParentAuthState>((set) => ({
 
   async refreshPendingDelivery() {
     if (!isApiConfigured()) {
-      set({ pendingDelivery: mockDelivery() })
       return null
     }
     try {
@@ -272,10 +216,7 @@ export const useParentAuth = create<ParentAuthState>((set) => ({
   async sendLoginCode(channel) {
     if (!isApiConfigured()) {
       set({
-        pendingChallenge: {
-          deliveryHint: channel === 'MAX' ? '+7 (***) ***-**-67' : 't***@mail.ru',
-          channel,
-        },
+        pendingChallenge: { deliveryHint: channel === 'MAX' ? '+7 (***) ***-**-67' : 't***@mail.ru', channel },
         pendingFamily: null,
         pendingDelivery: null,
         session: null,
@@ -304,13 +245,13 @@ export const useParentAuth = create<ParentAuthState>((set) => ({
       set({
         session: {
           studentId: '831857',
-          studentFullName: 'Евмененко Константин Михайлович',
-          parentFullName: 'Евмененко Михаил Романович',
+          studentFullName: 'Студент',
+          parentFullName: 'Родитель',
           relation: 'Отец',
           isCustomer: true,
-          servicesBlocked: true,
-          dataAccessAllowed: false,
-          consentRequiredMessage: PARENT_CONSENT_MESSAGE,
+          servicesBlocked: false,
+          dataAccessAllowed: true,
+          consentRequiredMessage: null,
         },
         pendingChallenge: null,
         pendingFamily: null,
