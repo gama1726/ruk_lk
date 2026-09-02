@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useParentAuth } from '@/parent-auth'
 import { paths } from '@/paths'
-import { StudentAvatar } from '@/ui/StudentAvatar'
+import { ParentAvatar } from '@/ui/ParentAvatar'
 import styles from './user-menu.module.css'
 
 function shortName(full: string) {
@@ -77,7 +77,7 @@ export function ParentUserMenu() {
         onClick={() => setOpen((v) => !v)}
       >
         <span className={styles.userName}>{shortName(session.parentFullName)}</span>
-        <StudentAvatar size="sm" />
+        <ParentAvatar relation={session.relation} size="sm" />
         <ChevronIcon />
       </button>
 

@@ -14,7 +14,7 @@ import {
 } from '@/parent-profile'
 import { useParentAuth } from '@/parent-auth'
 import { paths } from '@/paths'
-import { Card, Loader, ScreenHeader, StudentAvatar } from '@/ui'
+import { Card, Loader, ParentAvatar, ScreenHeader } from '@/ui'
 import styles from './parent-profile.module.css'
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -146,7 +146,7 @@ export function ParentProfile() {
 
       <Card padding="lg" className={styles.hero}>
         <div className={styles.heroInner}>
-          <StudentAvatar size="lg" aria-hidden="true" />
+          <ParentAvatar relation={profile.relation} size="lg" aria-hidden="true" />
 
           <div className={styles.heroBody}>
             <h2 className={styles.name}>{profile.parentFullName}</h2>

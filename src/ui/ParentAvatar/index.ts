@@ -1,0 +1,1 @@
+export { ParentAvatar } from './ParentAvatar'
