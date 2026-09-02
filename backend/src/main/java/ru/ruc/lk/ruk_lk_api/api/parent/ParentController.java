@@ -1,5 +1,6 @@
 package ru.ruc.lk.ruk_lk_api.api.parent;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -11,6 +12,9 @@ import ru.ruc.lk.ruk_lk_api.api.auth.ParentAuthService;
 import ru.ruc.lk.ruk_lk_api.api.auth.ParentSession;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/parent")
@@ -34,6 +38,15 @@ public class ParentController {
     @GetMapping("/record-book")
     public RecordBookResponse recordBook(HttpSession session) {
         return parentService.getRecordBook(session);
+    }
+
+    @GetMapping("/attendance")
+    public StudentAttendanceResponse attendance(
+        HttpSession session,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return parentService.getAttendance(session, from, to);
     }
 
     /** Опрос университета — доступен родителю даже при servicesBlocked. */

@@ -22,6 +22,7 @@ import { ParentSurvey } from '@/pages/parent-survey'
 import { ParentProfile } from '@/pages/parent-profile'
 import { ParentSchedule } from '@/pages/parent-schedule'
 import { ParentRecordBook } from '@/pages/parent-record-book'
+import { ParentAttendance } from '@/pages/parent-attendance'
 import { ParentDataPlaceholder } from '@/pages/parent-data-placeholder'
 import { ContractLogin } from '@/pages/login-contract'
 import { TargetLogin } from '@/pages/login-target'
@@ -135,7 +136,7 @@ export const router = createBrowserRouter([
           { path: paths.parentProfile, element: <ParentProfile /> },
           { path: paths.parentSchedule, element: <ParentSchedule /> },
           { path: paths.parentRecordBook, element: <ParentRecordBook /> },
-          { path: paths.parentAttendance, element: <ParentDataPlaceholder title="Посещаемость" /> },
+          { path: paths.parentAttendance, element: <ParentAttendance /> },
           { path: paths.parentOrders, element: <ParentDataPlaceholder title="Приказы" /> },
           { path: paths.parentPayments, element: <ParentDataPlaceholder title="Оплата обучения" /> },
         ],

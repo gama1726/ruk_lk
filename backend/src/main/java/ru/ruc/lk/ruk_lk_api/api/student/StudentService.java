@@ -453,9 +453,18 @@ public class StudentService {
      */
     public StudentAttendanceResponse getAttendance(HttpSession session, LocalDate from, LocalDate to) {
         StudentSession student = requireStudent(session);
+        return getAttendanceForStudentId(session, student.studentId(), from, to);
+    }
 
+    /** Посещаемость по номеру зачётки (родительский кабинет). */
+    public StudentAttendanceResponse getAttendanceForStudentId(
+        HttpSession session,
+        String studentId,
+        LocalDate from,
+        LocalDate to
+    ) {
         OneCProfileResponse profile = onecClient
-            .fetchProfile(student.studentId())
+            .fetchProfile(studentId)
             .orElse(null);
 
         if (from == null || to == null) {
@@ -469,7 +478,7 @@ public class StudentService {
 
         if (profile != null && CampusSupport.isKazanKkiCampus(
             profile.faculty(), profile.department(), profile.branch())) {
-            return getKazanAttendance(session, student, profile, begin, end);
+            return getKazanAttendance(session, studentId, profile, begin, end);
         }
 
         if (profile != null && CampusSupport.isBranchCampus(
@@ -481,7 +490,7 @@ public class StudentService {
         }
 
         Optional<StudentAttendanceResponse> cached = attendanceCache.get(
-            student.studentId(),
+            studentId,
             begin,
             end,
             "perco"
@@ -495,20 +504,20 @@ public class StudentService {
             CompletableFuture<List<SkudAccessEvent>> eventsFuture = CompletableFuture.supplyAsync(() -> {
                 try {
                     return mapPercoEvents(
-                        percoClient.fetchAccessEvents(student.studentId(), begin, end)
+                        percoClient.fetchAccessEvents(studentId, begin, end)
                     );
                 } catch (PercoException e) {
                     throw new CompletionException(e);
                 }
             });
             CompletableFuture<Set<LocalDate>> campusDaysFuture = CompletableFuture.supplyAsync(
-                () -> campusLessonDates(session, student, begin, end, groupName)
+                () -> campusLessonDates(session, studentId, begin, end, groupName)
             );
 
             List<SkudAccessEvent> events = eventsFuture.join();
             Set<LocalDate> campusDays = campusDaysFuture.join();
             StudentAttendanceResponse response = AttendanceMapper.toResponse("perco", events, campusDays);
-            attendanceCache.put(student.studentId(), begin, end, "perco", response);
+            attendanceCache.put(studentId, begin, end, "perco", response);
             return response;
         } catch (CompletionException ex) {
             Throwable cause = ex.getCause();
@@ -526,7 +535,7 @@ public class StudentService {
 
     private StudentAttendanceResponse getKazanAttendance(
         HttpSession session,
-        StudentSession student,
+        String studentId,
         OneCProfileResponse profile,
         LocalDate begin,
         LocalDate end
@@ -539,7 +548,7 @@ public class StudentService {
         }
 
         Optional<StudentAttendanceResponse> cached = attendanceCache.get(
-            student.studentId(),
+            studentId,
             begin,
             end,
             "zkbio"
@@ -552,19 +561,19 @@ public class StudentService {
         try {
             CompletableFuture<List<SkudAccessEvent>> eventsFuture = CompletableFuture.supplyAsync(() -> {
                 try {
-                    return zkbioClient.fetchAccessEvents(student.studentId(), begin, end);
+                    return zkbioClient.fetchAccessEvents(studentId, begin, end);
                 } catch (ZKBioException e) {
                     throw new CompletionException(e);
                 }
             });
             CompletableFuture<Set<LocalDate>> campusDaysFuture = CompletableFuture.supplyAsync(
-                () -> campusLessonDates(session, student, begin, end, groupName)
+                () -> campusLessonDates(session, studentId, begin, end, groupName)
             );
 
             List<SkudAccessEvent> events = eventsFuture.join();
             Set<LocalDate> campusDays = campusDaysFuture.join();
             StudentAttendanceResponse response = AttendanceMapper.toResponse("zkbio", events, campusDays);
-            attendanceCache.put(student.studentId(), begin, end, "zkbio", response);
+            attendanceCache.put(studentId, begin, end, "zkbio", response);
             return response;
         } catch (CompletionException ex) {
             Throwable cause = ex.getCause();
@@ -604,15 +613,15 @@ public class StudentService {
     /** Даты с очными занятиями в аудитории за период (по расписанию группы). */
     private Set<LocalDate> campusLessonDates(
         HttpSession session,
-        StudentSession student,
+        String studentId,
         LocalDate begin,
         LocalDate end,
         Optional<String> groupFromProfile
     ) {
         try {
-            ScheduleSessionContext context = scheduleContextService.require(
+            ScheduleSessionContext context = scheduleContextService.requireForStudentId(
                 session,
-                student,
+                studentId,
                 () -> groupFromProfile
             );
             List<LocalDate> anchors = ScheduleMapper.weekAnchorsForRange(begin, end);

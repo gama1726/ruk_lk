@@ -9,6 +9,9 @@ import ru.ruc.lk.ruk_lk_api.api.auth.ParentSession;
 import ru.ruc.lk.ruk_lk_api.api.student.StudentService;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
+
+import java.time.LocalDate;
 
 @Service
 public class ParentService {
@@ -29,5 +32,11 @@ public class ParentService {
         ParentSession parent = ParentAuthService.requireParent(session);
         ParentAuthService.requireDataAccess(parent);
         return studentService.getRecordBookForStudentId(parent.studentId());
+    }
+
+    public StudentAttendanceResponse getAttendance(HttpSession session, LocalDate from, LocalDate to) {
+        ParentSession parent = ParentAuthService.requireParent(session);
+        ParentAuthService.requireDataAccess(parent);
+        return studentService.getAttendanceForStudentId(session, parent.studentId(), from, to);
     }
 }

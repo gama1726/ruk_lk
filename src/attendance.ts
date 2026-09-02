@@ -38,6 +38,14 @@ export async function fetchStudentAttendance(
   return apiGet<StudentAttendanceDto>(`/api/student/attendance?${params}`)
 }
 
+export async function fetchParentAttendance(
+  from: string,
+  to: string,
+): Promise<StudentAttendanceDto> {
+  const params = new URLSearchParams({ from, to })
+  return apiGet<StudentAttendanceDto>(`/api/parent/attendance?${params}`)
+}
+
 /** Динамические пресеты относительно сегодня */
 export function buildAttendancePeriodPresets(today = new Date()) {
   const iso = (d: Date) => {
