@@ -371,9 +371,12 @@ public class StudentService {
 
     public StudentOrdersResponse getOrders(HttpSession session) {
         StudentSession student = requireStudent(session);
+        return getOrdersForStudentId(student.studentId());
+    }
 
+    public StudentOrdersResponse getOrdersForStudentId(String studentId) {
         OneCOrdersResponse orders = onecClient
-            .fetchOrders(student.studentId())
+            .fetchOrders(studentId)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
                 "Приказы не найдены"

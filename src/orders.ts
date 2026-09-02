@@ -28,6 +28,10 @@ export async function fetchStudentOrders(): Promise<StudentOrdersDto> {
   return apiGet<StudentOrdersDto>('/api/student/orders')
 }
 
+export async function fetchParentOrders(): Promise<StudentOrdersDto> {
+  return apiGet<StudentOrdersDto>('/api/parent/orders')
+}
+
 export function isOrdersApiEnabled(): boolean {
   return isApiConfigured()
 }

@@ -10,6 +10,7 @@ import ru.ruc.lk.ruk_lk_api.api.student.StudentService;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
 
 import java.time.LocalDate;
 
@@ -38,5 +39,11 @@ public class ParentService {
         ParentSession parent = ParentAuthService.requireParent(session);
         ParentAuthService.requireDataAccess(parent);
         return studentService.getAttendanceForStudentId(session, parent.studentId(), from, to);
+    }
+
+    public StudentOrdersResponse getOrders(HttpSession session) {
+        ParentSession parent = ParentAuthService.requireParent(session);
+        ParentAuthService.requireDataAccess(parent);
+        return studentService.getOrdersForStudentId(parent.studentId());
     }
 }

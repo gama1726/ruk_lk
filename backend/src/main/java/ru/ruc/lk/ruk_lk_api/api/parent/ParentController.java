@@ -13,6 +13,7 @@ import ru.ruc.lk.ruk_lk_api.api.auth.ParentSession;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
 
 import java.time.LocalDate;
 
@@ -47,6 +48,11 @@ public class ParentController {
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
         return parentService.getAttendance(session, from, to);
+    }
+
+    @GetMapping("/orders")
+    public StudentOrdersResponse orders(HttpSession session) {
+        return parentService.getOrders(session);
     }
 
     /** Опрос университета — доступен родителю даже при servicesBlocked. */
