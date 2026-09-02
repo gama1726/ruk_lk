@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpSession;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.ParentAuthService;
 import ru.ruc.lk.ruk_lk_api.api.auth.ParentSession;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 
 @RestController
@@ -28,6 +29,11 @@ public class ParentController {
         @RequestParam int month
     ) {
         return parentService.getScheduleMonth(session, year, month);
+    }
+
+    @GetMapping("/record-book")
+    public RecordBookResponse recordBook(HttpSession session) {
+        return parentService.getRecordBook(session);
     }
 
     /** Опрос университета — доступен родителю даже при servicesBlocked. */

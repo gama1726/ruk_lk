@@ -138,6 +138,10 @@ export async function fetchRecordBook(): Promise<RecordBookDto> {
   return apiGet<RecordBookDto>('/api/student/record-book')
 }
 
+export async function fetchParentRecordBook(): Promise<RecordBookDto> {
+  return apiGet<RecordBookDto>('/api/parent/record-book')
+}
+
 /** Есть ли подключение к API зачётки. */
 export function isRecordBookApiEnabled(): boolean {
   return isApiConfigured()

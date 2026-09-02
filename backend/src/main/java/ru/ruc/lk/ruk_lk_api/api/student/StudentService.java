@@ -355,9 +355,12 @@ public class StudentService {
 
     public RecordBookResponse getRecordBook(HttpSession session) {
         StudentSession student = requireStudent(session);
+        return getRecordBookForStudentId(student.studentId());
+    }
 
+    public RecordBookResponse getRecordBookForStudentId(String studentId) {
         OneCGradebookResponse gradebook = onecClient
-            .fetchGradebook(student.studentId())
+            .fetchGradebook(studentId)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
                 "Зачётная книжка не найдена"
