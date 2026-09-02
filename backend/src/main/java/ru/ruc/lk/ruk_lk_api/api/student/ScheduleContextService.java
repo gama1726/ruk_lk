@@ -17,6 +17,7 @@ import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.ProgramSummary;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupLookupResponse;
+import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupNameNormalizer;
 
 /**
  * GUID группы/филиала: БД + кэш в HTTP-сессии.
@@ -127,8 +128,7 @@ public class ScheduleContextService {
                 return context;
             }
 
-            ScheduleGroupLookupResponse lookup = scheduleClient
-                .lookupGroup(groupName)
+            ScheduleGroupLookupResponse lookup = lookupGroupWithFallback(groupName)
                 .orElseThrow(() -> new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
                     "Группа не найдена в сервисе расписания"
@@ -190,5 +190,22 @@ public class ScheduleContextService {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private Optional<ScheduleGroupLookupResponse> lookupGroupWithFallback(String groupName) {
+        for (String candidate : ScheduleGroupNameNormalizer.lookupCandidates(groupName)) {
+            Optional<ScheduleGroupLookupResponse> found = scheduleClient.lookupGroup(candidate);
+            if (found.isPresent()) {
+                if (!candidate.equals(groupName)) {
+                    log.info(
+                        "Расписание: группа найдена по сокращённому имени {} (1С: {})",
+                        candidate,
+                        groupName
+                    );
+                }
+                return found;
+            }
+        }
+        return Optional.empty();
     }
 }
