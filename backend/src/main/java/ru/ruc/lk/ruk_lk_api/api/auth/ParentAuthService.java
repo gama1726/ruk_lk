@@ -264,7 +264,8 @@ public class ParentAuthService {
             member.parentFullName(),
             member.isCustomer(),
             member.servicesBlocked(),
-            member.email()
+            member.email(),
+            member.phone()
         );
 
         clearStudentSession(session);

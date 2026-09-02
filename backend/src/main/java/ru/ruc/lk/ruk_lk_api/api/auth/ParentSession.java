@@ -10,7 +10,8 @@ public record ParentSession(
     String parentFullName,
     boolean isCustomer,
     boolean servicesBlocked,
-    String parentEmail
+    String parentEmail,
+    String parentPhone
 ) {
     public boolean dataAccessAllowed() {
         return !servicesBlocked;
