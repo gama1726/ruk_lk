@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { useAuth } from '@/auth'
+import { useParentAuth } from '@/parent-auth'
 import styles from './auth-bootstrap.module.css'
 
 type Props = {
@@ -7,17 +8,19 @@ type Props = {
 }
 
 /**
- * Восстанавливает сессию через `GET /api/auth/me` перед роутингом.
+ * Восстанавливает сессию студента и родителя перед роутингом.
  */
 export function AuthBootstrap({ children }: Props) {
-  const status = useAuth((s) => s.status)
-  const restoreSession = useAuth((s) => s.restoreSession)
+  const studentStatus = useAuth((s) => s.status)
+  const parentStatus = useParentAuth((s) => s.status)
+  const restoreStudent = useAuth((s) => s.restoreSession)
+  const restoreParent = useParentAuth((s) => s.restoreSession)
 
   useEffect(() => {
-    void restoreSession()
-  }, [restoreSession])
+    void Promise.all([restoreStudent(), restoreParent()])
+  }, [restoreStudent, restoreParent])
 
-  if (status === 'loading') {
+  if (studentStatus === 'loading' || parentStatus === 'loading') {
     return (
       <div className={styles.screen} role="status" aria-live="polite">
         Загрузка…

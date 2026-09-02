@@ -22,6 +22,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
         HttpSecurity http,
         StudentSessionAuthFilter studentSessionAuthFilter,
+        ParentSessionAuthFilter parentSessionAuthFilter,
         AdminSessionAuthFilter adminSessionAuthFilter
     ) throws Exception {
         http
@@ -38,6 +39,7 @@ public class SecurityConfig {
                 .anyRequest().permitAll()
             )
             .addFilterBefore(adminSessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(parentSessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(studentSessionAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

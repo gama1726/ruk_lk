@@ -10,6 +10,8 @@ export const paths = {
   loginStudent: '/login/student',
   loginDelivery: '/login/delivery',
   loginParent: '/login/parent',
+  loginParentSelect: '/login/parent/select',
+  loginParentVerify: '/login/parent/verify',
   loginContract: '/login/contract',
   loginTarget: '/login/target',
   loginTeacher: '/login/teacher',
@@ -49,4 +51,13 @@ export const paths = {
   adminPassPhotosSpoLogin: '/admin/pass-photos/spo/login',
   /** @deprecated используйте adminPassPhotosLogin */
   adminPassPhotosHeLogin: '/admin/pass-photos/he/login',
+  parentHome: '/parent',
+  parentSurvey: '/parent/survey',
+  parentProfile: '/parent/profile',
+  parentNews: '/parent/news',
+  parentSchedule: '/parent/schedule',
+  parentRecordBook: '/parent/record-book',
+  parentAttendance: '/parent/attendance',
+  parentPayments: '/parent/payments',
+  parentOrders: '/parent/orders',
 } as const

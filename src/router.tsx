@@ -11,6 +11,15 @@ import { LoginDelivery } from '@/pages/login-delivery'
 import { SsoLogin } from '@/pages/login-sso'
 import { Verify } from '@/pages/verify-code'
 import { ParentLogin } from '@/pages/login-parent'
+import { ParentLoginSelect } from '@/pages/login-parent-select'
+import { ParentLoginVerify } from '@/pages/login-parent-verify'
+import { ParentCabinetShell } from '@/layout/parent-cabinet'
+import { RequireParentSession } from '@/layout/require-parent-session'
+import { ParentGuestOnly } from '@/layout/parent-guest-only'
+import { ParentHome } from '@/pages/parent-home'
+import { ParentSurvey } from '@/pages/parent-survey'
+import { ParentProfile } from '@/pages/parent-profile'
+import { ParentDataPlaceholder } from '@/pages/parent-data-placeholder'
 import { ContractLogin } from '@/pages/login-contract'
 import { TargetLogin } from '@/pages/login-target'
 import { TeacherLogin } from '@/pages/login-teacher'
@@ -53,6 +62,13 @@ export const router = createBrowserRouter([
           { path: paths.loginStudent, element: <StudentLogin /> },
           { path: paths.loginDelivery, element: <LoginDelivery /> },
           { path: paths.loginParent, element: <ParentLogin /> },
+          {
+            element: <ParentGuestOnly />,
+            children: [
+              { path: paths.loginParentSelect, element: <ParentLoginSelect /> },
+              { path: paths.loginParentVerify, element: <ParentLoginVerify /> },
+            ],
+          },
           { path: paths.loginContract, element: <ContractLogin /> },
           { path: paths.loginTarget, element: <TargetLogin /> },
           { path: paths.loginTeacher, element: <TeacherLogin /> },
@@ -100,6 +116,24 @@ export const router = createBrowserRouter([
           { path: paths.settings, element: <Settings /> },
           { path: paths.passPhoto, element: <PassPhoto /> },
           { path: paths.esports, element: <EsportsRedirect /> },
+        ],
+      },
+    ],
+  },
+  {
+    element: <RequireParentSession />,
+    children: [
+      {
+        element: <ParentCabinetShell />,
+        children: [
+          { path: paths.parentHome, element: <ParentHome /> },
+          { path: paths.parentSurvey, element: <ParentSurvey /> },
+          { path: paths.parentProfile, element: <ParentProfile /> },
+          { path: paths.parentSchedule, element: <ParentDataPlaceholder title="Расписание" /> },
+          { path: paths.parentRecordBook, element: <ParentDataPlaceholder title="Зачётная книжка" /> },
+          { path: paths.parentAttendance, element: <ParentDataPlaceholder title="Посещаемость" /> },
+          { path: paths.parentOrders, element: <ParentDataPlaceholder title="Приказы" /> },
+          { path: paths.parentPayments, element: <ParentDataPlaceholder title="Оплата обучения" /> },
         ],
       },
     ],

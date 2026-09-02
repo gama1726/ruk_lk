@@ -1,0 +1,29 @@
+.wrap {
+  max-width: 42rem;
+  padding: 1.5rem 0;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+}
+
+.alert {
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-danger, #c62828) 12%, transparent);
+  color: var(--color-danger, #c62828);
+  border: 1px solid color-mix(in srgb, var(--color-danger, #c62828) 35%, transparent);
+  margin: 0 0 1rem;
+  line-height: 1.5;
+}
+
+.hint {
+  color: var(--color-text-muted, #666);
+  line-height: 1.5;
+}
+
+.hint a {
+  color: var(--color-primary, #51308e);
+}

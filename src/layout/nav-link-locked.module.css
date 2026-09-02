@@ -1,0 +1,9 @@
+.locked {
+  color: var(--color-danger, #c62828) !important;
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+
+.icon {
+  color: var(--color-danger, #c62828);
+}

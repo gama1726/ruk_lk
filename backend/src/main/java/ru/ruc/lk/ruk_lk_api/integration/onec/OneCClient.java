@@ -24,4 +24,7 @@ public interface OneCClient {
      * @param email новый адрес
      */
     Optional<OneCProfileEmailResponse> updateProfileEmail(String studentId, String email);
+
+    /** Состав семьи / родители: {@code POST /hs/student/parent/check}. */
+    Optional<OneCFamilyResponse> fetchFamily(String studentId);
 }

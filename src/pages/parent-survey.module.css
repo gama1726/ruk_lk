@@ -1,0 +1,29 @@
+.wrap {
+  max-width: 40rem;
+  padding: 1.5rem 0;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+}
+
+.lead {
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+}
+
+.text {
+  color: var(--color-text-muted, #666);
+  line-height: 1.5;
+  margin: 0 0 1.25rem;
+}
+
+.placeholder {
+  padding: 2rem;
+  border: 1px dashed var(--color-border, #ccc);
+  border-radius: 12px;
+  text-align: center;
+  color: var(--color-text-muted, #666);
+}

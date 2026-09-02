@@ -187,6 +187,24 @@ public class HttpOneCClient implements OneCClient {
         }
     }
 
+    @Override
+    public Optional<OneCFamilyResponse> fetchFamily(String studentId) {
+        try {
+            OneCFamilyResponse response = restClient.post()
+                .uri("/hs/student/parent/check")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new OneCAuthRequest(studentId))
+                .retrieve()
+                .body(OneCFamilyResponse.class);
+            if (response == null || !response.found()) {
+                return Optional.empty();
+            }
+            return Optional.of(response);
+        } catch (HttpClientErrorException e) {
+            return Optional.empty();
+        }
+    }
+
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
