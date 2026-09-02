@@ -387,10 +387,15 @@ public class StudentService {
 
     public StudentPaymentsResponse getPayments(HttpSession session, LocalDate date) {
         StudentSession student = requireStudent(session);
+        return getPaymentsForStudentId(student.studentId(), date);
+    }
+
+    /** Оплата обучения по номеру зачётки (родительский кабинет). */
+    public StudentPaymentsResponse getPaymentsForStudentId(String studentId, LocalDate date) {
         LocalDate asOf = date != null ? date : LocalDate.now();
 
         OneCPaymentsResponse payments = onecClient
-            .fetchPayments(student.studentId(), asOf, true)
+            .fetchPayments(studentId, asOf, true)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
                 "Данные об оплате не найдены"

@@ -11,6 +11,7 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.parent.dto.ParentProfileResponse;
 
@@ -47,6 +48,12 @@ public class ParentService {
         ParentSession parent = ParentAuthService.requireParent(session);
         ParentAuthService.requireDataAccess(parent);
         return studentService.getOrdersForStudentId(parent.studentId());
+    }
+
+    public StudentPaymentsResponse getPayments(HttpSession session, LocalDate date) {
+        ParentSession parent = ParentAuthService.requireParent(session);
+        ParentAuthService.requireDataAccess(parent);
+        return studentService.getPaymentsForStudentId(parent.studentId(), date);
     }
 
     public ParentProfileResponse getProfile(HttpSession session) {

@@ -63,6 +63,11 @@ export async function fetchStudentPayments(date?: string): Promise<StudentPaymen
   return apiGet<StudentPaymentsDto>(`/api/student/payments${query}`)
 }
 
+export async function fetchParentPayments(date?: string): Promise<StudentPaymentsDto> {
+  const query = date ? `?date=${encodeURIComponent(date)}` : ''
+  return apiGet<StudentPaymentsDto>(`/api/parent/payments${query}`)
+}
+
 export function isPaymentsApiEnabled(): boolean {
   return isApiConfigured()
 }
@@ -115,7 +120,11 @@ export function buildPayUrl(
  * Открывает pay.ruc.su в новой вкладке.
  * @returns сообщение об ошибке или null
  */
-export function openPayGateway(contract: string | null | undefined, amount: number): string | null {
+export function openPayGateway(
+  contract: string | null | undefined,
+  amount: number,
+  returnUrl?: string,
+): string | null {
   const number = contract?.trim() ?? ''
   if (!number) {
     return 'Нет номера договора для оплаты'
@@ -127,7 +136,7 @@ export function openPayGateway(contract: string | null | undefined, amount: numb
   if (whole < PAY_MIN_AMOUNT) {
     return `Укажите сумму не меньше ${PAY_MIN_AMOUNT} ₽`
   }
-  window.open(buildPayUrl(number, whole), '_blank', 'noopener,noreferrer')
+  window.open(buildPayUrl(number, whole, returnUrl), '_blank', 'noopener,noreferrer')
   return null
 }
 

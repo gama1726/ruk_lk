@@ -15,6 +15,7 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 
 import java.time.LocalDate;
 
@@ -54,6 +55,14 @@ public class ParentController {
     @GetMapping("/orders")
     public StudentOrdersResponse orders(HttpSession session) {
         return parentService.getOrders(session);
+    }
+
+    @GetMapping("/payments")
+    public StudentPaymentsResponse payments(
+        HttpSession session,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return parentService.getPayments(session, date);
     }
 
     @GetMapping("/profile")

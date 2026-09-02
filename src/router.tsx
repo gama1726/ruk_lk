@@ -24,7 +24,7 @@ import { ParentSchedule } from '@/pages/parent-schedule'
 import { ParentRecordBook } from '@/pages/parent-record-book'
 import { ParentAttendance } from '@/pages/parent-attendance'
 import { ParentOrders } from '@/pages/parent-orders'
-import { ParentDataPlaceholder } from '@/pages/parent-data-placeholder'
+import { ParentPayments } from '@/pages/parent-payments'
 import { ContractLogin } from '@/pages/login-contract'
 import { TargetLogin } from '@/pages/login-target'
 import { TeacherLogin } from '@/pages/login-teacher'
@@ -139,7 +139,7 @@ export const router = createBrowserRouter([
           { path: paths.parentRecordBook, element: <ParentRecordBook /> },
           { path: paths.parentAttendance, element: <ParentAttendance /> },
           { path: paths.parentOrders, element: <ParentOrders /> },
-          { path: paths.parentPayments, element: <ParentDataPlaceholder title="Оплата обучения" /> },
+          { path: paths.parentPayments, element: <ParentPayments /> },
         ],
       },
     ],
