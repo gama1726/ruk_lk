@@ -18,7 +18,7 @@ public class LoggingZKBioClient implements ZKBioClient {
     }
 
     @Override
-    public List<SkudAccessEvent> fetchAccessEvents(String empCode, LocalDate from, LocalDate to) {
+    public List<SkudAccessEvent> fetchAccessEvents(String studentId, LocalDate from, LocalDate to) {
         return List.of();
     }
 }

@@ -10,9 +10,9 @@ public interface ZKBioClient {
     /**
      * Проходы студента за период.
      *
-     * @param empCode код в ZKBio (для ККИ — номер зачётки)
+     * @param studentId номер зачётки из 1С; в ZKBio может совпадать с emp_code, SSN или national
      */
-    List<SkudAccessEvent> fetchAccessEvents(String empCode, LocalDate from, LocalDate to)
+    List<SkudAccessEvent> fetchAccessEvents(String studentId, LocalDate from, LocalDate to)
         throws ZKBioException;
 
     boolean isEnabled();
