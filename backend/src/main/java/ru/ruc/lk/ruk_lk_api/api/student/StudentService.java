@@ -683,10 +683,6 @@ public class StudentService {
         return ScheduleMapper.toResponse(context.groupName(), anchorDate, week);
     }
 
-    /**
-     * Месяц целиком: GUID уже в сессии после логина → сразу параллельные get_schedule.
-     * @param month месяц 1..12
-     */
     public ScheduleMonthResponse getScheduleMonth(HttpSession session, int year, int month) {
         if (month < 1 || month > 12) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Месяц должен быть от 1 до 12");
@@ -696,7 +692,32 @@ public class StudentService {
         }
 
         StudentSession student = requireStudent(session);
-        ScheduleSessionContext context = scheduleContext(session, student);
+        return getScheduleMonthForStudentId(session, student.studentId(), year, month);
+    }
+
+    /** Расписание по номеру зачётки (родительский кабинет). */
+    public ScheduleMonthResponse getScheduleMonthForStudentId(
+        HttpSession session,
+        String studentId,
+        int year,
+        int month
+    ) {
+        if (month < 1 || month > 12) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Месяц должен быть от 1 до 12");
+        }
+        if (year < 2000 || year > 2100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Некорректный год");
+        }
+
+        ScheduleSessionContext context = scheduleContextService.requireForStudentId(
+            session,
+            studentId,
+            () -> onecClient
+                .fetchProfile(studentId)
+                .map(OneCProfileResponse::group)
+                .map(String::trim)
+                .filter(group -> !group.isBlank())
+        );
 
         List<LocalDate> anchors = ScheduleMapper.weekAnchorsForMonth(year, month);
         List<ScheduleWeekApiResponse> weeks = fetchWeeksParallel(context, anchors);

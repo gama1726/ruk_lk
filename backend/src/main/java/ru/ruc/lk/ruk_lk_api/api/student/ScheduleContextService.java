@@ -69,21 +69,41 @@ public class ScheduleContextService {
         StudentSession student,
         Supplier<Optional<String>> groupFromProfile
     ) {
+        return requireForStudentId(session, student.studentId(), () -> {
+            Optional<String> fromPrograms = groupFromPrograms(student.programs());
+            if (fromPrograms.isPresent()) {
+                return fromPrograms;
+            }
+            return groupFromProfile == null ? Optional.empty() : groupFromProfile.get();
+        });
+    }
+
+    /** Контекст расписания по номеру зачётки (родительский кабинет). */
+    public ScheduleSessionContext requireForStudentId(
+        HttpSession session,
+        String studentId,
+        Supplier<Optional<String>> groupFromProfile
+    ) {
+        if (studentId == null || studentId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указан номер зачётки");
+        }
+        String trimmedId = studentId.trim();
+
         Object raw = session.getAttribute(SESSION_KEY);
         if (raw instanceof ScheduleSessionContext cached && hasGuids(cached)) {
-            String desired = currentGroupName(student, groupFromProfile).orElse(cached.groupName());
-            if (desired.equals(cached.groupName())) {
+            Optional<String> desired = currentGroupName(trimmedId, groupFromProfile);
+            if (desired.isPresent() && desired.get().equals(cached.groupName())) {
                 return cached;
             }
         }
 
-        String groupName = currentGroupName(student, groupFromProfile)
+        String groupName = currentGroupName(trimmedId, groupFromProfile)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
                 "Группа студента не найдена"
             ));
 
-        return resolve(session, student.studentId(), groupName);
+        return resolve(session, trimmedId, groupName);
     }
 
     public String resolveGroupName(
@@ -104,8 +124,15 @@ public class ScheduleContextService {
         Supplier<Optional<String>> groupFromProfile
     ) {
         return groupFromPrograms(student.programs())
-            .or(() -> groupFromProfile == null ? Optional.empty() : groupFromProfile.get())
-            .or(() -> repository.findById(student.studentId())
+            .or(() -> currentGroupName(student.studentId(), groupFromProfile));
+    }
+
+    private Optional<String> currentGroupName(
+        String studentId,
+        Supplier<Optional<String>> groupFromProfile
+    ) {
+        return (groupFromProfile == null ? Optional.<String>empty() : groupFromProfile.get())
+            .or(() -> repository.findById(studentId)
                 .map(StudentScheduleContext::getGroupName)
                 .filter(name -> name != null && !name.isBlank()));
     }

@@ -2,16 +2,33 @@ package ru.ruc.lk.ruk_lk_api.api.parent;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpSession;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.ParentAuthService;
 import ru.ruc.lk.ruk_lk_api.api.auth.ParentSession;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 
 @RestController
 @RequestMapping("/api/parent")
 public class ParentController {
+
+    private final ParentService parentService;
+
+    public ParentController(ParentService parentService) {
+        this.parentService = parentService;
+    }
+
+    @GetMapping("/schedule/month")
+    public ScheduleMonthResponse scheduleMonth(
+        HttpSession session,
+        @RequestParam int year,
+        @RequestParam int month
+    ) {
+        return parentService.getScheduleMonth(session, year, month);
+    }
 
     /** Опрос университета — доступен родителю даже при servicesBlocked. */
     @GetMapping("/survey")

@@ -20,6 +20,7 @@ import { ParentGuestOnly } from '@/layout/parent-guest-only'
 import { ParentHome } from '@/pages/parent-home'
 import { ParentSurvey } from '@/pages/parent-survey'
 import { ParentProfile } from '@/pages/parent-profile'
+import { ParentSchedule } from '@/pages/parent-schedule'
 import { ParentDataPlaceholder } from '@/pages/parent-data-placeholder'
 import { ContractLogin } from '@/pages/login-contract'
 import { TargetLogin } from '@/pages/login-target'
@@ -131,7 +132,7 @@ export const router = createBrowserRouter([
           { path: paths.parentHome, element: <ParentHome /> },
           { path: paths.parentSurvey, element: <ParentSurvey /> },
           { path: paths.parentProfile, element: <ParentProfile /> },
-          { path: paths.parentSchedule, element: <ParentDataPlaceholder title="Расписание" /> },
+          { path: paths.parentSchedule, element: <ParentSchedule /> },
           { path: paths.parentRecordBook, element: <ParentDataPlaceholder title="Зачётная книжка" /> },
           { path: paths.parentAttendance, element: <ParentDataPlaceholder title="Посещаемость" /> },
           { path: paths.parentOrders, element: <ParentDataPlaceholder title="Приказы" /> },

@@ -31,6 +31,7 @@ import ru.ruc.lk.ruk_lk_api.integration.max.VerificationMaxSender;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCFamilyResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCParentMember;
+import ru.ruc.lk.ruk_lk_api.api.student.ScheduleContextService;
 
 @Service
 public class ParentAuthService {
@@ -271,6 +272,7 @@ public class ParentAuthService {
         session.removeAttribute(PENDING_MEMBER_KEY);
         session.removeAttribute(PENDING_FAMILY_KEY);
         session.removeAttribute(LAST_SEND_AT_KEY);
+        session.removeAttribute(ScheduleContextService.SESSION_KEY);
         session.setAttribute(SESSION_KEY, parentSession);
         request.changeSessionId();
 
@@ -327,6 +329,7 @@ public class ParentAuthService {
         session.removeAttribute(PENDING_MEMBER_KEY);
         session.removeAttribute(PENDING_CHALLENGE_KEY);
         session.removeAttribute(LAST_SEND_AT_KEY);
+        session.removeAttribute(ScheduleContextService.SESSION_KEY);
     }
 
     public static ParentSession requireParent(HttpSession session) {
@@ -488,6 +491,7 @@ public class ParentAuthService {
         session.removeAttribute("STUDENT");
         session.removeAttribute("PENDING_IDENTIFICATION");
         session.removeAttribute("PENDING_CHALLENGE");
+        session.removeAttribute(ScheduleContextService.SESSION_KEY);
     }
 
     private void enforceSendCooldown(HttpSession session) {

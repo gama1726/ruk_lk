@@ -144,6 +144,13 @@ export async function fetchScheduleMonth(year: number, monthIndex: number): Prom
   )
 }
 
+export async function fetchParentScheduleMonth(year: number, monthIndex: number): Promise<ScheduleMonthDto> {
+  const month = monthIndex + 1
+  return apiGet<ScheduleMonthDto>(
+    `/api/parent/schedule/month?year=${encodeURIComponent(String(year))}&month=${encodeURIComponent(String(month))}`,
+  )
+}
+
 export function isScheduleApiEnabled(): boolean {
   return isApiConfigured()
 }
