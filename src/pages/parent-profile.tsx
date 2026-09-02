@@ -5,7 +5,6 @@ import { ApiError } from '@/apiClient'
 import { NavIcon, type NavIconId } from '@/icons/nav'
 import { courseLabel, maskPhone } from '@/mocks/format'
 import { formatShortDate } from '@/mocks/payment'
-import { PARENT_CONSENT_MESSAGE } from '@/parent-consent'
 import {
   fetchParentProfile,
   isParentProfileApiEnabled,
@@ -127,18 +126,23 @@ export function ParentProfile() {
   if (!profile) return null
 
   const student = profile.student
-  const consentMessage = profile.consentRequiredMessage ?? PARENT_CONSENT_MESSAGE
   const hasDebts = profile.academicDebtCount > 0
   const contract = profile.contract
+  const recordBookNumber = student?.studentId || profile.studentId
+  const studentStatus = student?.status?.trim() || 'Обучается в РУК'
 
   return (
     <div className={styles.page}>
-      <ScreenHeader title="Профиль" />
+      <ScreenHeader
+        title="Профиль"
+        subtitle="Ваши контакты и сведения о ребёнке в университете"
+      />
 
       {!profile.dataAccessAllowed ? (
         <div className={styles.alert} role="alert">
-          {consentMessage}{' '}
-          <Link to={paths.parentSurvey}>Пройти опрос</Link>
+          Данные о расписании, оценках и оплате пока скрыты: ребёнку нужно подписать согласие на
+          передачу данных третьим лицам. Вы по-прежнему видите свои контакты и можете пройти{' '}
+          <Link to={paths.parentSurvey}>опрос университета</Link>.
         </div>
       ) : null}
 
@@ -156,14 +160,15 @@ export function ParentProfile() {
               {profile.isCustomer ? (
                 <span className={styles.customerBadge}>Заказчик / плательщик</span>
               ) : null}
-              <span className={styles.linkedBadge}>Связан со студентом</span>
+              {profile.studentId ? (
+                <span className={styles.linkedBadge}>Зачётка {profile.studentId}</span>
+              ) : null}
             </div>
 
             <dl className={styles.metaGrid}>
-              <Field label="Роль" value={profile.relation} />
-              <Field label="Связанный студент" value={profile.studentFullName} />
-              <Field label="Контактный телефон" value={maskPhone(profile.parentPhone)} />
-              <Field label="Личная почта" value={profile.parentEmail ?? '—'} />
+              <Field label="Ваш ребёнок" value={profile.studentFullName} />
+              <Field label="Ваш телефон" value={maskPhone(profile.parentPhone)} />
+              <Field label="Ваш e-mail для входа" value={profile.parentEmail ?? '—'} />
             </dl>
           </div>
         </div>
@@ -171,21 +176,21 @@ export function ParentProfile() {
         <div className={styles.quickLinks}>
           <QuickLink
             to={paths.parentSchedule}
-            icon="program"
-            title="Обучение"
-            hint="Информация о студенте и процессе обучения"
+            icon="schedule"
+            title="Расписание и оценки"
+            hint="Расписание занятий и зачётная книжка"
           />
           <QuickLink
             to={paths.parentPayments}
             icon="payments"
-            title="Финансы"
-            hint="Договоры и платежи"
+            title="Оплата обучения"
+            hint="Договор и платежи"
           />
           <QuickLink
             to={paths.support}
             icon="requests"
-            title="Связаться"
-            hint="Связь с университетом"
+            title="Техподдержка кабинета"
+            hint="Помощь по работе личного кабинета"
           />
         </div>
       </Card>
@@ -193,18 +198,23 @@ export function ParentProfile() {
       {profile.dataAccessAllowed ? (
         <>
           <div className={styles.midGrid}>
-            <Card title="Обучающийся" padding="lg" className={styles.studentCard}>
+            <Card title="Ваш ребёнок" padding="lg" className={styles.studentCard}>
               <h3 className={styles.studentName}>{student?.fullName || profile.studentFullName}</h3>
+              <dl className={styles.studentMeta}>
+                <InfoRow label="Зачётка" value={recordBookNumber} />
+                {student?.faculty ? <InfoRow label="Факультет" value={student.faculty} /> : null}
+              </dl>
               <div className={styles.badges}>
-                {student?.group ? <span className={styles.groupBadge}>{student.group}</span> : null}
+                {student?.group ? (
+                  <span className={styles.tagBadge}>
+                    <span className={styles.tagLabel}>Группа</span>
+                    <span>{student.group}</span>
+                  </span>
+                ) : null}
                 {student?.course ? (
                   <span className={styles.courseBadge}>Курс {courseLabel(student.course)}</span>
                 ) : null}
-                {student?.status ? (
-                  <span className={styles.studentStatusBadge}>{student.status}</span>
-                ) : (
-                  <span className={styles.studentStatusBadge}>Является студентом</span>
-                )}
+                <span className={styles.studentStatusBadge}>{studentStatus}</span>
               </div>
             </Card>
 
@@ -277,8 +287,8 @@ export function ParentProfile() {
       ) : (
         <Card padding="lg" className={styles.lockedCard}>
           <p className={styles.lockedText}>
-            Подробные данные об обучении, задолженностях и договоре станут доступны после подписания
-            согласия студентом.
+            Здесь появятся сведения об обучении, задолженностях и договоре после подписания ребёнком
+            согласия на передачу данных третьим лицам.
           </p>
         </Card>
       )}

@@ -169,6 +169,29 @@
   line-height: 1.25;
 }
 
+.studentMeta {
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.625rem;
+}
+
+.tagBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.875rem;
+  border-radius: 999px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-inverse);
+  background-color: var(--color-primary);
+}
+
+.tagLabel {
+  font-weight: 500;
+  opacity: 0.85;
+}
+
 .groupBadge {
   display: inline-flex;
   padding: 0.3125rem 0.875rem;
