@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Mail, Phone } from 'lucide-react'
 import { ApiError } from '@/apiClient'
+import { NavIcon, type NavIconId } from '@/icons/nav'
 import { courseLabel, maskPhone } from '@/mocks/format'
 import { formatShortDate } from '@/mocks/payment'
 import { PARENT_CONSENT_MESSAGE } from '@/parent-consent'
@@ -12,7 +14,7 @@ import {
 } from '@/parent-profile'
 import { useParentAuth } from '@/parent-auth'
 import { paths } from '@/paths'
-import { Card, Loader, StudentAvatar } from '@/ui'
+import { Card, Loader, ScreenHeader, StudentAvatar } from '@/ui'
 import styles from './parent-profile.module.css'
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -30,6 +32,30 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <dt className={styles.infoLabel}>{label}</dt>
       <dd className={styles.infoValue}>{value || '—'}</dd>
     </div>
+  )
+}
+
+function QuickLink({
+  to,
+  icon,
+  title,
+  hint,
+}: {
+  to: string
+  icon: NavIconId
+  title: string
+  hint: string
+}) {
+  return (
+    <Link to={to} className={styles.quickLink}>
+      <span className={styles.quickLinkIcon}>
+        <NavIcon id={icon} className={styles.quickLinkIconSvg} />
+      </span>
+      <span className={styles.quickLinkText}>
+        <span className={styles.quickLinkTitle}>{title}</span>
+        <span className={styles.quickLinkHint}>{hint}</span>
+      </span>
+    </Link>
   )
 }
 
@@ -107,6 +133,8 @@ export function ParentProfile() {
 
   return (
     <div className={styles.page}>
+      <ScreenHeader title="Профиль" />
+
       {!profile.dataAccessAllowed ? (
         <div className={styles.alert} role="alert">
           {consentMessage}{' '}
@@ -121,7 +149,7 @@ export function ParentProfile() {
           <StudentAvatar size="lg" aria-hidden="true" />
 
           <div className={styles.heroBody}>
-            <h1 className={styles.name}>{profile.parentFullName}</h1>
+            <h2 className={styles.name}>{profile.parentFullName}</h2>
 
             <div className={styles.badges}>
               {profile.relation ? <span className={styles.relationBadge}>{profile.relation}</span> : null}
@@ -141,18 +169,24 @@ export function ParentProfile() {
         </div>
 
         <div className={styles.quickLinks}>
-          <Link to={paths.parentSchedule} className={styles.quickLink}>
-            <span className={styles.quickLinkTitle}>Обучение</span>
-            <span className={styles.quickLinkHint}>Информация о студенте и процессе обучения</span>
-          </Link>
-          <Link to={paths.parentPayments} className={styles.quickLink}>
-            <span className={styles.quickLinkTitle}>Финансы</span>
-            <span className={styles.quickLinkHint}>Договоры и платежи</span>
-          </Link>
-          <Link to={paths.support} className={styles.quickLink}>
-            <span className={styles.quickLinkTitle}>Связаться</span>
-            <span className={styles.quickLinkHint}>Связь с университетом</span>
-          </Link>
+          <QuickLink
+            to={paths.parentSchedule}
+            icon="program"
+            title="Обучение"
+            hint="Информация о студенте и процессе обучения"
+          />
+          <QuickLink
+            to={paths.parentPayments}
+            icon="payments"
+            title="Финансы"
+            hint="Договоры и платежи"
+          />
+          <QuickLink
+            to={paths.support}
+            icon="requests"
+            title="Связаться"
+            hint="Связь с университетом"
+          />
         </div>
       </Card>
 
@@ -160,7 +194,7 @@ export function ParentProfile() {
         <>
           <div className={styles.midGrid}>
             <Card title="Обучающийся" padding="lg" className={styles.studentCard}>
-              <h2 className={styles.studentName}>{student?.fullName || profile.studentFullName}</h2>
+              <h3 className={styles.studentName}>{student?.fullName || profile.studentFullName}</h3>
               <div className={styles.badges}>
                 {student?.group ? <span className={styles.groupBadge}>{student.group}</span> : null}
                 {student?.course ? (
@@ -177,8 +211,8 @@ export function ParentProfile() {
             <Card title="Статус" padding="lg" className={styles.statusCard}>
               {!hasDebts ? (
                 <div className={styles.statusOk}>
-                  <span className={styles.statusIcon} aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="40" height="40">
+                  <span className={styles.statusIconWrap} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="28" height="28">
                       <path
                         fill="currentColor"
                         d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
@@ -195,7 +229,7 @@ export function ParentProfile() {
                     {profile.academicDebtCount}{' '}
                     {profile.academicDebtCount === 1 ? 'задолженность' : 'задолженности'}
                   </p>
-                  <Link to={paths.parentRecordBook} className={styles.quickLinkHint}>
+                  <Link to={paths.parentRecordBook} className={styles.inlineLink}>
                     Открыть зачётную книжку
                   </Link>
                 </div>
@@ -216,7 +250,7 @@ export function ParentProfile() {
             <Card title="Договор и финансирование" className={styles.contractCard}>
               <dl className={styles.infoList}>
                 <InfoRow label="Основа" value={contract?.funding ?? student?.funding ?? ''} />
-                <InfoRow label="Договор" value={contract?.customerLabel ?? (profile.isCustomer ? 'Заказчик / плательщик' : '')} />
+                <InfoRow label="Договор" value={contract?.contractNumber ? `№ ${contract.contractNumber}` : ''} />
                 <InfoRow label="Статус договора" value={contract?.paymentStatusLabel ?? ''} />
                 <InfoRow
                   label="Дата заключения"
@@ -227,8 +261,14 @@ export function ParentProfile() {
               <div className={styles.contactsBlock}>
                 <h3 className={styles.contactsTitle}>Контакты университета</h3>
                 <div className={styles.contactsList}>
-                  <a href={universityContacts.phoneHref}>{universityContacts.phone}</a>
-                  <a href={`mailto:${universityContacts.email}`}>{universityContacts.email}</a>
+                  <a href={universityContacts.phoneHref} className={styles.contactItem}>
+                    <Phone size={18} strokeWidth={1.75} aria-hidden="true" />
+                    <span>{universityContacts.phone}</span>
+                  </a>
+                  <a href={`mailto:${universityContacts.email}`} className={styles.contactItem}>
+                    <Mail size={18} strokeWidth={1.75} aria-hidden="true" />
+                    <span>{universityContacts.email}</span>
+                  </a>
                 </div>
               </div>
             </Card>

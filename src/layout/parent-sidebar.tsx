@@ -2,18 +2,19 @@
  * @file Сайдбар родительского кабинета.
  */
 
-import { NavLink } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import logo from '@/assets/ruk-logo.png'
+import { SocialIcon } from '@/icons/social'
+import { NavIcon } from '@/icons/nav'
+import { socialLinks } from '@/mocks/public-nav'
 import { paths } from '@/paths'
-import { parentSidebarGroups, parentSidebarTop } from '@/parent-nav'
+import { parentSidebarBottom, parentSidebarGroups, parentSidebarTop } from '@/parent-nav'
 import { useParentAuth } from '@/parent-auth'
 import { PARENT_CONSENT_MESSAGE } from '@/parent-consent'
 import { ParentMenuLink } from './nav-link'
 import styles from './sidebar.module.css'
 import groupStyles from './nav-group.module.css'
-import { NavIcon } from '@/icons/nav'
-import { useState } from 'react'
-import { useLocation } from 'react-router-dom'
 
 export function ParentSidebar() {
   const session = useParentAuth((s) => s.session)
@@ -53,7 +54,45 @@ export function ParentSidebar() {
             lockTitle={lockTitle}
           />
         ))}
+
+        <ul className={styles.topList}>
+          {parentSidebarBottom.map((item) => (
+            <li key={item.to}>
+              <ParentMenuLink
+                to={item.to}
+                icon={item.icon}
+                locked={!dataAllowed && item.requiresDataAccess !== false}
+                lockTitle={lockTitle}
+              >
+                {item.label}
+              </ParentMenuLink>
+            </li>
+          ))}
+        </ul>
       </div>
+
+      <footer className={styles.footer}>
+        <Link to={paths.support} className={styles.helpCard}>
+          <strong className={styles.helpTitle}>Нужна помощь?</strong>
+          <span className={styles.helpHint}>Техническая поддержка личного кабинета</span>
+        </Link>
+
+        <div className={styles.social}>
+          {socialLinks.map((s) => (
+            <a
+              key={s.id}
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={s.label}
+              className={styles.socialLink}
+            >
+              <SocialIcon id={s.id} className={styles.socialIcon} />
+            </a>
+          ))}
+        </div>
+        <p className={styles.copy}>© {new Date().getFullYear()} Российский университет кооперации</p>
+      </footer>
     </nav>
   )
 }

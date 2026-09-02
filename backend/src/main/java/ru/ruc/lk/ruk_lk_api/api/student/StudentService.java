@@ -132,10 +132,10 @@ public class StudentService {
     public StudentProfileResponse getProfileForStudentId(String studentId) {
         OneCProfileResponse profile = onecClient
             .fetchProfile(studentId)
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Профиль студента не найден"
-            ));
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND,
+            "Профиль студента не найден"
+        ));
         return toStudentProfileResponse(profile);
     }
 

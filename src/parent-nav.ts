@@ -12,6 +12,9 @@ export type ParentNavItem = {
 export const parentSidebarTop: ParentNavItem[] = [
   { to: paths.parentHome, label: 'Главная', icon: 'profile', requiresDataAccess: false },
   { to: paths.parentSurvey, label: 'Опрос университета', icon: 'requests', requiresDataAccess: false },
+]
+
+export const parentSidebarBottom: ParentNavItem[] = [
   { to: paths.parentProfile, label: 'Профиль', icon: 'profile', requiresDataAccess: false },
 ]
 
@@ -19,7 +22,7 @@ export const parentSidebarGroups: { id: string; label: string; icon: NavIconId; 
   {
     id: 'study',
     label: 'Обучение',
-    icon: 'study',
+    icon: 'program',
     items: [
       { to: paths.parentSchedule, label: 'Расписание', icon: 'schedule' },
       { to: paths.parentRecordBook, label: 'Зачётная книжка', icon: 'recordBook' },

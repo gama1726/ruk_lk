@@ -69,7 +69,7 @@ public class ParentService {
         if (parent.dataAccessAllowed()) {
             studentProfile = studentService.getProfileForStudentId(parent.studentId());
             academicDebtCount = loadAcademicDebtCount(parent.studentId());
-            contract = loadContract(parent.studentId(), studentProfile, parent.isCustomer());
+            contract = loadContract(parent.studentId(), studentProfile);
         }
 
         return new ParentProfileResponse(
@@ -103,8 +103,7 @@ public class ParentService {
 
     private ParentProfileContractResponse loadContract(
         String studentId,
-        StudentProfileResponse studentProfile,
-        boolean isCustomer
+        StudentProfileResponse studentProfile
     ) {
         try {
             StudentPaymentsResponse payments = studentService.getPaymentsForStudentId(studentId, LocalDate.now());
@@ -115,7 +114,7 @@ public class ParentService {
             }
             return new ParentProfileContractResponse(
                 funding,
-                isCustomer ? "Заказчик / плательщик" : "—",
+                "",
                 payments.status(),
                 paymentStatusLabel(payments.status()),
                 raw != null ? blankToEmpty(raw.number()) : "",
@@ -130,7 +129,7 @@ public class ParentService {
                 }
                 return new ParentProfileContractResponse(
                     funding,
-                    isCustomer ? "Заказчик / плательщик" : "—",
+                    "",
                     "",
                     "",
                     "",
