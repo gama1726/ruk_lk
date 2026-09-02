@@ -442,8 +442,7 @@ public class StudentService {
 
     /**
      * Проходы на территорию: Perco (головной вуз) или ZKBio (Казань ККИ).
-     * Для головного вуза дни без прохода, но с очными парами по расписанию — отсутствие.
-     * Для Казани — только фактические проходы из СКУД.
+     * Дни без прохода, но с очными парами по расписанию — отсутствие (оба кампуса).
      */
     public StudentAttendanceResponse getAttendance(HttpSession session, LocalDate from, LocalDate to) {
         StudentSession student = requireStudent(session);
@@ -463,7 +462,7 @@ public class StudentService {
 
         if (profile != null && CampusSupport.isKazanKkiCampus(
             profile.faculty(), profile.department(), profile.branch())) {
-            return getKazanAttendance(student, begin, end);
+            return getKazanAttendance(session, student, begin, end);
         }
 
         if (profile != null && CampusSupport.isBranchCampus(
@@ -491,6 +490,7 @@ public class StudentService {
     }
 
     private StudentAttendanceResponse getKazanAttendance(
+        HttpSession session,
         StudentSession student,
         LocalDate begin,
         LocalDate end
@@ -503,7 +503,8 @@ public class StudentService {
         }
         try {
             List<SkudAccessEvent> events = zkbioClient.fetchAccessEvents(student.studentId(), begin, end);
-            return AttendanceMapper.toResponse("zkbio", events, Set.of());
+            Set<LocalDate> campusDays = campusLessonDates(session, student, begin, end);
+            return AttendanceMapper.toResponse("zkbio", events, campusDays);
         } catch (ZKBioException e) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY,
