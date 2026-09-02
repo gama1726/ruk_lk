@@ -11,6 +11,8 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentOrdersResponse;
+import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
+import ru.ruc.lk.ruk_lk_api.api.parent.dto.ParentProfileResponse;
 
 import java.time.LocalDate;
 
@@ -45,5 +47,24 @@ public class ParentService {
         ParentSession parent = ParentAuthService.requireParent(session);
         ParentAuthService.requireDataAccess(parent);
         return studentService.getOrdersForStudentId(parent.studentId());
+    }
+
+    public ParentProfileResponse getProfile(HttpSession session) {
+        ParentSession parent = ParentAuthService.requireParent(session);
+        StudentProfileResponse studentProfile = null;
+        if (parent.dataAccessAllowed()) {
+            studentProfile = studentService.getProfileForStudentId(parent.studentId());
+        }
+        return new ParentProfileResponse(
+            parent.relation(),
+            parent.parentFullName(),
+            parent.isCustomer(),
+            parent.studentAdult(),
+            parent.studentId(),
+            parent.studentFullName(),
+            parent.dataAccessAllowed(),
+            parent.servicesBlocked() ? ParentAuthService.CONSENT_REQUIRED_MESSAGE : null,
+            studentProfile
+        );
     }
 }

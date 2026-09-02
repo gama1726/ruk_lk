@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpSession;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.ParentAuthService;
 import ru.ruc.lk.ruk_lk_api.api.auth.ParentSession;
+import ru.ruc.lk.ruk_lk_api.api.parent.dto.ParentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.RecordBookResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.ScheduleMonthResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
@@ -53,6 +54,11 @@ public class ParentController {
     @GetMapping("/orders")
     public StudentOrdersResponse orders(HttpSession session) {
         return parentService.getOrders(session);
+    }
+
+    @GetMapping("/profile")
+    public ParentProfileResponse profile(HttpSession session) {
+        return parentService.getProfile(session);
     }
 
     /** Опрос университета — доступен родителю даже при servicesBlocked. */

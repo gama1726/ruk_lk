@@ -125,69 +125,43 @@ public class StudentService {
 
 
     public StudentProfileResponse getProfile(HttpSession session) {
-
         StudentSession student = requireStudent(session);
+        return getProfileForStudentId(student.studentId());
+    }
 
-
-
+    public StudentProfileResponse getProfileForStudentId(String studentId) {
         OneCProfileResponse profile = onecClient
-
-            .fetchProfile(student.studentId())
-
+            .fetchProfile(studentId)
             .orElseThrow(() -> new ResponseStatusException(
-
                 HttpStatus.NOT_FOUND,
-
                 "Профиль студента не найден"
-
             ));
+        return toStudentProfileResponse(profile);
+    }
 
-
-
+    private StudentProfileResponse toStudentProfileResponse(OneCProfileResponse profile) {
         String zachetka = profile.zachetka() != null && !profile.zachetka().isBlank()
-
             ? profile.zachetka().trim()
-
             : profile.studentId();
 
-
-
         return new StudentProfileResponse(
-
             blankToEmpty(profile.fullName()),
-
             blankToEmpty(zachetka),
-
             blankToEmpty(profile.email()),
-
             blankToEmpty(profile.phone()),
-
             blankToEmpty(profile.gender()),
-
             blankToEmpty(profile.birthDate()),
-
             blankToEmpty(profile.fundingType()),
-
             blankToEmpty(profile.status()),
-
             blankToEmpty(profile.faculty()),
-
             blankToEmpty(profile.branch()),
-
             blankToEmpty(profile.department()),
-
             formatDirection(profile.direction(), profile.specialization()),
-
             blankToEmpty(profile.level()),
-
             blankToEmpty(profile.educationForm()),
-
             blankToEmpty(profile.group()),
-
             blankToEmpty(profile.course())
-
         );
-
     }
 
     /**
