@@ -16,6 +16,11 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class MaxBindingService {
 
+    /** Ключ привязки MAX для родителя (не пересекается с номером зачётки). */
+    public static String parentBindingKey(String studentId, int memberIndex) {
+        return "P:" + studentId.trim() + ":" + memberIndex;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(MaxBindingService.class);
     private static final String TOKEN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
     private static final int TOKEN_LENGTH = 24;

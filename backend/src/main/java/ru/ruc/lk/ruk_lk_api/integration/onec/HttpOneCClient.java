@@ -188,12 +188,12 @@ public class HttpOneCClient implements OneCClient {
     }
 
     @Override
-    public Optional<OneCFamilyResponse> fetchFamily(String studentId) {
+    public Optional<OneCFamilyResponse> checkParent(String studentId, String parentEmail) {
         try {
             OneCFamilyResponse response = restClient.post()
                 .uri("/hs/student/parent/check")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new OneCAuthRequest(studentId))
+                .body(new OneCParentCheckRequest(studentId, parentEmail))
                 .retrieve()
                 .body(OneCFamilyResponse.class);
             if (response == null || !response.found()) {

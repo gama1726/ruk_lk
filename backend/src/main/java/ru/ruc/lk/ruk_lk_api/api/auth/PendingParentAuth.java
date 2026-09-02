@@ -27,11 +27,13 @@ record PendingParentMember(
 
 record PendingParentChallenge(
     PendingParentMember member,
+    LoginCodeChannel channel,
+    Long maxUserId,
     String code,
     Instant createdAt,
     int failedAttempts
 ) {
     PendingParentChallenge withFailedAttempts(int attempts) {
-        return new PendingParentChallenge(member, code, createdAt, attempts);
+        return new PendingParentChallenge(member, channel, maxUserId, code, createdAt, attempts);
     }
 }

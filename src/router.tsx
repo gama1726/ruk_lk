@@ -12,6 +12,7 @@ import { SsoLogin } from '@/pages/login-sso'
 import { Verify } from '@/pages/verify-code'
 import { ParentLogin } from '@/pages/login-parent'
 import { ParentLoginSelect } from '@/pages/login-parent-select'
+import { ParentLoginDelivery } from '@/pages/login-parent-delivery'
 import { ParentLoginVerify } from '@/pages/login-parent-verify'
 import { ParentCabinetShell } from '@/layout/parent-cabinet'
 import { RequireParentSession } from '@/layout/require-parent-session'
@@ -66,6 +67,7 @@ export const router = createBrowserRouter([
             element: <ParentGuestOnly />,
             children: [
               { path: paths.loginParentSelect, element: <ParentLoginSelect /> },
+              { path: paths.loginParentDelivery, element: <ParentLoginDelivery /> },
               { path: paths.loginParentVerify, element: <ParentLoginVerify /> },
             ],
           },

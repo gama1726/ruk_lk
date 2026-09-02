@@ -1,65 +1,63 @@
-.list {
+.wrap {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin: 1rem 0;
+  gap: 12px;
 }
 
-.memberBtn {
+.label {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.card {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-  width: 100%;
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--color-border, #ddd);
-  border-radius: 12px;
-  background: var(--color-surface, #fff);
-  text-align: left;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  border: 1.5px solid var(--color-border, #e5e7eb);
+  border-radius: 16px;
+  background: #fff;
   cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  color: var(--color-text, #111827);
 }
 
-.memberBtn:hover:not(:disabled) {
-  border-color: var(--color-primary, #51308e);
+.card:hover:not(:disabled) {
+  border-color: var(--color-primary, #6d28d9);
+  box-shadow: 0 4px 14px rgb(109 40 217 / 8%);
 }
 
-.memberBtn:disabled {
-  opacity: 0.7;
-  cursor: wait;
+.card:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-.relation {
-  font-size: 0.8125rem;
-  color: var(--color-text-muted, #666);
+.icon {
+  width: 56px;
+  height: 56px;
+  color: var(--color-primary, #6d28d9);
 }
 
-.name {
+.title {
   font-size: 1rem;
   font-weight: 600;
 }
 
 .badge {
   font-size: 0.75rem;
-  color: var(--color-primary, #51308e);
+  color: var(--color-primary, #6d28d9);
 }
 
 .hint {
-  font-size: 0.8125rem;
-  color: var(--color-text-muted, #666);
-}
-
-.hintMuted {
-  font-size: 0.8125rem;
-  color: var(--color-danger, #c62828);
-}
-
-.loading {
-  font-size: 0.8125rem;
-  color: var(--color-text-muted, #666);
-}
-
-.error {
-  color: var(--color-danger, #c62828);
-  font-size: 0.875rem;
-  margin-bottom: 0.75rem;
+  font-size: 0.75rem;
+  color: #b45309;
+  text-align: center;
 }

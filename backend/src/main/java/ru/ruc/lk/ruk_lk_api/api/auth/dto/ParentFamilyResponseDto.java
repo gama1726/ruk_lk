@@ -4,7 +4,6 @@ import java.util.List;
 
 public record ParentFamilyResponseDto(
     String studentId,
-    String studentFullName,
     boolean studentAdult,
     List<ParentMemberOptionDto> members
 ) {}

@@ -11,6 +11,7 @@ export const paths = {
   loginDelivery: '/login/delivery',
   loginParent: '/login/parent',
   loginParentSelect: '/login/parent/select',
+  loginParentDelivery: '/login/parent/delivery',
   loginParentVerify: '/login/parent/verify',
   loginContract: '/login/contract',
   loginTarget: '/login/target',
