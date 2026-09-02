@@ -90,9 +90,10 @@ const icons: Record<NavIconId, LucideIcon> = {
 type NavIconProps = {
   id: NavIconId
   className?: string
+  size?: number
 }
 
-export function NavIcon({ id, className }: NavIconProps) {
+export function NavIcon({ id, className, size = 20 }: NavIconProps) {
   const Icon = icons[id]
-  return <Icon className={className} size={20} strokeWidth={1.75} aria-hidden />
+  return <Icon className={className} size={size} strokeWidth={1.75} aria-hidden />
 }

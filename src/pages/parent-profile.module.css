@@ -100,8 +100,8 @@
 
 .quickLink {
   display: flex;
-  gap: 0.875rem;
-  align-items: flex-start;
+  gap: 1rem;
+  align-items: center;
   padding: 1rem 1.125rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -124,16 +124,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: var(--radius-md);
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: var(--radius-lg);
   background: var(--color-primary-muted);
   color: var(--color-primary);
-}
-
-.quickLinkIconSvg {
-  width: 1.25rem;
-  height: 1.25rem;
 }
 
 .quickLinkText {

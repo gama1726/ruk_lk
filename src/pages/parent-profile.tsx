@@ -49,7 +49,7 @@ function QuickLink({
   return (
     <Link to={to} className={styles.quickLink}>
       <span className={styles.quickLinkIcon}>
-        <NavIcon id={icon} className={styles.quickLinkIconSvg} />
+        <NavIcon id={icon} size={28} />
       </span>
       <span className={styles.quickLinkText}>
         <span className={styles.quickLinkTitle}>{title}</span>
