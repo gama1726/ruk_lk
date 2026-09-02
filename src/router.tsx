@@ -17,7 +17,6 @@ import { ParentLoginVerify } from '@/pages/login-parent-verify'
 import { ParentCabinetShell } from '@/layout/parent-cabinet'
 import { RequireParentSession } from '@/layout/require-parent-session'
 import { ParentGuestOnly } from '@/layout/parent-guest-only'
-import { ParentHome } from '@/pages/parent-home'
 import { ParentSurvey } from '@/pages/parent-survey'
 import { ParentProfile } from '@/pages/parent-profile'
 import { ParentSchedule } from '@/pages/parent-schedule'
@@ -132,9 +131,9 @@ export const router = createBrowserRouter([
       {
         element: <ParentCabinetShell />,
         children: [
-          { path: paths.parentHome, element: <ParentHome /> },
+          { path: paths.parentHome, element: <ParentProfile /> },
+          { path: paths.parentProfile, element: <Navigate to={paths.parentHome} replace /> },
           { path: paths.parentSurvey, element: <ParentSurvey /> },
-          { path: paths.parentProfile, element: <ParentProfile /> },
           { path: paths.parentSchedule, element: <ParentSchedule /> },
           { path: paths.parentRecordBook, element: <ParentRecordBook /> },
           { path: paths.parentAttendance, element: <ParentAttendance /> },

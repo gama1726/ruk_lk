@@ -10,13 +10,11 @@ export type ParentNavItem = {
 }
 
 export const parentSidebarTop: ParentNavItem[] = [
-  { to: paths.parentHome, label: 'Главная', icon: 'profile', requiresDataAccess: false },
+  { to: paths.parentHome, label: 'Профиль', icon: 'profile', requiresDataAccess: false },
   { to: paths.parentSurvey, label: 'Опрос университета', icon: 'requests', requiresDataAccess: false },
 ]
 
-export const parentSidebarBottom: ParentNavItem[] = [
-  { to: paths.parentProfile, label: 'Профиль', icon: 'profile', requiresDataAccess: false },
-]
+export const parentSidebarBottom: ParentNavItem[] = []
 
 export const parentSidebarGroups: { id: string; label: string; icon: NavIconId; items: ParentNavItem[] }[] = [
   {

@@ -54,6 +54,7 @@ export const paths = {
   adminPassPhotosHeLogin: '/admin/pass-photos/he/login',
   parentHome: '/parent',
   parentSurvey: '/parent/survey',
+  /** @deprecated редирект на {@link paths.parentHome} */
   parentProfile: '/parent/profile',
   parentNews: '/parent/news',
   parentSchedule: '/parent/schedule',
