@@ -86,6 +86,7 @@
 
 .socialIcon {
   display: block;
+  object-fit: contain;
 }
 
 .copy {

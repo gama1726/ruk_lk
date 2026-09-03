@@ -1,5 +1,5 @@
 /**
- * @file Иконки соцсетей для публичной зоны (цвет через currentColor).
+ * @file Иконки соцсетей для публичной зоны (цвет через currentColor, кроме MAX).
  */
 
 type IconProps = {
@@ -17,23 +17,25 @@ function VkIcon({ className }: IconProps) {
   )
 }
 
-function TelegramIcon({ className }: IconProps) {
+function MaxIcon({ className }: IconProps) {
   return (
-    <svg className={className} viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M19.665 3.985c.36-.158.74.082.66.47l-2.52 11.84c-.09.41-.44.66-.82.52l-3.84-1.42-1.85 1.78c-.17.17-.44.04-.44-.2v-2.58l7.12-6.44c.16-.14-.04-.22-.24-.08l-8.8 5.54-3.79-1.26c-.41-.14-.42-.7.01-.86l14.78-5.7z"
-      />
-    </svg>
+    <img
+      className={className}
+      src="/brands/max-logo.png"
+      alt=""
+      width={20}
+      height={20}
+      draggable={false}
+    />
   )
 }
 
-function YoutubeIcon({ className }: IconProps) {
+function RutubeIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
       <path
         fill="currentColor"
-        d="M21.58 7.19a2.75 2.75 0 0 0-1.94-1.95C18.25 5 12 5 12 5s-6.25 0-7.64.24a2.75 2.75 0 0 0-1.94 1.95A28.6 28.6 0 0 0 2 12a28.6 28.6 0 0 0 .42 4.81 2.75 2.75 0 0 0 1.94 1.95C5.75 19 12 19 12 19s6.25 0 7.64-.24a2.75 2.75 0 0 0 1.94-1.95A28.6 28.6 0 0 0 22 12a28.6 28.6 0 0 0-.42-4.81zM10 15.5v-7l6 3.5-6 3.5z"
+        d="M12.004 0c-2.368.02-4.604.456-6.292 1.201-2.392 1.056-3.869 2.733-3.701 4.728.192 2.277 1.732 3.236 1.732 3.236-1.067 1.101-1.432 2.076-1.432 3.716 0 1.38.365 2.464 1.432 3.564 0 0-1.54.96-1.732 3.236-.168 1.996 1.309 3.672 3.701 4.728C7.4 23.544 9.636 23.98 12.004 24c2.368-.02 4.604-.456 6.292-1.201 2.392-1.056 3.869-2.732 3.701-4.728-.192-2.276-1.732-3.236-1.732-3.236 1.067-1.1 1.432-2.184 1.432-3.564 0-1.64-.365-2.615-1.432-3.716 0 0 1.54-.959 1.732-3.236.168-1.995-1.309-3.672-3.701-4.728C16.608.456 14.372.02 12.004 0zm-.012 3.84c3.72 0 6.732 2.832 6.732 8.16s-3.012 8.16-6.732 8.16c-3.721 0-6.744-2.832-6.744-8.16s3.023-8.16 6.744-8.16zm-2.124 4.704v6.912l5.988-3.456-5.988-3.456z"
       />
     </svg>
   )
@@ -41,8 +43,8 @@ function YoutubeIcon({ className }: IconProps) {
 
 const icons = {
   vk: VkIcon,
-  tg: TelegramIcon,
-  yt: YoutubeIcon,
+  max: MaxIcon,
+  rutube: RutubeIcon,
 } as const
 
 type SocialId = keyof typeof icons
