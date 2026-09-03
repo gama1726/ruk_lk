@@ -1,35 +1,130 @@
 .banner {
   position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 20px;
   width: 100%;
   min-height: 92px;
   padding: 18px 22px 18px 26px;
+  overflow: hidden;
   border-radius: 14px;
-  border: 1px solid rgba(93, 45, 164, 0.14);
+  border: 1px solid rgba(112, 69, 190, 0.16);
   font-family: var(--font-family);
-  background: linear-gradient(
-    105deg,
-    rgba(104, 56, 190, 0.1) 0%,
-    rgba(139, 92, 246, 0.05) 42%,
-    rgba(255, 255, 255, 0.85) 100%
+  background:
+    radial-gradient(
+      ellipse 34% 95% at 7% 52%,
+      rgba(123, 74, 214, 0.3) 0%,
+      rgba(147, 99, 224, 0.22) 18%,
+      rgba(178, 139, 235, 0.12) 36%,
+      rgba(204, 181, 244, 0.05) 50%,
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse 38% 105% at 21% 47%,
+      rgba(201, 180, 247, 0.2) 0%,
+      rgba(220, 207, 251, 0.11) 32%,
+      transparent 66%
+    ),
+    radial-gradient(
+      ellipse 55% 120% at 51% 46%,
+      rgba(255, 255, 255, 0.98) 0%,
+      rgba(255, 255, 255, 0.92) 24%,
+      rgba(251, 249, 255, 0.7) 45%,
+      rgba(248, 246, 255, 0.32) 61%,
+      transparent 78%
+    ),
+    radial-gradient(
+      ellipse 40% 95% at 88% 48%,
+      rgba(187, 184, 247, 0.21) 0%,
+      rgba(204, 200, 250, 0.15) 29%,
+      rgba(220, 217, 252, 0.07) 50%,
+      transparent 69%
+    ),
+    radial-gradient(
+      ellipse 35% 70% at 72% 4%,
+      rgba(255, 255, 255, 0.48) 0%,
+      rgba(255, 255, 255, 0.2) 34%,
+      transparent 67%
+    ),
+    linear-gradient(
+      102deg,
+      #e7d7ff 0%,
+      #ece2ff 16%,
+      #f5f1ff 33%,
+      #fbfaff 50%,
+      #f7f5ff 65%,
+      #ebe9ff 82%,
+      #dcd8fb 100%
+    );
+  box-shadow:
+    0 8px 24px rgba(80, 48, 125, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.backgroundGlow {
+  position: absolute;
+  z-index: 0;
+  width: 180px;
+  height: 150px;
+  left: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: radial-gradient(
+    circle at 52% 50%,
+    rgba(255, 220, 132, 0.28) 0%,
+    rgba(255, 223, 153, 0.18) 16%,
+    rgba(195, 148, 236, 0.18) 35%,
+    rgba(147, 94, 215, 0.12) 53%,
+    rgba(119, 70, 194, 0.05) 66%,
+    transparent 76%
   );
-  box-shadow: var(--shadow-sm);
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+.lightEffects {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(
+      circle at 77% 22%,
+      rgba(255, 255, 255, 0.68) 0%,
+      rgba(255, 255, 255, 0.34) 6%,
+      rgba(255, 255, 255, 0.12) 13%,
+      transparent 22%
+    ),
+    radial-gradient(
+      circle at 62% 84%,
+      rgba(255, 255, 255, 0.48) 0%,
+      rgba(255, 255, 255, 0.18) 9%,
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 91% 64%,
+      rgba(255, 255, 255, 0.32) 0%,
+      transparent 18%
+    );
+  opacity: 0.95;
+  pointer-events: none;
 }
 
 .accent {
   position: absolute;
+  z-index: 3;
   left: 0;
   top: 0;
   bottom: 0;
   width: 4px;
-  background: var(--color-primary);
+  background: linear-gradient(180deg, #5b2ca0 0%, #7040b7 55%, #5b2ca0 100%);
   border-radius: 14px 0 0 14px;
   pointer-events: none;
 }
 
 .emblem {
+  position: relative;
+  z-index: 2;
   flex-shrink: 0;
   width: 64px;
   height: 64px;
@@ -40,9 +135,15 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+  background: transparent;
+  filter:
+    drop-shadow(0 3px 7px rgba(82, 42, 145, 0.12))
+    drop-shadow(0 0 10px rgba(255, 213, 105, 0.08));
 }
 
 .content {
+  position: relative;
+  z-index: 2;
   flex: 1;
   min-width: 0;
 }
@@ -71,6 +172,8 @@
 }
 
 .badge {
+  position: relative;
+  z-index: 2;
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
@@ -108,6 +211,27 @@
     gap: 14px 16px;
     min-height: auto;
     padding: 16px 16px 16px 20px;
+    background:
+      radial-gradient(
+        ellipse 46% 90% at 8% 50%,
+        rgba(123, 74, 214, 0.22) 0%,
+        rgba(174, 132, 231, 0.1) 40%,
+        transparent 68%
+      ),
+      radial-gradient(
+        ellipse 70% 100% at 52% 45%,
+        rgba(255, 255, 255, 0.93) 0%,
+        rgba(255, 255, 255, 0.58) 48%,
+        transparent 78%
+      ),
+      linear-gradient(105deg, #e8dcfb 0%, #f5f1ff 48%, #e2def9 100%);
+  }
+
+  .backgroundGlow {
+    width: 130px;
+    height: 120px;
+    left: -24px;
+    opacity: 0.8;
   }
 
   .emblem {
