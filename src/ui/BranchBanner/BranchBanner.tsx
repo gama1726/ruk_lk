@@ -30,6 +30,10 @@ function Crest({ info }: { info: BranchDisplayInfo }) {
       src={info.crestSrc}
       alt=""
       className={styles.crestImage}
+      style={{
+        objectPosition: info.crestPosition,
+        transform: `scale(${info.crestScale})`,
+      }}
       onError={() => setFailed(true)}
       decoding="async"
       draggable={false}
@@ -42,23 +46,17 @@ export function BranchBanner({ branchLabel, variant, className }: BranchBannerPr
   const eyebrow = variant === 'parent' ? 'Филиал обучения студента' : 'Ваш филиал'
   const badge = variant === 'parent' ? info.parentBadge : info.studentBadge
 
-  const badgeClass = [
-    styles.badge,
-    variant === 'parent'
-      ? styles.badgeParent
-      : info.isMain
-        ? styles.badgeStudentMain
-        : styles.badgeStudentBranch,
-  ].join(' ')
-
   return (
     <section
       className={[styles.banner, className].filter(Boolean).join(' ')}
       aria-label={`${eyebrow}: ${info.shortTitle}`}
     >
-      <div className={styles.crestWrap}>
-        <span className={styles.crestGlow} aria-hidden="true" />
-        <Crest info={info} />
+      <div className={styles.crestWrap} aria-hidden="true">
+        <span className={styles.crestAura} />
+        <span className={styles.crestHalo} />
+        <div className={styles.crestCircle}>
+          <Crest info={info} />
+        </div>
       </div>
 
       <div className={styles.body}>
@@ -67,7 +65,7 @@ export function BranchBanner({ branchLabel, variant, className }: BranchBannerPr
         <p className={styles.subtitle}>{universityLegalName}</p>
       </div>
 
-      <span className={badgeClass}>{badge}</span>
+      <span className={styles.badge}>{badge}</span>
     </section>
   )
 }
