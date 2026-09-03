@@ -14,7 +14,7 @@ import {
 } from '@/parent-profile'
 import { useParentAuth } from '@/parent-auth'
 import { paths } from '@/paths'
-import { Card, Loader, ParentAvatar, ScreenHeader, BranchBanner } from '@/ui'
+import { Card, Loader, ParentAvatar, BranchBanner } from '@/ui'
 import styles from './parent-profile.module.css'
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -141,8 +141,6 @@ export function ParentProfile() {
 
   return (
     <div className={styles.page}>
-      <ScreenHeader title="Профиль" />
-
       {!profile.dataAccessAllowed ? (
         <div className={styles.alert} role="alert">
           Данные о расписании, оценках и оплате пока скрыты: ребёнку нужно подписать согласие на

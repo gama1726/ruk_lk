@@ -1,14 +1,18 @@
 /**
  * @file Конфигурация филиалов для плашки BranchBanner и связанных блоков.
+ * Названия — как на сайтах филиалов new.ruc.su / new-*.ruc.su.
  */
 
-import { resolveUniversityBranch } from '@/mocks/university-contacts'
+import { resolveUniversityBranch, universityBranches } from '@/mocks/university-contacts'
 
 export const universityLegalName = 'Российский университет кооперации'
 
 export type BranchType = 'head' | 'branch' | 'institute'
 
 export type Branch = {
+  /** Город / местонахождение (подпись над названием). */
+  city: string
+  /** Название как на сайте филиала. */
   name: string
   universityName: string
   emblem: string
@@ -17,7 +21,9 @@ export type Branch = {
 }
 
 type BranchConfigEntry = {
-  name: string
+  city: string
+  /** Если не задано — берётся name из universityBranches. */
+  name?: string
   emblemFile: string
   type: BranchType
 }
@@ -25,83 +31,86 @@ type BranchConfigEntry = {
 /** Конфигурация филиалов по id (сопоставляется с resolveUniversityBranch). */
 const branchConfigs: Readonly<Record<string, BranchConfigEntry>> = {
   main: {
-    name: 'Головной вуз — Мытищи',
+    city: 'Мытищи',
+    name: 'Головной вуз',
     emblemFile: 'main.png',
     type: 'head',
   },
   kazan: {
-    name: 'Казанский кооперативный институт',
+    city: 'Казань',
     emblemFile: 'kazan.png',
     type: 'institute',
   },
   krasnodar: {
-    name: 'Краснодарский кооперативный институт',
+    city: 'Краснодар',
     emblemFile: 'krasnodar.png',
     type: 'institute',
   },
   vladimir: {
-    name: 'Владимирский филиал',
+    city: 'Владимир',
     emblemFile: 'vladimir.png',
     type: 'branch',
   },
   arzamas: {
-    name: 'Арзамасский филиал',
+    city: 'Арзамас',
     emblemFile: 'arzamas.png',
     type: 'branch',
   },
   ufa: {
-    name: 'Башкирский кооперативный институт',
+    city: 'Уфа',
     emblemFile: 'ufa.png',
     type: 'institute',
   },
   volgograd: {
-    name: 'Волгоградский кооперативный институт',
+    city: 'Волгоград',
     emblemFile: 'volgograd.png',
     type: 'institute',
   },
   izhevsk: {
-    name: 'Ижевский филиал',
+    city: 'Ижевск',
     emblemFile: 'izhevsk.png',
     type: 'branch',
   },
   kaliningrad: {
-    name: 'Калининградский филиал',
+    city: 'Калининград',
     emblemFile: 'kaliningrad.png',
     type: 'branch',
   },
   pk: {
-    name: 'Камчатский филиал',
+    city: 'Петропавловск-Камчатский',
     emblemFile: 'pk.png',
     type: 'branch',
   },
   crimea: {
-    name: 'Крымский кооперативный институт',
+    city: 'Крым',
     emblemFile: 'crimea.png',
     type: 'institute',
   },
   engels: {
-    name: 'Поволжский кооперативный институт',
+    city: 'Энгельс',
     emblemFile: 'engels.png',
     type: 'institute',
   },
   saransk: {
-    name: 'Саранский кооперативный институт',
+    city: 'Саранск',
     emblemFile: 'saransk.png',
     type: 'institute',
   },
   smolensk: {
-    name: 'Смоленский кооперативный институт',
+    city: 'Смоленск',
     emblemFile: 'smolensk.png',
     type: 'institute',
   },
   cheb: {
-    name: 'Чебоксарский кооперативный институт',
+    city: 'Чебоксары',
     emblemFile: 'cheb.png',
     type: 'institute',
   },
 }
 
-const defaultBadge = 'Текущий филиал'
+const branchSiteNameById = Object.fromEntries(
+  universityBranches.map((branch) => [branch.id, branch.name]),
+) as Record<string, string>
 
 export function branchEmblemSrc(emblemFile: string): string {
   return `/branches/${emblemFile}`
@@ -111,12 +120,13 @@ export function branchEmblemSrc(emblemFile: string): string {
 export function resolveBranch(branchLabel?: string | null): Branch {
   const resolved = resolveUniversityBranch(branchLabel)
   const config = branchConfigs[resolved.id] ?? branchConfigs.main
+  const siteName = branchSiteNameById[resolved.id] ?? branchSiteNameById.main
 
   return {
-    name: config.name,
+    city: config.city,
+    name: config.name ?? siteName,
     universityName: universityLegalName,
     emblem: branchEmblemSrc(config.emblemFile),
-    badge: defaultBadge,
     type: config.type,
   }
 }

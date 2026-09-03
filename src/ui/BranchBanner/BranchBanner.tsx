@@ -7,13 +7,13 @@ export type BranchBannerProps = {
   className?: string
 }
 
-const viewerLabel = {
+const badgeByViewer = {
   student: 'Ваш филиал',
   parent: 'Филиал обучения студента',
 } as const
 
 export function BranchBanner({ branch, viewerType, className }: BranchBannerProps) {
-  const badgeText = branch.badge ?? 'Текущий филиал'
+  const badgeText = branch.badge ?? badgeByViewer[viewerType]
 
   return (
     <section className={[styles.banner, className].filter(Boolean).join(' ')} aria-label="Информация о филиале">
@@ -30,7 +30,7 @@ export function BranchBanner({ branch, viewerType, className }: BranchBannerProp
       </div>
 
       <div className={styles.content}>
-        <div className={styles.label}>{viewerLabel[viewerType]}</div>
+        <div className={styles.label}>{branch.city}</div>
         <h2 className={styles.title}>{branch.name}</h2>
         <div className={styles.university}>{branch.universityName}</div>
       </div>
