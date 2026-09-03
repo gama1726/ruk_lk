@@ -2,127 +2,29 @@
  * @file Отображение филиала: короткое название, герб, подписи для плашки профиля.
  */
 
+import type { BranchBannerProps } from '@/ui/BranchBanner/BranchBanner'
 import { resolveUniversityBranch, type UniversityBranch } from '@/mocks/university-contacts'
 
 export const universityLegalName = 'Российский университет кооперации'
 
 const branchDisplayById: Readonly<
-  Record<
-    string,
-    {
-      shortTitle: string
-      studentBadge: string
-      crestInitials: string
-      crestScale: number
-      crestPosition: string
-    }
-  >
+  Record<string, { shortTitle: string; studentBadge: string }>
 > = {
-  main: {
-    shortTitle: 'Головной вуз — Мытищи',
-    studentBadge: 'Головной вуз',
-    crestInitials: 'РУК',
-    crestScale: 1.34,
-    crestPosition: '50% 46%',
-  },
-  kazan: {
-    shortTitle: 'Казань',
-    studentBadge: 'Казань',
-    crestInitials: 'ККИ',
-    crestScale: 1.22,
-    crestPosition: '50% 42%',
-  },
-  krasnodar: {
-    shortTitle: 'Краснодар',
-    studentBadge: 'Краснодар',
-    crestInitials: 'ККИ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  vladimir: {
-    shortTitle: 'Владимир',
-    studentBadge: 'Владимир',
-    crestInitials: 'ВФ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  arzamas: {
-    shortTitle: 'Арзамас',
-    studentBadge: 'Арзамас',
-    crestInitials: 'АФ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  ufa: {
-    shortTitle: 'Уфа',
-    studentBadge: 'Уфа',
-    crestInitials: 'БКИ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  volgograd: {
-    shortTitle: 'Волгоград',
-    studentBadge: 'Волгоград',
-    crestInitials: 'ВКИ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  izhevsk: {
-    shortTitle: 'Ижевск',
-    studentBadge: 'Ижевск',
-    crestInitials: 'ИФ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  kaliningrad: {
-    shortTitle: 'Калининград',
-    studentBadge: 'Калининград',
-    crestInitials: 'КФ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  pk: {
-    shortTitle: 'Петропавловск-Камчатский',
-    studentBadge: 'Камчатка',
-    crestInitials: 'ПК',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  crimea: {
-    shortTitle: 'Крым',
-    studentBadge: 'Крым',
-    crestInitials: 'ККИ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  engels: {
-    shortTitle: 'Энгельс',
-    studentBadge: 'Энгельс',
-    crestInitials: 'ПКИ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  saransk: {
-    shortTitle: 'Саранск',
-    studentBadge: 'Саранск',
-    crestInitials: 'СКИ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  smolensk: {
-    shortTitle: 'Смоленск',
-    studentBadge: 'Смоленск',
-    crestInitials: 'СКИ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
-  cheb: {
-    shortTitle: 'Чебоксары',
-    studentBadge: 'Чебоксары',
-    crestInitials: 'ЧКИ',
-    crestScale: 1.28,
-    crestPosition: '50% 44%',
-  },
+  main: { shortTitle: 'Головной вуз — Мытищи', studentBadge: 'Головной вуз' },
+  kazan: { shortTitle: 'Казань', studentBadge: 'Казань' },
+  krasnodar: { shortTitle: 'Краснодар', studentBadge: 'Краснодар' },
+  vladimir: { shortTitle: 'Владимир', studentBadge: 'Владимир' },
+  arzamas: { shortTitle: 'Арзамас', studentBadge: 'Арзамас' },
+  ufa: { shortTitle: 'Уфа', studentBadge: 'Уфа' },
+  volgograd: { shortTitle: 'Волгоград', studentBadge: 'Волгоград' },
+  izhevsk: { shortTitle: 'Ижевск', studentBadge: 'Ижевск' },
+  kaliningrad: { shortTitle: 'Калининград', studentBadge: 'Калининград' },
+  pk: { shortTitle: 'Петропавловск-Камчатский', studentBadge: 'Камчатка' },
+  crimea: { shortTitle: 'Крым', studentBadge: 'Крым' },
+  engels: { shortTitle: 'Энгельс', studentBadge: 'Энгельс' },
+  saransk: { shortTitle: 'Саранск', studentBadge: 'Саранск' },
+  smolensk: { shortTitle: 'Смоленск', studentBadge: 'Смоленск' },
+  cheb: { shortTitle: 'Чебоксары', studentBadge: 'Чебоксары' },
 }
 
 /** Имена файлов гербов в public/branches/ (по умолчанию {id}.png). */
@@ -135,11 +37,7 @@ export type BranchDisplayInfo = {
   branch: UniversityBranch
   shortTitle: string
   studentBadge: string
-  parentBadge: string
   crestSrc: string
-  crestInitials: string
-  crestScale: number
-  crestPosition: string
   isMain: boolean
 }
 
@@ -156,11 +54,22 @@ export function getBranchDisplayInfo(branchLabel?: string | null): BranchDisplay
     branch,
     shortTitle: display.shortTitle,
     studentBadge: display.studentBadge,
-    parentBadge: 'Текущий филиал',
     crestSrc: branchCrestSrc(branch.id),
-    crestInitials: display.crestInitials,
-    crestScale: display.crestScale,
-    crestPosition: display.crestPosition,
     isMain: branch.id === 'main',
+  }
+}
+
+export function branchBannerProps(
+  branchLabel: string | null | undefined,
+  variant: 'parent' | 'student',
+): BranchBannerProps {
+  const info = getBranchDisplayInfo(branchLabel)
+
+  return {
+    label: variant === 'parent' ? 'Филиал обучения студента' : 'Ваш филиал',
+    title: info.shortTitle,
+    subtitle: universityLegalName,
+    badge: 'Текущий филиал',
+    emblemSrc: info.crestSrc,
   }
 }

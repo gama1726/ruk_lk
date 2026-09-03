@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ageWithBirthDate, courseLabel, maskPhone, noticeDate } from '@/mocks/format'
+import { branchBannerProps } from '@/branch-display'
 import { mockStudentProfile } from '@/profile'
 import { useStudentProfile } from '@/student-profile-store'
 import { academicDebtsFromRows } from '@/debts'
@@ -137,7 +138,7 @@ export function Profile() {
 
   return (
     <div className={styles.page}>
-      <BranchBanner branchLabel={displayProfile.branch} variant="student" />
+      <BranchBanner {...branchBannerProps(displayProfile.branch, 'student')} className={styles.branchBanner} />
 
       <Card padding="lg" className={styles.hero}>
         <div className={styles.heroInner}>

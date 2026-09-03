@@ -1,71 +1,51 @@
-import { useState } from 'react'
-import {
-  getBranchDisplayInfo,
-  universityLegalName,
-  type BranchDisplayInfo,
-} from '@/branch-display'
 import styles from './BranchBanner.module.css'
 
-export type BranchBannerVariant = 'student' | 'parent'
-
-type BranchBannerProps = {
-  branchLabel?: string | null
-  variant: BranchBannerVariant
+export type BranchBannerProps = {
+  label?: string
+  title?: string
+  subtitle?: string
+  badge?: string
+  emblemSrc?: string
   className?: string
 }
 
-function Crest({ info }: { info: BranchDisplayInfo }) {
-  const [failed, setFailed] = useState(false)
-
-  if (failed) {
-    return (
-      <span className={styles.crestFallback} aria-hidden="true">
-        {info.crestInitials}
-      </span>
-    )
-  }
-
-  return (
-    <img
-      src={info.crestSrc}
-      alt=""
-      className={styles.crestImage}
-      style={{
-        objectPosition: info.crestPosition,
-        transform: `scale(${info.crestScale})`,
-      }}
-      onError={() => setFailed(true)}
-      decoding="async"
-      draggable={false}
-    />
-  )
-}
-
-export function BranchBanner({ branchLabel, variant, className }: BranchBannerProps) {
-  const info = getBranchDisplayInfo(branchLabel)
-  const eyebrow = variant === 'parent' ? 'Филиал обучения студента' : 'Ваш филиал'
-  const badge = variant === 'parent' ? info.parentBadge : info.studentBadge
-
+export function BranchBanner({
+  label = 'Ваш филиал',
+  title = 'Головной вуз — Мытищи',
+  subtitle = 'Российский университет кооперации',
+  badge = 'Текущий филиал',
+  emblemSrc,
+  className,
+}: BranchBannerProps) {
   return (
     <section
       className={[styles.banner, className].filter(Boolean).join(' ')}
-      aria-label={`${eyebrow}: ${info.shortTitle}`}
+      aria-label={`${label}: ${title}`}
     >
-      <div className={styles.crestWrap} aria-hidden="true">
-        <span className={styles.crestAura} />
-        <span className={styles.crestHalo} />
-        <div className={styles.crestCircle}>
-          <Crest info={info} />
-        </div>
+      <div className={[styles.glow, styles.glowLeft].join(' ')} aria-hidden="true" />
+      <div className={[styles.glow, styles.glowRight].join(' ')} aria-hidden="true" />
+
+      <div className={styles.emblemWrap}>
+        <div className={styles.emblemGlow} aria-hidden="true" />
+        {emblemSrc ? (
+          <img
+            className={styles.emblem}
+            src={emblemSrc}
+            alt=""
+            aria-hidden="true"
+            decoding="async"
+            draggable={false}
+          />
+        ) : null}
       </div>
 
-      <div className={styles.body}>
-        <p className={styles.eyebrow}>{eyebrow}</p>
-        <h2 className={styles.title}>{info.shortTitle}</h2>
-        <p className={styles.subtitle}>{universityLegalName}</p>
+      <div className={styles.content}>
+        <div className={styles.label}>{label}</div>
+        <h2 className={styles.title}>{title}</h2>
+        <div className={styles.subtitle}>{subtitle}</div>
       </div>
 
-      <span className={styles.badge}>{badge}</span>
+      {badge ? <div className={styles.badge}>{badge}</div> : null}
     </section>
   )
 }

@@ -3,6 +3,10 @@
   gap: var(--page-gap);
 }
 
+.branchBanner {
+  margin-bottom: calc(0.9375rem - var(--page-gap));
+}
+
 .hero {
   box-shadow: var(--shadow-md);
 }
