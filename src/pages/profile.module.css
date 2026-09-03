@@ -1,10 +1,23 @@
 .page {
   display: grid;
   gap: var(--page-gap);
+  --profile-hero-avatar-size: 9rem;
+}
+
+@media (min-width: 1024px) {
+  .page {
+    --profile-hero-avatar-size: 10.5rem;
+  }
+}
+
+.profileIntro {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .branchBanner {
-  margin-bottom: calc(1rem - var(--page-gap));
+  margin-bottom: 0;
 }
 
 .hero {

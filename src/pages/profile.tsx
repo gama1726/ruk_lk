@@ -138,9 +138,14 @@ export function Profile() {
 
   return (
     <div className={styles.page}>
-      <BranchBanner branch={resolveBranch(displayProfile.branch)} viewerType="student" className={styles.branchBanner} />
+      <div className={styles.profileIntro}>
+        <BranchBanner
+          branch={resolveBranch(displayProfile.branch)}
+          viewerType="student"
+          className={styles.branchBanner}
+        />
 
-      <Card padding="lg" className={styles.hero}>
+        <Card padding="lg" className={styles.hero}>
         <div className={styles.heroInner}>
           <StudentAvatar
             gender={displayProfile.gender}
@@ -180,6 +185,7 @@ export function Profile() {
           </div>
         </div>
       </Card>
+      </div>
 
       <div className={styles.lowerGrid}>
         <Card title="Информация об обучении" className={styles.educationCard}>

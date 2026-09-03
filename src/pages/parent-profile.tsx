@@ -143,8 +143,6 @@ export function ParentProfile() {
     <div className={styles.page}>
       <ScreenHeader title="Профиль" />
 
-      <BranchBanner branch={resolveBranch(student?.branch)} viewerType="parent" className={styles.branchBanner} />
-
       {!profile.dataAccessAllowed ? (
         <div className={styles.alert} role="alert">
           Данные о расписании, оценках и оплате пока скрыты: ребёнку нужно подписать согласие на
@@ -155,7 +153,10 @@ export function ParentProfile() {
 
       {error ? <p className={styles.error}>{error}</p> : null}
 
-      <Card padding="lg" className={styles.hero}>
+      <div className={styles.profileIntro}>
+        <BranchBanner branch={resolveBranch(student?.branch)} viewerType="parent" className={styles.branchBanner} />
+
+        <Card padding="lg" className={styles.hero}>
         <div className={styles.heroInner}>
           <ParentAvatar relation={profile.relation} size="lg" aria-hidden="true" />
 
@@ -198,6 +199,7 @@ export function ParentProfile() {
           />
         </div>
       </Card>
+      </div>
 
       {profile.dataAccessAllowed ? (
         <>

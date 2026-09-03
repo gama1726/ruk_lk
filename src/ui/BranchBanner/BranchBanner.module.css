@@ -5,7 +5,9 @@
   align-items: center;
   gap: 20px;
   width: 100%;
-  min-height: 92px;
+  box-sizing: border-box;
+  height: calc(var(--profile-hero-avatar-size, 9rem) * 0.75 + 1.25rem);
+  min-height: 118px;
   padding: 18px 22px 18px 26px;
   overflow: hidden;
   border-radius: 14px;
@@ -65,8 +67,8 @@
 .backgroundGlow {
   position: absolute;
   z-index: 0;
-  width: 180px;
-  height: 150px;
+  width: calc(var(--profile-hero-avatar-size, 9rem) * 0.95);
+  height: calc(var(--profile-hero-avatar-size, 9rem) * 0.78);
   left: -18px;
   top: 50%;
   transform: translateY(-50%);
@@ -126,8 +128,12 @@
   position: relative;
   z-index: 2;
   flex-shrink: 0;
-  width: 64px;
-  height: 64px;
+  align-self: center;
+  width: auto;
+  height: 60%;
+  aspect-ratio: 1;
+  max-height: calc(var(--profile-hero-avatar-size, 9rem) * 0.45);
+  min-height: 3.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -136,7 +142,7 @@
 .emblem::before {
   content: '';
   position: absolute;
-  inset: -10px;
+  inset: -12%;
   z-index: 0;
   background: radial-gradient(
     circle at 50% 50%,
@@ -220,9 +226,9 @@
 }
 
 @media (max-width: 1023px) {
-  .emblem {
-    width: 58px;
-    height: 58px;
+  .banner {
+    height: calc(var(--profile-hero-avatar-size, 9rem) * 0.68 + 1rem);
+    min-height: 108px;
   }
 }
 
@@ -231,7 +237,8 @@
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 14px 16px;
-    min-height: auto;
+    height: auto;
+    min-height: 104px;
     padding: 16px 16px 16px 20px;
     background:
       radial-gradient(
@@ -257,8 +264,9 @@
   }
 
   .emblem {
-    width: 52px;
-    height: 52px;
+    height: 60%;
+    min-height: 3rem;
+    max-height: 3.25rem;
   }
 
   .content {
