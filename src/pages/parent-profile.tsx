@@ -5,7 +5,7 @@ import { ApiError } from '@/apiClient'
 import { NavIcon, type NavIconId } from '@/icons/nav'
 import { courseLabel, maskPhone } from '@/mocks/format'
 import { formatShortDate } from '@/mocks/payment'
-import { branchBannerProps } from '@/branch-display'
+import { resolveBranch } from '@/branch-display'
 import {
   fetchParentProfile,
   isParentProfileApiEnabled,
@@ -143,7 +143,7 @@ export function ParentProfile() {
     <div className={styles.page}>
       <ScreenHeader title="Профиль" />
 
-      <BranchBanner {...branchBannerProps(student?.branch, 'parent')} className={styles.branchBanner} />
+      <BranchBanner branch={resolveBranch(student?.branch)} viewerType="parent" className={styles.branchBanner} />
 
       {!profile.dataAccessAllowed ? (
         <div className={styles.alert} role="alert">

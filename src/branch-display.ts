@@ -1,75 +1,122 @@
 /**
- * @file Отображение филиала: короткое название, герб, подписи для плашки профиля.
+ * @file Конфигурация филиалов для плашки BranchBanner и связанных блоков.
  */
 
-import type { BranchBannerProps } from '@/ui/BranchBanner/BranchBanner'
-import { resolveUniversityBranch, type UniversityBranch } from '@/mocks/university-contacts'
+import { resolveUniversityBranch } from '@/mocks/university-contacts'
 
 export const universityLegalName = 'Российский университет кооперации'
 
-const branchDisplayById: Readonly<
-  Record<string, { shortTitle: string; studentBadge: string }>
-> = {
-  main: { shortTitle: 'Головной вуз — Мытищи', studentBadge: 'Головной вуз' },
-  kazan: { shortTitle: 'Казань', studentBadge: 'Казань' },
-  krasnodar: { shortTitle: 'Краснодар', studentBadge: 'Краснодар' },
-  vladimir: { shortTitle: 'Владимир', studentBadge: 'Владимир' },
-  arzamas: { shortTitle: 'Арзамас', studentBadge: 'Арзамас' },
-  ufa: { shortTitle: 'Уфа', studentBadge: 'Уфа' },
-  volgograd: { shortTitle: 'Волгоград', studentBadge: 'Волгоград' },
-  izhevsk: { shortTitle: 'Ижевск', studentBadge: 'Ижевск' },
-  kaliningrad: { shortTitle: 'Калининград', studentBadge: 'Калининград' },
-  pk: { shortTitle: 'Петропавловск-Камчатский', studentBadge: 'Камчатка' },
-  crimea: { shortTitle: 'Крым', studentBadge: 'Крым' },
-  engels: { shortTitle: 'Энгельс', studentBadge: 'Энгельс' },
-  saransk: { shortTitle: 'Саранск', studentBadge: 'Саранск' },
-  smolensk: { shortTitle: 'Смоленск', studentBadge: 'Смоленск' },
-  cheb: { shortTitle: 'Чебоксары', studentBadge: 'Чебоксары' },
+export type BranchType = 'head' | 'branch' | 'institute'
+
+export type Branch = {
+  name: string
+  universityName: string
+  emblem: string
+  badge?: string
+  type?: BranchType
 }
 
-/** Имена файлов гербов в public/branches/ (по умолчанию {id}.png). */
-const branchCrestFiles: Partial<Record<string, string>> = {
-  main: 'main.jpg',
-  kazan: 'kazan.jpg',
+type BranchConfigEntry = {
+  name: string
+  emblemFile: string
+  type: BranchType
 }
 
-export type BranchDisplayInfo = {
-  branch: UniversityBranch
-  shortTitle: string
-  studentBadge: string
-  crestSrc: string
-  isMain: boolean
+/** Конфигурация филиалов по id (сопоставляется с resolveUniversityBranch). */
+const branchConfigs: Readonly<Record<string, BranchConfigEntry>> = {
+  main: {
+    name: 'Головной вуз — Мытищи',
+    emblemFile: 'main.jpg',
+    type: 'head',
+  },
+  kazan: {
+    name: 'Казанский кооперативный институт',
+    emblemFile: 'kazan.jpg',
+    type: 'institute',
+  },
+  krasnodar: {
+    name: 'Краснодарский кооперативный институт',
+    emblemFile: 'krasnodar.jpg',
+    type: 'institute',
+  },
+  vladimir: {
+    name: 'Владимирский филиал',
+    emblemFile: 'vladimir.png',
+    type: 'branch',
+  },
+  arzamas: {
+    name: 'Арзамасский филиал',
+    emblemFile: 'arzamas.png',
+    type: 'branch',
+  },
+  ufa: {
+    name: 'Башкирский кооперативный институт',
+    emblemFile: 'ufa.png',
+    type: 'institute',
+  },
+  volgograd: {
+    name: 'Волгоградский кооперативный институт',
+    emblemFile: 'volgograd.png',
+    type: 'institute',
+  },
+  izhevsk: {
+    name: 'Ижевский филиал',
+    emblemFile: 'izhevsk.png',
+    type: 'branch',
+  },
+  kaliningrad: {
+    name: 'Калининградский филиал',
+    emblemFile: 'kaliningrad.png',
+    type: 'branch',
+  },
+  pk: {
+    name: 'Камчатский филиал',
+    emblemFile: 'pk.png',
+    type: 'branch',
+  },
+  crimea: {
+    name: 'Крымский кооперативный институт',
+    emblemFile: 'crimea.png',
+    type: 'institute',
+  },
+  engels: {
+    name: 'Поволжский кооперативный институт',
+    emblemFile: 'engels.png',
+    type: 'institute',
+  },
+  saransk: {
+    name: 'Саранский кооперативный институт',
+    emblemFile: 'saransk.png',
+    type: 'institute',
+  },
+  smolensk: {
+    name: 'Смоленский кооперативный институт',
+    emblemFile: 'smolensk.png',
+    type: 'institute',
+  },
+  cheb: {
+    name: 'Чебоксарский кооперативный институт',
+    emblemFile: 'cheb.png',
+    type: 'institute',
+  },
 }
 
-export function branchCrestSrc(branchId: string): string {
-  const file = branchCrestFiles[branchId] ?? `${branchId}.png`
-  return `/branches/${file}`
+const defaultBadge = 'Текущий филиал'
+
+export function branchEmblemSrc(emblemFile: string): string {
+  return `/branches/${emblemFile}`
 }
 
-export function getBranchDisplayInfo(branchLabel?: string | null): BranchDisplayInfo {
-  const branch = resolveUniversityBranch(branchLabel)
-  const display = branchDisplayById[branch.id] ?? branchDisplayById.main
+/** Собирает объект Branch по строке branch из профиля студента (1С). */
+export function resolveBranch(branchLabel?: string | null): Branch {
+  const resolved = resolveUniversityBranch(branchLabel)
+  const config = branchConfigs[resolved.id] ?? branchConfigs.main
 
   return {
-    branch,
-    shortTitle: display.shortTitle,
-    studentBadge: display.studentBadge,
-    crestSrc: branchCrestSrc(branch.id),
-    isMain: branch.id === 'main',
-  }
-}
-
-export function branchBannerProps(
-  branchLabel: string | null | undefined,
-  variant: 'parent' | 'student',
-): BranchBannerProps {
-  const info = getBranchDisplayInfo(branchLabel)
-
-  return {
-    label: variant === 'parent' ? 'Филиал обучения студента' : 'Ваш филиал',
-    title: info.shortTitle,
-    subtitle: universityLegalName,
-    badge: 'Текущий филиал',
-    emblemSrc: info.crestSrc,
+    name: config.name,
+    universityName: universityLegalName,
+    emblem: branchEmblemSrc(config.emblemFile),
+    badge: defaultBadge,
+    type: config.type,
   }
 }

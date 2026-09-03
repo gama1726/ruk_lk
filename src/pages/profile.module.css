@@ -4,7 +4,7 @@
 }
 
 .branchBanner {
-  margin-bottom: calc(0.9375rem - var(--page-gap));
+  margin-bottom: calc(1rem - var(--page-gap));
 }
 
 .hero {

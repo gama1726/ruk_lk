@@ -1,51 +1,46 @@
+import type { Branch } from '@/branch-display'
 import styles from './BranchBanner.module.css'
 
 export type BranchBannerProps = {
-  label?: string
-  title?: string
-  subtitle?: string
-  badge?: string
-  emblemSrc?: string
+  branch: Branch
+  viewerType: 'student' | 'parent'
   className?: string
 }
 
-export function BranchBanner({
-  label = 'Ваш филиал',
-  title = 'Головной вуз — Мытищи',
-  subtitle = 'Российский университет кооперации',
-  badge = 'Текущий филиал',
-  emblemSrc,
-  className,
-}: BranchBannerProps) {
-  return (
-    <section
-      className={[styles.banner, className].filter(Boolean).join(' ')}
-      aria-label={`${label}: ${title}`}
-    >
-      <div className={[styles.glow, styles.glowLeft].join(' ')} aria-hidden="true" />
-      <div className={[styles.glow, styles.glowRight].join(' ')} aria-hidden="true" />
+const viewerLabel = {
+  student: 'Ваш филиал',
+  parent: 'Филиал обучения студента',
+} as const
 
-      <div className={styles.emblemWrap}>
-        <div className={styles.emblemGlow} aria-hidden="true" />
-        {emblemSrc ? (
-          <img
-            className={styles.emblem}
-            src={emblemSrc}
-            alt=""
-            aria-hidden="true"
-            decoding="async"
-            draggable={false}
-          />
-        ) : null}
+export function BranchBanner({ branch, viewerType, className }: BranchBannerProps) {
+  const badgeText = branch.badge ?? 'Текущий филиал'
+
+  return (
+    <section className={[styles.banner, className].filter(Boolean).join(' ')} aria-label="Информация о филиале">
+      <div className={styles.accent} aria-hidden="true" />
+
+      <div className={styles.emblem}>
+        <img
+          className={styles.emblemImg}
+          src={branch.emblem}
+          alt={`${branch.name} — герб`}
+          decoding="async"
+          draggable={false}
+        />
       </div>
 
       <div className={styles.content}>
-        <div className={styles.label}>{label}</div>
-        <h2 className={styles.title}>{title}</h2>
-        <div className={styles.subtitle}>{subtitle}</div>
+        <div className={styles.label}>{viewerLabel[viewerType]}</div>
+        <h2 className={styles.title}>{branch.name}</h2>
+        <div className={styles.university}>{branch.universityName}</div>
       </div>
 
-      {badge ? <div className={styles.badge}>{badge}</div> : null}
+      {badgeText ? (
+        <div className={styles.badge}>
+          <span className={styles.badgeDot} aria-hidden="true" />
+          {badgeText}
+        </div>
+      ) : null}
     </section>
   )
 }
