@@ -12,14 +12,18 @@ public interface CampusEventRepository extends JpaRepository<CampusEvent, UUID> 
 
     List<CampusEvent> findAllByOrderByStartDateAscTitleAsc();
 
+    List<CampusEvent> findByCampusOrderByStartDateAscTitleAsc(EventCampus campus);
+
     @Query("""
         select e from CampusEvent e
         where e.published = true
+          and e.campus = :campus
           and e.startDate <= :monthEnd
           and e.endDate >= :monthStart
         order by e.startDate asc, e.title asc
         """)
     List<CampusEvent> findPublishedOverlappingMonth(
+        @Param("campus") EventCampus campus,
         @Param("monthStart") LocalDate monthStart,
         @Param("monthEnd") LocalDate monthEnd
     );

@@ -70,11 +70,22 @@ export const sidebarGroups: NavGroup[] = [
   },
 ]
 
+export type SidebarNavOptions = {
+  attendance?: boolean
+  events?: boolean
+}
+
+/** Верхние пункты; {@code events: false} — скрыть календарь (другие филиалы). */
+export function getSidebarTop(options?: SidebarNavOptions): NavItem[] {
+  const showEvents = options?.events !== false
+  return showEvents ? sidebarTop : sidebarTop.filter((item) => item.to !== paths.events)
+}
+
 /** Полное меню для drawer на mobile */
-export function buildMenu(options?: { attendance?: boolean }) {
+export function buildMenu(options?: SidebarNavOptions) {
   const groups = getSidebarGroups(options)
   return [
-    { title: 'Разделы', items: sidebarTop },
+    { title: 'Разделы', items: getSidebarTop(options) },
     ...groups.map((g) => ({ title: g.label, items: g.items })),
   ]
 }
@@ -91,7 +102,7 @@ export const mobileTabs: NavItem[] = [
 ]
 
 /** Группы сайдбара; {@code attendance: false} — скрыть посещаемость (филиалы). */
-export function getSidebarGroups(options?: { attendance?: boolean }): NavGroup[] {
+export function getSidebarGroups(options?: SidebarNavOptions): NavGroup[] {
   const showAttendance = options?.attendance !== false
   return sidebarGroups.map((group) => {
     if (group.id !== 'study') return group

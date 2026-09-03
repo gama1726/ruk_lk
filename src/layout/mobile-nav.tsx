@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
-import { isAttendanceNavVisible } from '@/campus'
+import { isAttendanceNavVisible, isEventsNavVisible } from '@/campus'
 import { NavIcon } from '@/icons/nav'
 import { paths } from '@/paths'
 import { buildMenu, mobileTabs } from '@/nav'
@@ -22,7 +22,10 @@ export function MobileNav() {
     if (status === 'idle') void load()
   }, [status, load])
 
-  const menu = buildMenu({ attendance: isAttendanceNavVisible(profile) })
+  const menu = buildMenu({
+    attendance: isAttendanceNavVisible(profile),
+    events: isEventsNavVisible(profile),
+  })
 
   const handleExit = () => {
     void signOut().then(() => navigate(paths.login))

@@ -1,11 +1,11 @@
 import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import logo from '@/assets/ruk-logo.png'
-import { isAttendanceNavVisible } from '@/campus'
+import { isAttendanceNavVisible, isEventsNavVisible } from '@/campus'
 import { SocialIcon } from '@/icons/social'
 import { socialLinks } from '@/mocks/public-nav'
 import { paths } from '@/paths'
-import { sidebarTop, getSidebarGroups } from '@/nav'
+import { getSidebarTop, getSidebarGroups } from '@/nav'
 import { useStudentProfile } from '@/student-profile-store'
 import { MenuLink } from './nav-link'
 import { NavGroupBlock } from './nav-group'
@@ -20,9 +20,12 @@ export function Sidebar() {
     if (status === 'idle') void load()
   }, [status, load])
 
-  const groups = getSidebarGroups({
+  const navOptions = {
     attendance: isAttendanceNavVisible(profile),
-  })
+    events: isEventsNavVisible(profile),
+  }
+  const topItems = getSidebarTop(navOptions)
+  const groups = getSidebarGroups(navOptions)
 
   return (
     <nav className={styles.sidebar} aria-label="Разделы кабинета">
@@ -35,7 +38,7 @@ export function Sidebar() {
 
       <div className={styles.menu}>
         <ul className={styles.topList}>
-          {sidebarTop.map((item) => (
+          {topItems.map((item) => (
             <li key={item.to}>
               <MenuLink to={item.to} icon={item.icon}>
                 {item.label}

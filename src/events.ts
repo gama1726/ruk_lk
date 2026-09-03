@@ -6,6 +6,8 @@ import { apiGet, isApiConfigured } from '@/apiClient'
 
 export type CampusEventDto = {
   id: string
+  /** HEAD | KAZAN */
+  campus: string
   title: string
   description: string
   startDate: string

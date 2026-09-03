@@ -2,6 +2,7 @@ package ru.ruc.lk.ruk_lk_api.events;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpSession;
@@ -28,9 +30,16 @@ public class EventsAdminCrudController {
     }
 
     @GetMapping
-    public List<CampusEventDto> list(HttpSession session) {
+    public List<CampusEventDto> list(
+        HttpSession session,
+        @RequestParam(required = false) String campus
+    ) {
         EventsAdminAuthService.require(session);
-        return eventService.listAllForAdmin();
+        Optional<EventCampus> filter = Optional.empty();
+        if (campus != null && !campus.isBlank()) {
+            filter = Optional.of(EventCampusResolver.requireAdminCampus(campus));
+        }
+        return eventService.listAllForAdmin(filter);
     }
 
     @PostMapping

@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -22,27 +23,29 @@ public class EventService {
         this.repository = repository;
     }
 
-    public List<CampusEventDto> listPublishedForMonth(int year, int month) {
+    public List<CampusEventDto> listPublishedForMonth(EventCampus campus, int year, int month) {
         if (month < 1 || month > 12) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Месяц должен быть от 1 до 12");
         }
         LocalDate monthStart = LocalDate.of(year, month, 1);
         LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
-        return repository.findPublishedOverlappingMonth(monthStart, monthEnd).stream()
+        return repository.findPublishedOverlappingMonth(campus, monthStart, monthEnd).stream()
             .map(EventService::toDto)
             .toList();
     }
 
-    public List<CampusEventDto> listAllForAdmin() {
-        return repository.findAllByOrderByStartDateAscTitleAsc().stream()
-            .map(EventService::toDto)
-            .toList();
+    public List<CampusEventDto> listAllForAdmin(Optional<EventCampus> campusFilter) {
+        List<CampusEvent> rows = campusFilter.isPresent()
+            ? repository.findByCampusOrderByStartDateAscTitleAsc(campusFilter.get())
+            : repository.findAllByOrderByStartDateAscTitleAsc();
+        return rows.stream().map(EventService::toDto).toList();
     }
 
     public CampusEventDto create(CampusEventWriteRequest body) {
         ParsedWrite parsed = parseWrite(body, true);
         CampusEvent event = new CampusEvent(
             UUID.randomUUID(),
+            parsed.campus(),
             parsed.title(),
             parsed.description(),
             parsed.startDate(),
@@ -56,6 +59,7 @@ public class EventService {
         CampusEvent event = repository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Мероприятие не найдено"));
         ParsedWrite parsed = parseWrite(body, event.isPublished());
+        event.setCampus(parsed.campus());
         event.setTitle(parsed.title());
         event.setDescription(parsed.description());
         event.setStartDate(parsed.startDate());
@@ -76,6 +80,7 @@ public class EventService {
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Тело запроса обязательно");
         }
+        EventCampus campus = EventCampusResolver.requireAdminCampus(body.campus());
         String title = body.title() == null ? "" : body.title().trim();
         if (title.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите название");
@@ -98,7 +103,7 @@ public class EventService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Дата окончания не раньше даты начала");
         }
         boolean published = body.published() == null ? defaultPublished : body.published();
-        return new ParsedWrite(title, description, start, end, published);
+        return new ParsedWrite(campus, title, description, start, end, published);
     }
 
     private static LocalDate parseDate(String raw, String field) {
@@ -115,6 +120,7 @@ public class EventService {
     static CampusEventDto toDto(CampusEvent event) {
         return new CampusEventDto(
             event.getId(),
+            event.getCampus() == null ? EventCampus.HEAD.name() : event.getCampus().name(),
             event.getTitle(),
             event.getDescription() == null ? "" : event.getDescription(),
             event.getStartDate().toString(),
@@ -130,6 +136,7 @@ public class EventService {
     }
 
     private record ParsedWrite(
+        EventCampus campus,
         String title,
         String description,
         LocalDate startDate,

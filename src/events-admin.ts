@@ -10,6 +10,8 @@ export type EventsAdminMe = {
 }
 
 export type CampusEventWrite = {
+  /** HEAD | KAZAN */
+  campus: string
   title: string
   description?: string
   startDate: string
@@ -29,8 +31,9 @@ export async function eventsAdminMe(): Promise<EventsAdminMe> {
   return apiGet<EventsAdminMe>('/api/admin/events/auth/me')
 }
 
-export async function listAdminEvents(): Promise<CampusEventDto[]> {
-  return apiGet<CampusEventDto[]>('/api/admin/events')
+export async function listAdminEvents(campus?: string): Promise<CampusEventDto[]> {
+  const q = campus ? `?campus=${encodeURIComponent(campus)}` : ''
+  return apiGet<CampusEventDto[]>(`/api/admin/events${q}`)
 }
 
 export async function createAdminEvent(body: CampusEventWrite): Promise<CampusEventDto> {

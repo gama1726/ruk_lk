@@ -4,6 +4,7 @@ import java.util.UUID;
 
 public record CampusEventDto(
     UUID id,
+    String campus,
     String title,
     String description,
     String startDate,

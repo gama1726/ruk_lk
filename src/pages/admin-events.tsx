@@ -1,10 +1,11 @@
 /**
- * @file CRUD мероприятий в админке календаря.
+ * @file CRUD мероприятий в админке календаря (Головной + Казань).
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '@/apiClient'
+import { eventCampusLabel, type EventCampusId } from '@/campus'
 import type { CampusEventDto } from '@/events'
 import {
   createAdminEvent,
@@ -16,11 +17,12 @@ import {
   type CampusEventWrite,
 } from '@/events-admin'
 import { paths } from '@/paths'
-import { Button, Input, Loader, LoadError, Modal, NoData, Textarea } from '@/ui'
+import { Button, Input, Loader, LoadError, Modal, NoData, Select, Textarea } from '@/ui'
 import { AdminEventsShell } from '@/pages/admin-events-shell'
 import styles from './admin-events.module.css'
 
 type Draft = {
+  campus: EventCampusId
   title: string
   description: string
   startDate: string
@@ -28,7 +30,15 @@ type Draft = {
   published: boolean
 }
 
+type CampusFilter = 'ALL' | EventCampusId
+
+const campusOptions = [
+  { value: 'HEAD', label: 'Головной вуз' },
+  { value: 'KAZAN', label: 'Казань' },
+]
+
 const emptyDraft = (): Draft => ({
+  campus: 'HEAD',
   title: '',
   description: '',
   startDate: '',
@@ -41,10 +51,15 @@ function formatRange(start: string, end: string): string {
   return `${start} — ${end}`
 }
 
+function asCampus(raw: string | undefined): EventCampusId {
+  return raw === 'KAZAN' ? 'KAZAN' : 'HEAD'
+}
+
 export function AdminEventsPage() {
   const navigate = useNavigate()
   const [username, setUsername] = useState<string>()
   const [items, setItems] = useState<CampusEventDto[]>([])
+  const [campusFilter, setCampusFilter] = useState<CampusFilter>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -59,7 +74,8 @@ export function AdminEventsPage() {
     try {
       const me = await eventsAdminMe()
       setUsername(me.username)
-      setItems(await listAdminEvents())
+      const campus = campusFilter === 'ALL' ? undefined : campusFilter
+      setItems(await listAdminEvents(campus))
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         navigate(paths.adminEventsLogin, { replace: true })
@@ -69,7 +85,7 @@ export function AdminEventsPage() {
     } finally {
       setLoading(false)
     }
-  }, [navigate])
+  }, [navigate, campusFilter])
 
   useEffect(() => {
     void load()
@@ -77,7 +93,10 @@ export function AdminEventsPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setDraft(emptyDraft())
+    setDraft({
+      ...emptyDraft(),
+      campus: campusFilter === 'ALL' ? 'HEAD' : campusFilter,
+    })
     setFormError(null)
     setModalOpen(true)
   }
@@ -85,6 +104,7 @@ export function AdminEventsPage() {
   const openEdit = (item: CampusEventDto) => {
     setEditing(item)
     setDraft({
+      campus: asCampus(item.campus),
       title: item.title,
       description: item.description ?? '',
       startDate: item.startDate,
@@ -109,6 +129,7 @@ export function AdminEventsPage() {
     setSaving(true)
     setFormError(null)
     const body: CampusEventWrite = {
+      campus: draft.campus,
       title: draft.title.trim(),
       description: draft.description.trim(),
       startDate: draft.startDate,
@@ -149,10 +170,29 @@ export function AdminEventsPage() {
         </Button>
       </div>
 
+      <div className={styles.filterRow} role="group" aria-label="Филиал">
+        {(
+          [
+            ['ALL', 'Все'],
+            ['HEAD', 'Головной'],
+            ['KAZAN', 'Казань'],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            className={`${styles.filterChip} ${campusFilter === value ? styles.filterChipActive : ''}`}
+            onClick={() => setCampusFilter(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {loading ? <Loader /> : null}
       {!loading && error ? <LoadError message={error} onRetry={() => void load()} /> : null}
       {!loading && !error && items.length === 0 ? (
-        <NoData title="Пока нет мероприятий" description="Добавьте первое событие для календаря." />
+        <NoData title="Пока нет мероприятий" description="Добавьте первое событие для выбранного филиала." />
       ) : null}
 
       {!loading && !error && items.length > 0 ? (
@@ -162,11 +202,18 @@ export function AdminEventsPage() {
               <div className={styles.cardTop}>
                 <div>
                   <h2 className={styles.cardTitle}>{item.title}</h2>
-                  <p className={styles.cardMeta}>{formatRange(item.startDate, item.endDate)}</p>
+                  <p className={styles.cardMeta}>
+                    {eventCampusLabel(item.campus)} · {formatRange(item.startDate, item.endDate)}
+                  </p>
                 </div>
-                <span className={`${styles.badge} ${item.published ? styles.badgeOn : styles.badgeOff}`}>
-                  {item.published ? 'Опубликовано' : 'Черновик'}
-                </span>
+                <div className={styles.badgeStack}>
+                  <span className={`${styles.badge} ${styles.badgeCampus}`}>
+                    {eventCampusLabel(item.campus)}
+                  </span>
+                  <span className={`${styles.badge} ${item.published ? styles.badgeOn : styles.badgeOff}`}>
+                    {item.published ? 'Опубликовано' : 'Черновик'}
+                  </span>
+                </div>
               </div>
               {item.description ? <p className={styles.cardDesc}>{item.description}</p> : null}
               <div className={styles.cardActions}>
@@ -198,6 +245,13 @@ export function AdminEventsPage() {
         }
       >
         <form id="event-form" className={styles.formGrid} onSubmit={(e) => void onSubmit(e)}>
+          <Select
+            label="Филиал"
+            options={campusOptions}
+            value={draft.campus}
+            onChange={(e) => setDraft((d) => ({ ...d, campus: asCampus(e.target.value) }))}
+            required
+          />
           <label className={styles.label}>
             Название
             <Input

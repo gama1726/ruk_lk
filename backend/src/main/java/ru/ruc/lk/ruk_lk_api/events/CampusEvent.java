@@ -6,6 +6,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -15,6 +17,10 @@ public class CampusEvent {
 
     @Id
     private UUID id;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private EventCampus campus = EventCampus.HEAD;
 
     @Column(nullable = false, length = 300)
     private String title;
@@ -41,6 +47,7 @@ public class CampusEvent {
 
     public CampusEvent(
         UUID id,
+        EventCampus campus,
         String title,
         String description,
         LocalDate startDate,
@@ -49,6 +56,7 @@ public class CampusEvent {
     ) {
         Instant now = Instant.now();
         this.id = id;
+        this.campus = campus;
         this.title = title;
         this.description = description;
         this.startDate = startDate;
@@ -60,6 +68,14 @@ public class CampusEvent {
 
     public UUID getId() {
         return id;
+    }
+
+    public EventCampus getCampus() {
+        return campus;
+    }
+
+    public void setCampus(EventCampus campus) {
+        this.campus = campus;
     }
 
     public String getTitle() {
