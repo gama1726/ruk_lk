@@ -18,7 +18,6 @@ export function BranchBanner({ branch, viewerType, className }: BranchBannerProp
   return (
     <section className={[styles.banner, className].filter(Boolean).join(' ')} aria-label="Информация о филиале">
       <div className={styles.backgroundGlow} aria-hidden="true" />
-      <div className={styles.lightEffects} aria-hidden="true" />
 
       <div className={styles.emblem}>
         <img
