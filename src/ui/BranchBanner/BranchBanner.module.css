@@ -9,7 +9,7 @@
   height: calc(var(--profile-hero-avatar-size, 9rem) * 0.75 + 1.25rem);
   min-height: 118px;
   padding: 18px 22px 18px 26px;
-  overflow: hidden;
+  overflow: visible;
   border-radius: 14px;
   border: 1px solid rgba(112, 69, 190, 0.16);
   font-family: var(--font-family);
@@ -130,10 +130,10 @@
   flex-shrink: 0;
   align-self: center;
   width: auto;
-  height: 60%;
+  height: 120%;
   aspect-ratio: 1;
-  max-height: calc(var(--profile-hero-avatar-size, 9rem) * 0.45);
-  min-height: 3.25rem;
+  max-height: calc(var(--profile-hero-avatar-size, 9rem) * 0.9);
+  min-height: 6.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -264,9 +264,9 @@
   }
 
   .emblem {
-    height: 60%;
-    min-height: 3rem;
-    max-height: 3.25rem;
+    height: 120%;
+    min-height: 5.5rem;
+    max-height: calc(var(--profile-hero-avatar-size, 9rem) * 0.72);
   }
 
   .content {
