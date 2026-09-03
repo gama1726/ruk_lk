@@ -26,17 +26,17 @@ type BranchConfigEntry = {
 const branchConfigs: Readonly<Record<string, BranchConfigEntry>> = {
   main: {
     name: 'Головной вуз — Мытищи',
-    emblemFile: 'main.jpg',
+    emblemFile: 'main.png',
     type: 'head',
   },
   kazan: {
     name: 'Казанский кооперативный институт',
-    emblemFile: 'kazan.jpg',
+    emblemFile: 'kazan.png',
     type: 'institute',
   },
   krasnodar: {
     name: 'Краснодарский кооперативный институт',
-    emblemFile: 'krasnodar.jpg',
+    emblemFile: 'krasnodar.png',
     type: 'institute',
   },
   vladimir: {
