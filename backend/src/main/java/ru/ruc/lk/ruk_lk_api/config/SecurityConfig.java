@@ -23,7 +23,8 @@ public class SecurityConfig {
         HttpSecurity http,
         StudentSessionAuthFilter studentSessionAuthFilter,
         ParentSessionAuthFilter parentSessionAuthFilter,
-        AdminSessionAuthFilter adminSessionAuthFilter
+        AdminSessionAuthFilter adminSessionAuthFilter,
+        EventsSessionAuthFilter eventsSessionAuthFilter
     ) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
@@ -35,10 +36,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/max/webhook").permitAll()
                 .requestMatchers("/api/admin/auth/**").permitAll()
+                .requestMatchers("/api/admin/events/auth/**").permitAll()
                 .requestMatchers("/api/admin/**").permitAll()
                 .anyRequest().permitAll()
             )
             .addFilterBefore(adminSessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(eventsSessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(parentSessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(studentSessionAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

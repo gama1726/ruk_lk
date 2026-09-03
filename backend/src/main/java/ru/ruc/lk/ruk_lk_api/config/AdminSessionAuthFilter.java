@@ -13,11 +13,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.admin.AdminAuthService;
+import ru.ruc.lk.ruk_lk_api.events.EventsAdminAuthService;
 import ru.ruc.lk.ruk_lk_api.passphoto.EducationTrack;
 
 /**
- * /api/admin/pass-photos/** — нужна сессия админа выбранной роли ({@code X-Admin-Role}).
- * /api/admin/auth/** — открыт.
+ * /api/admin/pass-photos/** — сессия админа роли ({@code X-Admin-Role}).
+ * /api/admin/events/** — сессия редактора календаря ({@code EVENTS_ADMIN}).
+ * /api/admin/auth/** и /api/admin/events/auth/** — открыты.
  */
 @Component
 public class AdminSessionAuthFilter extends OncePerRequestFilter {
@@ -28,7 +30,8 @@ public class AdminSessionAuthFilter extends OncePerRequestFilter {
         if (path == null || !path.startsWith("/api/admin/")) {
             return true;
         }
-        return path.startsWith("/api/admin/auth");
+        return path.startsWith("/api/admin/auth")
+            || path.startsWith("/api/admin/events/auth");
     }
 
     @Override
@@ -37,6 +40,20 @@ public class AdminSessionAuthFilter extends OncePerRequestFilter {
         HttpServletResponse response,
         FilterChain filterChain
     ) throws ServletException, IOException {
+        String path = request.getRequestURI();
+        HttpSession session = request.getSession(false);
+
+        if (path != null && path.startsWith("/api/admin/events")) {
+            if (!EventsAdminAuthService.isLoggedIn(session)) {
+                response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"message\":\"Войдите в редактор календаря\"}");
+                return;
+            }
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         EducationTrack role;
         try {
             role = AdminAuthService.parseRoleHeader(request);
@@ -46,7 +63,6 @@ public class AdminSessionAuthFilter extends OncePerRequestFilter {
             response.getWriter().write("{\"message\":\"" + e.getReason() + "\"}");
             return;
         }
-        HttpSession session = request.getSession(false);
         if (!AdminAuthService.hasRole(session, role)) {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType("application/json;charset=UTF-8");

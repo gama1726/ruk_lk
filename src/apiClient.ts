@@ -150,6 +150,13 @@ export function apiPut<T>(path: string, json: unknown, init?: RequestInit): Prom
 }
 
 /**
+ * DELETE-запрос.
+ */
+export function apiDelete<T>(path: string, init?: RequestInit): Promise<T> {
+  return apiRequest<T>(path, { ...init, method: 'DELETE' })
+}
+
+/**
  * POST multipart/form-data (загрузка файлов).
  */
 export async function apiPostFormData<T>(path: string, formData: FormData, init?: RequestInit): Promise<T> {

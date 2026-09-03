@@ -53,6 +53,10 @@ import { PassPhoto } from '@/pages/pass-photo'
 import { EsportsRedirect } from '@/pages/esports-redirect'
 import { AdminPassPhotosHe, AdminPassPhotosSpo } from '@/pages/admin-pass-photos'
 import { AdminPassPhotoLogin } from '@/pages/admin-pass-photo-login'
+import { AdminEventsLogin } from '@/pages/admin-events-login'
+import { AdminEventsPage } from '@/pages/admin-events'
+import { EventsPage } from '@/pages/events'
+import { ParentEvents } from '@/pages/parent-events'
 
 export const router = createBrowserRouter([
   {
@@ -102,6 +106,7 @@ export const router = createBrowserRouter([
           { path: paths.home, element: <Navigate to={paths.profile} replace /> },
           { path: paths.profile, element: <Profile /> },
           { path: paths.news, element: <News /> },
+          { path: paths.events, element: <EventsPage /> },
           { path: paths.schedule, element: <Schedule /> },
           { path: paths.education, element: <Education /> },
           { path: paths.grades, element: <GradesRedirect /> },
@@ -135,6 +140,7 @@ export const router = createBrowserRouter([
           { path: paths.parentHome, element: <ParentProfile /> },
           { path: paths.parentProfile, element: <Navigate to={paths.parentHome} replace /> },
           { path: paths.parentSurvey, element: <ParentSurvey /> },
+          { path: paths.parentEvents, element: <ParentEvents /> },
           { path: paths.parentContacts, element: <ParentContacts /> },
           { path: paths.parentSchedule, element: <ParentSchedule /> },
           { path: paths.parentRecordBook, element: <ParentRecordBook /> },
@@ -151,5 +157,7 @@ export const router = createBrowserRouter([
   { path: paths.adminPassPhotosHeLogin, element: <Navigate to={paths.adminPassPhotosLogin} replace /> },
   { path: paths.adminPassPhotosSpo, element: <AdminPassPhotosSpo /> },
   { path: paths.adminPassPhotosHe, element: <AdminPassPhotosHe /> },
+  { path: paths.adminEventsLogin, element: <AdminEventsLogin /> },
+  { path: paths.adminEvents, element: <AdminEventsPage /> },
   { path: '*', element: <Navigate to={paths.login} replace /> },
 ])

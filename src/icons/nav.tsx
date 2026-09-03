@@ -12,6 +12,7 @@ import {
   Building2,
   CalendarCheck,
   CalendarDays,
+  CalendarRange,
   Camera,
   CreditCard,
   File,
@@ -35,6 +36,7 @@ import {
 export type NavIconId =
   | 'profile'
   | 'news'
+  | 'events'
   | 'schedule'
   | 'study'
   | 'studyPlan'
@@ -62,6 +64,7 @@ export type NavIconId =
 const icons: Record<NavIconId, LucideIcon> = {
   profile: UserCircle,
   news: MessagesSquare,
+  events: CalendarRange,
   schedule: CalendarDays,
   study: PenLine,
   studyPlan: BookOpen,

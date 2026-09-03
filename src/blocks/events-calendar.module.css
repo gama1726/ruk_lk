@@ -1,0 +1,194 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.15;
+}
+
+.monthAccent {
+  display: inline-block;
+  color: var(--color-secondary);
+  font-style: italic;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.weekday {
+  text-align: center;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.weeks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+  position: relative;
+  min-height: 5.5rem;
+}
+
+.pad {
+  min-height: 5.5rem;
+}
+
+.slotOccupied {
+  min-height: 5.5rem;
+  visibility: hidden;
+}
+
+.dayEmpty {
+  min-height: 5.5rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+  border: 1px solid transparent;
+  position: relative;
+  padding: 0.5rem;
+}
+
+.dayNum {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.45rem;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.eventTile {
+  grid-row: 1;
+  min-height: 5.5rem;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--color-secondary);
+  color: var(--color-text-primary);
+  text-align: left;
+  padding: 0.65rem 0.7rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  z-index: 1;
+}
+
+.eventTile:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.eventTile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.eventTitle {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.eventDate {
+  align-self: flex-end;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.emptyHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.detail {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.detailDates {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.detailBody {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--color-text-primary);
+  line-height: 1.5;
+}
+
+.detailBodyMuted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 639px) {
+  .week,
+  .weekdays {
+    gap: 0.35rem;
+  }
+
+  .week,
+  .dayEmpty,
+  .pad,
+  .slotOccupied,
+  .eventTile {
+    min-height: 4.25rem;
+  }
+
+  .eventTitle {
+    font-size: 0.65rem;
+    -webkit-line-clamp: 2;
+  }
+}

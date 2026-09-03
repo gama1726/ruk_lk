@@ -22,6 +22,7 @@ export const paths = {
   support: '/support',
   profile: '/profile',
   news: '/messages',
+  events: '/events',
   schedule: '/schedule',
   education: '/education',
   grades: '/grades',
@@ -52,12 +53,15 @@ export const paths = {
   adminPassPhotosSpoLogin: '/admin/pass-photos/spo/login',
   /** @deprecated используйте adminPassPhotosLogin */
   adminPassPhotosHeLogin: '/admin/pass-photos/he/login',
+  adminEvents: '/admin/events',
+  adminEventsLogin: '/admin/events/login',
   parentHome: '/parent',
   parentSurvey: '/parent/survey',
   parentContacts: '/parent/contacts',
   /** @deprecated редирект на {@link paths.parentHome} */
   parentProfile: '/parent/profile',
   parentNews: '/parent/news',
+  parentEvents: '/parent/events',
   parentSchedule: '/parent/schedule',
   parentRecordBook: '/parent/record-book',
   parentAttendance: '/parent/attendance',

@@ -25,6 +25,7 @@ export type NavGroup = {
 export const sidebarTop: NavItem[] = [
   { to: paths.profile, label: 'Профиль', icon: 'profile' },
   { to: paths.news, label: 'Новости', icon: 'news' },
+  { to: paths.events, label: 'Мероприятия', icon: 'events' },
   { to: paths.schedule, label: 'Расписание', icon: 'schedule' },
 ]
 
