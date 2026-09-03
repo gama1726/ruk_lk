@@ -46,7 +46,7 @@ export function ParentLoginVerify() {
 
   return (
     <>
-      <AuthCard>
+      <AuthCard brand="parent">
         <p className={card.sectionLabel}>Код подтверждения</p>
         <p className={form.hint}>Код отправлен: {pendingChallenge.deliveryHint}</p>
         <form className={form.form} onSubmit={(e) => void handleSubmit(e)}>

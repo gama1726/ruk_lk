@@ -7,6 +7,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
 import { paths } from '@/paths'
+import { AuthBrand } from '@/blocks/auth-card'
 import { Input, Button } from '@/ui'
 import styles from './login-sso.module.css'
 
@@ -42,6 +43,7 @@ export function SsoLogin() {
 
   return (
     <>
+      <AuthBrand audience="teacher" />
       <h1 className={styles.title}>Вход в систему аутентификации (dev)</h1>
       <p className={styles.realm}>Российский университет кооперации</p>
 

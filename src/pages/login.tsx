@@ -11,7 +11,7 @@ import { LoginRoleLinks } from '@/blocks/login-role-links'
 import { Button } from '@/ui'
 
 /**
- * Главный экран входа: «Войти через SSO» → зачётка и код подтверждения.
+ * Главный экран входа: «Войти» → SSO или зачётка и код подтверждения.
  */
 export function Login() {
   const navigate = useNavigate()
@@ -26,7 +26,7 @@ export function Login() {
       <p className={card.sectionLabel}>Вход для студента</p>
 
       <Button type="button" fullWidth size="lg" onClick={handleSso}>
-        Войти через SSO
+        Войти
       </Button>
 
       <div className={card.divider}>

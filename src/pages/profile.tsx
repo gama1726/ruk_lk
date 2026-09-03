@@ -17,6 +17,7 @@ import {
   passPhotoStatusLabel,
 } from '@/pass-photo'
 import { Card, StudentAvatar, BranchBanner } from '@/ui'
+import { ProfileTodayLesson } from '@/blocks/profile-today-lesson'
 import styles from './profile.module.css'
 
 type FieldProps = {
@@ -188,15 +189,19 @@ export function Profile() {
       </div>
 
       <div className={styles.lowerGrid}>
-        <Card title="Информация об обучении" className={styles.educationCard}>
-          <dl className={styles.infoList}>
-            <InfoRow label="Факультет" value={displayProfile.faculty} />
-            <InfoRow label="Кафедра" value={displayProfile.department} />
-            <InfoRow label="Направление" value={displayProfile.direction} />
-            <InfoRow label="Уровень образования" value={displayProfile.level} />
-            <InfoRow label="Форма обучения" value={displayProfile.educationForm} />
-          </dl>
-        </Card>
+        <div className={styles.mainStack}>
+          <Card title="Информация об обучении" className={styles.educationCard}>
+            <dl className={styles.infoList}>
+              <InfoRow label="Факультет" value={displayProfile.faculty} />
+              <InfoRow label="Кафедра" value={displayProfile.department} />
+              <InfoRow label="Направление" value={displayProfile.direction} />
+              <InfoRow label="Уровень образования" value={displayProfile.level} />
+              <InfoRow label="Форма обучения" value={displayProfile.educationForm} />
+            </dl>
+          </Card>
+
+          <ProfileTodayLesson />
+        </div>
 
         <div className={styles.sideStack}>
           <Card padding="lg" className={styles.debtCard}>

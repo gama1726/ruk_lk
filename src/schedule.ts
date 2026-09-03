@@ -154,3 +154,65 @@ export async function fetchParentScheduleMonth(year: number, monthIndex: number)
 export function isScheduleApiEnabled(): boolean {
   return isApiConfigured()
 }
+
+/** Текущее локальное время `ЧЧ:ММ`. */
+export function nowHm(date = new Date()): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function hmToMinutes(hm: string): number {
+  const [h, m] = hm.split(':').map(Number)
+  return h * 60 + m
+}
+
+/**
+ * Текущая или ближайшая пара на день.
+ * Сначала идущая сейчас, иначе первая с `start > now`.
+ */
+export function pickNextLessonFromRows(
+  lessons: Lesson[],
+  dateIso: string,
+  now: string = nowHm(),
+): Lesson | null {
+  const day = lessons
+    .filter((lesson) => lesson.date === dateIso && lesson.status !== 'cancelled')
+    .sort((a, b) => a.start.localeCompare(b.start))
+
+  const ongoing = day.find((lesson) => lesson.start <= now && now < lesson.end)
+  if (ongoing) return ongoing
+
+  return day.find((lesson) => lesson.start > now) ?? null
+}
+
+/** Сколько ещё пар сегодня после выбранной (включая текущую в счётчике оставшихся от now). */
+export function remainingLessonsToday(
+  lessons: Lesson[],
+  dateIso: string,
+  now: string = nowHm(),
+): number {
+  return lessons.filter(
+    (lesson) =>
+      lesson.date === dateIso &&
+      lesson.status !== 'cancelled' &&
+      lesson.end > now,
+  ).length
+}
+
+/** Подпись: «Идёт сейчас» / «через 25 мин» / «через 1 ч 10 мин». */
+export function lessonTimingLabel(lesson: Lesson, now: string = nowHm()): string {
+  const nowMin = hmToMinutes(now)
+  const startMin = hmToMinutes(lesson.start)
+  const endMin = hmToMinutes(lesson.end)
+
+  if (startMin <= nowMin && nowMin < endMin) {
+    return `Идёт сейчас · до ${lesson.end}`
+  }
+
+  const diff = startMin - nowMin
+  if (diff <= 0) return `с ${lesson.start}`
+  if (diff < 60) return `через ${diff} мин`
+  const hours = Math.floor(diff / 60)
+  const mins = diff % 60
+  if (mins === 0) return `через ${hours} ч`
+  return `через ${hours} ч ${mins} мин`
+}

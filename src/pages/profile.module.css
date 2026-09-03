@@ -128,6 +128,12 @@
   align-items: start;
 }
 
+.mainStack {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
 .educationCard {
   box-shadow: var(--shadow-sm);
 }

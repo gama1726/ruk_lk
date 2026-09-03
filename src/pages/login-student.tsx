@@ -61,7 +61,7 @@ export function StudentLogin() {
       </form>
 
       <p className={card.forgotRow}>
-        <Link to={paths.login}>Войти через SSO</Link>
+        <Link to={paths.login}>К способам входа</Link>
       </p>
     </AuthCard>
   )

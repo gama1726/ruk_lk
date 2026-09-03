@@ -149,7 +149,7 @@ export function ParentLoginDelivery() {
 
   return (
     <>
-      <AuthCard>
+      <AuthCard brand="parent">
         <p className={card.sectionLabel}>Куда отправить код</p>
         <p className={form.hint}>Выберите способ получения кода.</p>
 
