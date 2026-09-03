@@ -12,7 +12,6 @@ export type ParentNavItem = {
 export const parentSidebarTop: ParentNavItem[] = [
   { to: paths.parentHome, label: 'Профиль', icon: 'profile', requiresDataAccess: false },
   { to: paths.parentSurvey, label: 'Опрос университета', icon: 'requests', requiresDataAccess: false },
-  { to: paths.parentContacts, label: 'Контакты', icon: 'services', requiresDataAccess: false },
 ]
 
 export const parentSidebarBottom: ParentNavItem[] = []

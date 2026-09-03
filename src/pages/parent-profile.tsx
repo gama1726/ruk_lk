@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Mail, Phone } from 'lucide-react'
 import { ApiError } from '@/apiClient'
 import { NavIcon, type NavIconId } from '@/icons/nav'
 import { courseLabel, maskPhone } from '@/mocks/format'
@@ -9,7 +8,6 @@ import { resolveBranch } from '@/branch-display'
 import {
   fetchParentProfile,
   isParentProfileApiEnabled,
-  parentUniversityContacts,
   type ParentProfileDto,
 } from '@/parent-profile'
 import { useParentAuth } from '@/parent-auth'
@@ -137,7 +135,6 @@ export function ParentProfile() {
   const contract = profile.contract
   const recordBookNumber = student?.studentId || profile.studentId
   const studentStatus = student?.status?.trim() || 'Обучается в РУК'
-  const universityContacts = parentUniversityContacts(student)
 
   return (
     <div className={styles.page}>
@@ -194,6 +191,12 @@ export function ParentProfile() {
             icon="requests"
             title="Техподдержка кабинета"
             hint="Помощь по работе личного кабинета"
+          />
+          <QuickLink
+            to={paths.parentContacts}
+            icon="teachers"
+            title="Контакты"
+            hint="Адрес, телефон и e-mail филиала"
           />
         </div>
       </Card>
@@ -274,30 +277,6 @@ export function ParentProfile() {
                   value={formatContractDate(contract?.contractDate ?? '', contract?.contractDisplayDate ?? '')}
                 />
               </dl>
-
-              <div className={styles.contactsBlock}>
-                <h3 className={styles.contactsTitle}>
-                  {universityContacts.branch.id === 'main'
-                    ? 'Контакты университета'
-                    : 'Контакты филиала'}
-                </h3>
-                {universityContacts.branch.id !== 'main' ? (
-                  <p className={styles.contactsBranchName}>{universityContacts.branch.name}</p>
-                ) : null}
-                <div className={styles.contactsList}>
-                  <a href={universityContacts.phoneHref} className={styles.contactItem}>
-                    <Phone size={18} strokeWidth={1.75} aria-hidden="true" />
-                    <span>{universityContacts.phone}</span>
-                  </a>
-                  <a href={universityContacts.emailHref} className={styles.contactItem}>
-                    <Mail size={18} strokeWidth={1.75} aria-hidden="true" />
-                    <span>{universityContacts.email}</span>
-                  </a>
-                </div>
-                <Link to={paths.parentContacts} className={styles.inlineLink}>
-                  Все контакты университета
-                </Link>
-              </div>
             </Card>
           </div>
         </>

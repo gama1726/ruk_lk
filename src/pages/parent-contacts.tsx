@@ -5,7 +5,6 @@ import {
   universityDepartments,
   universityFeedbackLinks,
   universityMainContacts,
-  universityPaymentDetails,
   type UniversityBranch,
 } from '@/mocks/university-contacts'
 import {
@@ -28,10 +27,7 @@ function BranchContactsCard({
   const isMain = branch.id === 'main'
 
   return (
-    <Card
-      title={isMain ? 'Адрес' : 'Контакты филиала'}
-      padding="lg"
-    >
+    <Card title={isMain ? 'Адрес' : 'Контакты филиала'} padding="lg">
       <div className={styles.stack}>
         {isChildBranch && !isMain ? (
           <p className={styles.muted}>Филиал, где обучается ваш ребёнок</p>
@@ -130,6 +126,7 @@ export function ParentContacts() {
   const branchContacts = parentUniversityContacts(profile?.student)
   const branch = branchContacts.branch
   const isChildBranch = Boolean(profile?.student?.branch?.trim())
+  const isMain = branch.id === 'main'
 
   if (!session) return null
   if (loading) return <Loader />
@@ -139,65 +136,29 @@ export function ParentContacts() {
       <ScreenHeader
         title="Контакты"
         subtitle={
-          isChildBranch && branch.id !== 'main'
-            ? branch.name
-            : 'Российский университет кооперации'
+          isChildBranch && !isMain ? branch.name : 'Российский университет кооперации'
         }
       />
 
-      <div className={`${styles.grid} ${styles.gridTwo}`}>
-        <BranchContactsCard branch={branch} isChildBranch={isChildBranch} />
+      <BranchContactsCard branch={branch} isChildBranch={isChildBranch} />
 
-        <Card title="Реквизиты для оплаты" padding="lg">
-          <div className={styles.detailsGrid}>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Банк получателя</span>
-              <span className={styles.detailValue}>{universityPaymentDetails.bank}</span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>БИК / к/с / р/с</span>
-              <span className={styles.detailValue}>
-                {universityPaymentDetails.bik}, {universityPaymentDetails.corrAccount},{' '}
-                {universityPaymentDetails.account}
-              </span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Наименование</span>
-              <span className={styles.detailValue}>{universityPaymentDetails.name}</span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>ИНН / КПП</span>
-              <span className={styles.detailValue}>
-                {universityPaymentDetails.inn} / {universityPaymentDetails.kpp}
-              </span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>ОГРН</span>
-              <span className={styles.detailValue}>{universityPaymentDetails.ogrn}</span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Юридический адрес</span>
-              <span className={styles.detailValue}>{universityPaymentDetails.legalAddress}</span>
-            </div>
+      {isMain ? (
+        <Card title="Связаться с нами" padding="lg">
+          <div className={styles.departments}>
+            {universityDepartments.map((dept) => (
+              <div key={dept.title} className={styles.department}>
+                <h3 className={styles.departmentTitle}>{dept.title}</h3>
+                <ul className={styles.phoneList}>
+                  {dept.phones.map((phone) => (
+                    <li key={phone}>{phone}</li>
+                  ))}
+                </ul>
+                <p className={styles.muted}>График работы: {dept.schedule}</p>
+              </div>
+            ))}
           </div>
         </Card>
-      </div>
-
-      <Card title="Связаться с нами" padding="lg">
-        <div className={styles.departments}>
-          {universityDepartments.map((dept) => (
-            <div key={dept.title} className={styles.department}>
-              <h3 className={styles.departmentTitle}>{dept.title}</h3>
-              <ul className={styles.phoneList}>
-                {dept.phones.map((phone) => (
-                  <li key={phone}>{phone}</li>
-                ))}
-              </ul>
-              <p className={styles.muted}>График работы: {dept.schedule}</p>
-            </div>
-          ))}
-        </div>
-      </Card>
+      ) : null}
 
       <Card title="Обратная связь" padding="lg">
         <div className={styles.footerLinks}>
@@ -220,7 +181,7 @@ export function ParentContacts() {
         <a href={branch.contactsUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
           {branch.contactsUrl.replace(/^https:\/\//, '')}
         </a>
-        {branch.id === 'main' ? (
+        {isMain ? (
           <>
             {' '}
             ·{' '}

@@ -178,6 +178,11 @@
   box-shadow: var(--shadow-sm);
 }
 
+.educationCard,
+.contractCard {
+  height: 100%;
+}
+
 .studentName {
   margin: 0 0 0.875rem;
   font-size: var(--font-size-xl);
@@ -295,7 +300,7 @@
 .lowerGrid {
   display: grid;
   gap: 1.25rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .infoList {
@@ -342,46 +347,6 @@
 .infoValueDanger {
   color: var(--color-danger);
   font-weight: 600;
-}
-
-.contactsBlock {
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.contactsTitle {
-  margin: 0 0 0.875rem;
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.contactsBranchName {
-  margin: -0.5rem 0 0.875rem;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  line-height: 1.4;
-}
-
-.contactsList {
-  display: grid;
-  gap: 0.625rem;
-  margin: 0;
-}
-
-.contactItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.625rem;
-  color: var(--color-primary);
-  text-decoration: none;
-  font-size: var(--font-size-md);
-  font-weight: 500;
-}
-
-.contactItem:hover {
-  text-decoration: underline;
 }
 
 .alert {
@@ -435,7 +400,7 @@
   }
 
   .quickLinks {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -454,6 +419,10 @@
   }
 
   .metaGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .quickLinks {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
