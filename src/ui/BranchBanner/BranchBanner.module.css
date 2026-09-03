@@ -8,7 +8,7 @@
   box-sizing: border-box;
   height: calc(var(--profile-hero-avatar-size, 9rem) * 0.75 + 1.25rem);
   min-height: 118px;
-  padding: 18px 22px 18px 26px;
+  padding: 18px 22px;
   overflow: visible;
   border-radius: 14px;
   border: 1px solid rgba(112, 69, 190, 0.16);
@@ -109,18 +109,6 @@
       transparent 18%
     );
   opacity: 0.95;
-  pointer-events: none;
-}
-
-.accent {
-  position: absolute;
-  z-index: 3;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: linear-gradient(180deg, #5b2ca0 0%, #7040b7 55%, #5b2ca0 100%);
-  border-radius: 14px 0 0 14px;
   pointer-events: none;
 }
 
@@ -239,7 +227,7 @@
     gap: 14px 16px;
     height: auto;
     min-height: 104px;
-    padding: 16px 16px 16px 20px;
+    padding: 16px;
     background:
       radial-gradient(
         ellipse 46% 90% at 8% 50%,
