@@ -352,7 +352,8 @@
   white-space: nowrap;
 }
 
-.rowFailed td {
+.table tbody tr.rowFailed td,
+.table tbody tr.rowFailed:nth-child(even) td {
   background: color-mix(in srgb, var(--color-danger-bg) 55%, transparent);
 }
 
