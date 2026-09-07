@@ -14,20 +14,36 @@ const badgeByViewer = {
 
 export function BranchBanner({ branch, viewerType, className }: BranchBannerProps) {
   const badgeText = branch.badge ?? badgeByViewer[viewerType]
+  const hasEmblem = Boolean(branch.emblem)
 
   return (
-    <section className={[styles.banner, className].filter(Boolean).join(' ')} aria-label="Информация о филиале">
+    <section
+      className={[
+        styles.banner,
+        hasEmblem ? '' : styles.bannerNoEmblem,
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      aria-label="Информация о филиале"
+    >
       <div className={styles.backgroundGlow} aria-hidden="true" />
 
-      <div className={styles.emblem}>
-        <img
-          className={styles.emblemImg}
-          src={branch.emblem}
-          alt={`${branch.name} — герб`}
-          decoding="async"
-          draggable={false}
-        />
-      </div>
+      {hasEmblem ? (
+        <div className={styles.emblem}>
+          <img
+            className={styles.emblemImg}
+            src={branch.emblem}
+            alt={`${branch.name} — герб`}
+            decoding="async"
+            draggable={false}
+          />
+        </div>
+      ) : (
+        <div className={styles.mark} aria-hidden="true">
+          <span className={styles.markLetter}>{branch.city.charAt(0)}</span>
+        </div>
+      )}
 
       <div className={styles.content}>
         <div className={styles.label}>{branch.city}</div>

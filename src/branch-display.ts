@@ -15,7 +15,8 @@ export type Branch = {
   /** Название как на сайте филиала. */
   name: string
   universityName: string
-  emblem: string
+  /** Путь к гербу; нет — плашка без эмблемы. */
+  emblem?: string
   badge?: string
   type?: BranchType
 }
@@ -27,6 +28,20 @@ type BranchConfigEntry = {
   emblemFile: string
   type: BranchType
 }
+
+/**
+ * Филиалы с готовым PNG в `public/branches`.
+ * Остальные показывают плашку без герба.
+ */
+const branchesWithEmblem = new Set([
+  'main',
+  'kazan',
+  'krasnodar',
+  'vladimir',
+  'arzamas',
+  'ufa',
+  'volgograd',
+])
 
 /** Конфигурация филиалов по id (сопоставляется с resolveUniversityBranch). */
 const branchConfigs: Readonly<Record<string, BranchConfigEntry>> = {
@@ -121,12 +136,13 @@ export function resolveBranch(branchLabel?: string | null): Branch {
   const resolved = resolveUniversityBranch(branchLabel)
   const config = branchConfigs[resolved.id] ?? branchConfigs.main
   const siteName = branchSiteNameById[resolved.id] ?? branchSiteNameById.main
+  const branchId = branchConfigs[resolved.id] ? resolved.id : 'main'
 
   return {
     city: config.city,
     name: config.name ?? siteName,
     universityName: universityLegalName,
-    emblem: branchEmblemSrc(config.emblemFile),
+    emblem: branchesWithEmblem.has(branchId) ? branchEmblemSrc(config.emblemFile) : undefined,
     type: config.type,
   }
 }
