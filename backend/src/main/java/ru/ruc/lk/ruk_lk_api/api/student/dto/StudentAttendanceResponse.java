@@ -23,9 +23,10 @@ public record StudentAttendanceResponse(
     ) {}
 
     /**
-     * @param status {@code present} | {@code late} | {@code absent}
+     * @param status {@code present} | {@code late} | {@code absent} | {@code unconfirmed}
+     *               ({@code unconfirmed} — вход был, выход не зафиксирован)
      * @param arrivedAt время появления на территории относительно пары (пусто при отсутствии)
-     * @param lateMinutes минуты опоздания; 0 если вовремя; null при отсутствии
+     * @param lateMinutes минуты опоздания; 0 если вовремя; null при отсутствии / не подтверждено
      */
     public record StudentAttendanceLessonResponse(
         String id,
@@ -42,6 +43,7 @@ public record StudentAttendanceResponse(
         int days,
         int absentDays,
         int lateLessons,
+        int unconfirmedLessons,
         String earliest,
         String latest
     ) {}

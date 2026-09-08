@@ -18,6 +18,7 @@ export type AttendanceSummaryDto = {
   days: number
   absentDays?: number
   lateLessons?: number
+  unconfirmedLessons?: number
   earliest: string | null
   latest: string | null
 }

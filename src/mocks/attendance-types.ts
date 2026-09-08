@@ -3,7 +3,7 @@
  */
 
 /** Статус очной пары */
-export type AttendanceLessonStatus = 'present' | 'late' | 'absent'
+export type AttendanceLessonStatus = 'present' | 'late' | 'absent' | 'unconfirmed'
 
 /** Одна очная пара в дне */
 export type AttendanceLesson = {

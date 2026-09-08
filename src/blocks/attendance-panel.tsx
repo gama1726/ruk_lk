@@ -44,12 +44,16 @@ type Props = {
 
 function displayGate(gate: string | undefined): string {
   if (!gate) return '—'
-  return gate.replace(/\s*·\s*опозданий на пары:\s*\d+/i, '').trim() || '—'
+  return gate
+    .replace(/\s*·\s*опозданий на пары:\s*\d+/gi, '')
+    .replace(/\s*·\s*без выхода:\s*\d+/gi, '')
+    .trim() || '—'
 }
 
 function lessonDotClass(status: string | undefined): string {
   if (status === 'late') return styles.dotLate
   if (status === 'absent') return styles.dotAbsent
+  if (status === 'unconfirmed') return styles.dotUnconfirmed
   return styles.dotPresent
 }
 
@@ -89,27 +93,28 @@ function LessonDetails({ lessons }: { lessons: AttendanceLesson[] }) {
       {lessons.map((lesson) => (
         <li
           key={lesson.id}
-          className={[
-            styles.lessonRow,
-            lesson.status === 'late' ? styles.lessonLate : '',
-            lesson.status === 'absent' ? styles.lessonAbsent : '',
-            lesson.status === 'present' ? styles.lessonPresent : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          <span className={styles.lessonTime}>
-            {lesson.startTime}
-            {lesson.endTime ? `–${lesson.endTime}` : ''}
-          </span>
-          <span className={styles.lessonSubject}>{lesson.subject || 'Занятие'}</span>
-          <span className={styles.lessonStatus}>
-            <span className={`${styles.dot} ${lessonDotClass(lesson.status)}`} aria-hidden="true" />
-            {lessonStatusLabel(lesson.status)}
-            {lesson.status === 'late' && lesson.lateMinutes ? ` · ${lesson.lateMinutes} мин` : ''}
-            {lesson.arrivedAt ? ` · вход ${lesson.arrivedAt}` : ''}
-          </span>
-        </li>
+            className={[
+              styles.lessonRow,
+              lesson.status === 'late' ? styles.lessonLate : '',
+              lesson.status === 'absent' ? styles.lessonAbsent : '',
+              lesson.status === 'present' ? styles.lessonPresent : '',
+              lesson.status === 'unconfirmed' ? styles.lessonUnconfirmed : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            <span className={styles.lessonTime}>
+              {lesson.startTime}
+              {lesson.endTime ? `–${lesson.endTime}` : ''}
+            </span>
+            <span className={styles.lessonSubject}>{lesson.subject || 'Занятие'}</span>
+            <span className={styles.lessonStatus}>
+              <span className={`${styles.dot} ${lessonDotClass(lesson.status)}`} aria-hidden="true" />
+              {lessonStatusLabel(lesson.status)}
+              {lesson.status === 'late' && lesson.lateMinutes ? ` · ${lesson.lateMinutes} мин` : ''}
+              {lesson.arrivedAt ? ` · вход ${lesson.arrivedAt}` : ''}
+            </span>
+          </li>
       ))}
     </ul>
   )
@@ -184,6 +189,7 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
           days: 0,
           absentDays: 0,
           lateLessons: 0,
+          unconfirmedLessons: 0,
           earliest: null as string | null,
           latest: null as string | null,
         }
@@ -194,7 +200,9 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
 
   const absentDays = summary.absentDays ?? 0
   const lateLessons = summary.lateLessons ?? 0
-  const showSummary = summary.days > 0 || absentDays > 0 || lateLessons > 0
+  const unconfirmedLessons = summary.unconfirmedLessons ?? 0
+  const showSummary =
+    summary.days > 0 || absentDays > 0 || lateLessons > 0 || unconfirmedLessons > 0
 
   const presetOptions = presets.map((p) => ({ value: p.id, label: p.label }))
 
@@ -285,6 +293,14 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
             </span>
           </div>
           <div className={styles.summaryRow}>
+            <span className={styles.summaryLabel}>Без выхода</span>
+            <span
+              className={`${styles.summaryValue} ${unconfirmedLessons > 0 ? styles.summaryUnconfirmed : ''}`}
+            >
+              {unconfirmedLessons}
+            </span>
+          </div>
+          <div className={styles.summaryRow}>
             <span className={styles.summaryLabel}>Самый ранний приход</span>
             <span className={styles.summaryValue}>{summary.earliest ?? '—'}</span>
           </div>
@@ -352,8 +368,8 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
                           </TableCell>
                         ) : (
                           <>
-                            <TableCell className={styles.timeCell}>{r.checkIn}</TableCell>
-                            <TableCell className={styles.timeCell}>{r.checkOut}</TableCell>
+                            <TableCell className={styles.timeCell}>{r.checkIn || '—'}</TableCell>
+                            <TableCell className={styles.timeCell}>{r.checkOut || '—'}</TableCell>
                             <TableCell>{formatStayDuration(r.checkIn, r.checkOut)}</TableCell>
                           </>
                         )}
@@ -422,9 +438,9 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
                   ) : (
                     <>
                       <p className={styles.cardLine}>
-                        Пришёл: <span className={styles.timeCell}>{r.checkIn}</span>
+                        Пришёл: <span className={styles.timeCell}>{r.checkIn || '—'}</span>
                         {' · '}
-                        Ушёл: <span className={styles.timeCell}>{r.checkOut}</span>
+                        Ушёл: <span className={styles.timeCell}>{r.checkOut || '—'}</span>
                       </p>
                       <p className={styles.cardLine}>
                         В вузе: {formatStayDuration(r.checkIn, r.checkOut)}

@@ -42,7 +42,13 @@
 
 @media (min-width: 960px) {
   .summary {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .summary {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 
@@ -75,6 +81,10 @@
 
 .summaryLate {
   color: #b54708;
+}
+
+.summaryUnconfirmed {
+  color: #c4320a;
 }
 
 .lessonsBlock {
@@ -141,6 +151,10 @@
 
 .lessonPresent {
   background: color-mix(in srgb, #2e90fa 8%, transparent);
+}
+
+.lessonUnconfirmed {
+  background: color-mix(in srgb, #ff6a00 12%, transparent);
 }
 
 .lessonTime {
@@ -226,6 +240,10 @@
 
 .dotAbsent {
   background: #f04438;
+}
+
+.dotUnconfirmed {
+  background: #ff6a00;
 }
 
 .dotsMore {

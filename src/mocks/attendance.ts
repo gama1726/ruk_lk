@@ -106,6 +106,7 @@ export function isAttendanceAbsent(day: AttendanceDay): boolean {
 export function lessonStatusLabel(status: string | undefined): string {
   if (status === 'late') return 'Опоздание'
   if (status === 'absent') return 'Неявка'
+  if (status === 'unconfirmed') return 'Без выхода'
   if (status === 'present') return 'Вовремя'
   return '—'
 }
@@ -114,6 +115,7 @@ export function attendanceSummaryForRange(from: string, to: string): {
   days: number
   absentDays: number
   lateLessons: number
+  unconfirmedLessons: number
   earliest: string | null
   latest: string | null
 } {
@@ -124,8 +126,12 @@ export function attendanceSummaryForRange(from: string, to: string): {
     (sum, row) => sum + (row.lessons?.filter((l) => l.status === 'late').length ?? 0),
     0,
   )
+  const unconfirmedLessons = rows.reduce(
+    (sum, row) => sum + (row.lessons?.filter((l) => l.status === 'unconfirmed').length ?? 0),
+    0,
+  )
   if (present.length === 0) {
-    return { days: 0, absentDays, lateLessons, earliest: null, latest: null }
+    return { days: 0, absentDays, lateLessons, unconfirmedLessons, earliest: null, latest: null }
   }
   let earliest = present[0].checkIn
   let latest = present[0].checkOut
@@ -133,5 +139,5 @@ export function attendanceSummaryForRange(from: string, to: string): {
     if (row.checkIn < earliest) earliest = row.checkIn
     if (row.checkOut > latest) latest = row.checkOut
   }
-  return { days: present.length, absentDays, lateLessons, earliest, latest }
+  return { days: present.length, absentDays, lateLessons, unconfirmedLessons, earliest, latest }
 }
