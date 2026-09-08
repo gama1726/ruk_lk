@@ -24,6 +24,10 @@
   box-shadow: 0 3px 12px rgba(40, 25, 65, 0.03);
 }
 
+.bannerWithBadge {
+  padding-right: clamp(9rem, 22vw, 13.5rem);
+}
+
 .bannerNoEmblem {
   background: linear-gradient(
     105deg,
@@ -141,6 +145,9 @@
   z-index: 2;
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .label {
@@ -167,21 +174,27 @@
 }
 
 .badge {
-  position: relative;
+  position: absolute;
   z-index: 2;
+  top: 50%;
+  right: 22px;
+  transform: translateY(-50%);
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   gap: 6px;
+  width: max-content;
+  max-width: min(12.5rem, 36%);
   padding: 6px 10px;
-  border-radius: 10px;
-  background: rgba(93, 45, 164, 0.035);
+  border-radius: 999px;
+  background: rgba(93, 45, 164, 0.06);
   border: 1px solid rgba(93, 45, 164, 0.14);
   color: #5b2ca0;
   font-size: 12px;
-  line-height: 1;
+  line-height: 1.25;
   font-weight: 600;
-  white-space: nowrap;
+  white-space: normal;
+  text-wrap: balance;
 }
 
 .badgeDot {
@@ -200,13 +213,14 @@
 }
 
 @media (max-width: 599px) {
-  .banner {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 14px 16px;
+  .banner,
+  .bannerWithBadge {
     height: auto;
-    min-height: 104px;
-    padding: 16px;
+    min-height: 0;
+    padding: 14px 16px;
+    padding-right: 16px;
+    gap: 12px 14px;
+    align-items: center;
     background: linear-gradient(
       100deg,
       rgba(109, 68, 187, 0.1) 0%,
@@ -229,9 +243,9 @@
   }
 
   .emblem {
-    height: 120%;
-    min-height: 5.5rem;
-    max-height: calc(var(--profile-hero-avatar-size, 9rem) * 0.72);
+    height: auto;
+    min-height: 4.75rem;
+    max-height: 5.25rem;
   }
 
   .mark {
@@ -245,25 +259,25 @@
   }
 
   .content {
-    flex: 1 1 calc(100% - 68px);
+    flex: 1 1 auto;
+    gap: 2px;
   }
 
   .title {
     font-size: 17px;
   }
 
-  .badge {
-    /* 100% + margin-left иначе вылезает за правый край карточки */
-    box-sizing: border-box;
-    flex: 0 1 auto;
-    flex-basis: calc(100% - 52px - 16px);
-    max-width: calc(100% - 52px - 16px);
-    margin-left: calc(52px + 16px);
+  .university {
+    font-size: 12px;
   }
 
-  .bannerNoEmblem .badge {
-    flex-basis: calc(100% - 3rem - 16px);
-    max-width: calc(100% - 3rem - 16px);
-    margin-left: calc(3rem + 16px);
+  /* Компактный чип в потоке текста — без отдельной полосы */
+  .badge {
+    position: static;
+    transform: none;
+    margin-top: 8px;
+    max-width: 100%;
+    padding: 5px 9px;
+    font-size: 11px;
   }
 }

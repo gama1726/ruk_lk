@@ -21,6 +21,7 @@ export function BranchBanner({ branch, viewerType, className }: BranchBannerProp
       className={[
         styles.banner,
         hasEmblem ? '' : styles.bannerNoEmblem,
+        badgeText ? styles.bannerWithBadge : '',
         className,
       ]
         .filter(Boolean)
@@ -49,14 +50,13 @@ export function BranchBanner({ branch, viewerType, className }: BranchBannerProp
         <div className={styles.label}>{branch.city}</div>
         <h2 className={styles.title}>{branch.name}</h2>
         <div className={styles.university}>{branch.universityName}</div>
+        {badgeText ? (
+          <div className={styles.badge}>
+            <span className={styles.badgeDot} aria-hidden="true" />
+            {badgeText}
+          </div>
+        ) : null}
       </div>
-
-      {badgeText ? (
-        <div className={styles.badge}>
-          <span className={styles.badgeDot} aria-hidden="true" />
-          {badgeText}
-        </div>
-      ) : null}
     </section>
   )
 }
