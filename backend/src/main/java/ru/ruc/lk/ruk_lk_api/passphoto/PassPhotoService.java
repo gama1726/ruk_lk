@@ -18,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
@@ -31,6 +33,8 @@ import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoValidationResultDto;
 @Service
 public class PassPhotoService {
 
+    private static final Logger log = LoggerFactory.getLogger(PassPhotoService.class);
+    private static final String PERCO_USER_ERROR = "Не удалось отправить фото в систему пропуска";
     private static final String SESSION_KEY = "STUDENT";
     private static final ZoneId MOSCOW = ZoneId.of("Europe/Moscow");
     private static final DateTimeFormatter RESUBMIT_FMT = DateTimeFormatter
@@ -275,8 +279,9 @@ public class PassPhotoService {
             submission.setPercoSyncedAt(Instant.now());
             submission.setPercoError(null);
         } catch (PercoException e) {
+            log.warn("Perco sync failed for {}: {}", zachetka, e.getMessage());
             submission.setStatus(PassPhotoStatus.PERCO_FAILED);
-            submission.setPercoError(e.getMessage());
+            submission.setPercoError(PERCO_USER_ERROR);
         }
 
         submission.setReviewedAt(Instant.now());
@@ -346,8 +351,9 @@ public class PassPhotoService {
             submission.setPercoSyncedAt(Instant.now());
             submission.setPercoError(null);
         } catch (PercoException e) {
+            log.warn("Perco retry failed for {}: {}", zachetka, e.getMessage());
             submission.setStatus(PassPhotoStatus.PERCO_FAILED);
-            submission.setPercoError(e.getMessage());
+            submission.setPercoError(PERCO_USER_ERROR);
         }
         submission.setReviewedBy(reviewer);
         submission.setReviewedAt(Instant.now());

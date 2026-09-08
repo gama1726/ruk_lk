@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -69,7 +71,7 @@ import java.util.concurrent.Executors;
 
 public class StudentService {
 
-
+    private static final Logger log = LoggerFactory.getLogger(StudentService.class);
 
     private static final String SESSION_KEY = "STUDENT";
     private static final String PENDING_EMAIL_CHANGE_KEY = "PENDING_EMAIL_CHANGE";
@@ -507,11 +509,10 @@ public class StudentService {
         } catch (CompletionException ex) {
             Throwable cause = ex.getCause();
             if (cause instanceof PercoException percoEx) {
+                log.warn("Посещаемость Perco недоступна: {}", percoEx.getMessage());
                 throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    percoEx.getMessage() != null && !percoEx.getMessage().isBlank()
-                        ? percoEx.getMessage()
-                        : "Не удалось загрузить проходы из СКУД"
+                    "Не удалось подключиться к сервису посещений"
                 );
             }
             throw ex;
@@ -563,11 +564,10 @@ public class StudentService {
         } catch (CompletionException ex) {
             Throwable cause = ex.getCause();
             if (cause instanceof ZKBioException zkbioEx) {
+                log.warn("Посещаемость ZKBio недоступна: {}", zkbioEx.getMessage());
                 throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    zkbioEx.getMessage() != null && !zkbioEx.getMessage().isBlank()
-                        ? zkbioEx.getMessage()
-                        : "Не удалось загрузить проходы из ZKBio"
+                    "Не удалось подключиться к сервису посещений"
                 );
             }
             throw ex;
