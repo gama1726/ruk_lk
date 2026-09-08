@@ -18,12 +18,15 @@ import java.util.regex.Pattern;
 
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAttendanceDayResponse;
+import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAttendanceLessonResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAttendanceSummaryResponse;
 import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent;
+import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent.Direction;
 
 final class AttendanceMapper {
 
     static final String STATUS_PRESENT = "present";
+    static final String STATUS_LATE = "late";
     static final String STATUS_ABSENT = "absent";
 
     private static final DateTimeFormatter TIME_OUT = DateTimeFormatter.ofPattern("HH:mm");
@@ -34,6 +37,12 @@ final class AttendanceMapper {
         DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"),
         DateTimeFormatter.ISO_LOCAL_DATE_TIME
     );
+    private static final List<DateTimeFormatter> TIME_FORMATS = List.of(
+        DateTimeFormatter.ofPattern("H:mm:ss"),
+        DateTimeFormatter.ofPattern("HH:mm:ss"),
+        DateTimeFormatter.ofPattern("H:mm"),
+        DateTimeFormatter.ofPattern("HH:mm")
+    );
     private static final Pattern TIME_ONLY = Pattern.compile("(\\d{1,2}):(\\d{2})(?::\\d{2})?");
     private static final Pattern ISO_DATE = Pattern.compile("(\\d{4}-\\d{2}-\\d{2})");
     private static final Pattern RU_DATE = Pattern.compile("(\\d{2})\\.(\\d{2})\\.(\\d{4})");
@@ -43,26 +52,44 @@ final class AttendanceMapper {
     static StudentAttendanceResponse toResponse(
         String source,
         List<SkudAccessEvent> events,
-        Set<LocalDate> campusLessonDates
+        List<CampusLesson> campusLessons
     ) {
-        Map<LocalDate, DayAgg> byDay = new LinkedHashMap<>();
-
+        Map<LocalDate, List<ParsedEvent>> eventsByDay = new LinkedHashMap<>();
         for (SkudAccessEvent event : events) {
             ParsedInstant parsed = parse(event.timeLabel());
             if (parsed == null) {
                 continue;
             }
-            DayAgg agg = byDay.computeIfAbsent(parsed.date(), DayAgg::new);
-            agg.accept(parsed.time(), event.gate());
+            Direction direction = event.direction() == null ? Direction.UNKNOWN : event.direction();
+            eventsByDay
+                .computeIfAbsent(parsed.date(), ignored -> new ArrayList<>())
+                .add(new ParsedEvent(parsed.time(), event.gate(), direction));
+        }
+        for (List<ParsedEvent> dayEvents : eventsByDay.values()) {
+            dayEvents.sort(Comparator.comparing(ParsedEvent::time));
         }
 
-        Set<LocalDate> allDates = new LinkedHashSet<>(byDay.keySet());
-        LocalDate today = LocalDate.now();
-        if (campusLessonDates != null) {
-            for (LocalDate date : campusLessonDates) {
-                if (date != null && !date.isAfter(today) && !byDay.containsKey(date)) {
-                    allDates.add(date);
+        Map<LocalDate, List<CampusLesson>> lessonsByDay = new LinkedHashMap<>();
+        if (campusLessons != null) {
+            for (CampusLesson lesson : campusLessons) {
+                if (lesson == null || lesson.date() == null || lesson.start() == null) {
+                    continue;
                 }
+                lessonsByDay.computeIfAbsent(lesson.date(), ignored -> new ArrayList<>()).add(lesson);
+            }
+        }
+        for (List<CampusLesson> dayLessons : lessonsByDay.values()) {
+            dayLessons.sort(Comparator
+                .comparing(CampusLesson::start)
+                .thenComparing(l -> l.subject() == null ? "" : l.subject()));
+        }
+
+        LocalDate today = LocalDate.now();
+        Set<LocalDate> allDates = new LinkedHashSet<>();
+        allDates.addAll(eventsByDay.keySet());
+        for (LocalDate date : lessonsByDay.keySet()) {
+            if (!date.isAfter(today)) {
+                allDates.add(date);
             }
         }
 
@@ -70,51 +97,92 @@ final class AttendanceMapper {
         sorted.sort(Comparator.reverseOrder());
 
         List<StudentAttendanceDayResponse> days = new ArrayList<>(sorted.size());
-        for (LocalDate date : sorted) {
-            DayAgg agg = byDay.get(date);
-            if (agg != null) {
-                days.add(new StudentAttendanceDayResponse(
-                    "d-" + date,
-                    date.toString(),
-                    agg.earliest.format(TIME_OUT),
-                    agg.latest.format(TIME_OUT),
-                    agg.gate,
-                    STATUS_PRESENT
-                ));
-            } else {
-                days.add(new StudentAttendanceDayResponse(
-                    "d-" + date,
-                    date.toString(),
-                    "",
-                    "",
-                    "По расписанию были занятия — прохода на территорию нет",
-                    STATUS_ABSENT
-                ));
-            }
-        }
-
+        int presentDays = 0;
+        int absentDays = 0;
+        int lateLessons = 0;
         String earliest = null;
         String latest = null;
-        int present = 0;
-        int absent = 0;
-        for (StudentAttendanceDayResponse day : days) {
-            if (STATUS_ABSENT.equals(day.status())) {
-                absent++;
+
+        for (LocalDate date : sorted) {
+            List<ParsedEvent> dayEvents = eventsByDay.getOrDefault(date, List.of());
+            List<CampusLesson> dayLessons = lessonsByDay.getOrDefault(date, List.of());
+            List<PresenceInterval> intervals = buildIntervals(dayEvents);
+
+            List<StudentAttendanceLessonResponse> lessonRows = new ArrayList<>();
+            int dayLate = 0;
+            for (CampusLesson lesson : dayLessons) {
+                if (date.isAfter(today)) {
+                    continue;
+                }
+                LessonOutcome outcome = evaluateLesson(lesson, intervals, dayEvents);
+                if (STATUS_LATE.equals(outcome.status())) {
+                    dayLate++;
+                    lateLessons++;
+                }
+                lessonRows.add(new StudentAttendanceLessonResponse(
+                    "l-" + date + "-" + lesson.start().format(TIME_OUT) + "-" + safeHash(lesson.subject()),
+                    blankToEmpty(lesson.subject()),
+                    lesson.start().format(TIME_OUT),
+                    lesson.end() == null ? "" : lesson.end().format(TIME_OUT),
+                    blankToEmpty(lesson.classroom()),
+                    outcome.status(),
+                    outcome.arrivedAt() == null ? "" : outcome.arrivedAt().format(TIME_OUT),
+                    outcome.lateMinutes()
+                ));
+            }
+
+            boolean onCampus = !intervals.isEmpty() || hasUnknownPresence(dayEvents);
+            String dayStatus;
+            String checkIn = "";
+            String checkOut = "";
+            String gate = "";
+
+            if (onCampus) {
+                dayStatus = STATUS_PRESENT;
+                presentDays++;
+                LocalTime firstIn = firstArrival(intervals, dayEvents);
+                LocalTime lastOut = lastDeparture(intervals, dayEvents);
+                if (firstIn != null) {
+                    checkIn = firstIn.format(TIME_OUT);
+                    if (earliest == null || checkIn.compareTo(earliest) < 0) {
+                        earliest = checkIn;
+                    }
+                }
+                if (lastOut != null) {
+                    checkOut = lastOut.format(TIME_OUT);
+                    if (latest == null || checkOut.compareTo(latest) > 0) {
+                        latest = checkOut;
+                    }
+                }
+                gate = firstGate(dayEvents);
+                if (dayLate > 0 && gate != null && !gate.isBlank()) {
+                    gate = gate + " · опозданий на пары: " + dayLate;
+                } else if (dayLate > 0) {
+                    gate = "Опозданий на пары: " + dayLate;
+                }
+            } else if (!dayLessons.isEmpty()) {
+                dayStatus = STATUS_ABSENT;
+                absentDays++;
+                gate = "По расписанию были занятия — на территории не был";
+            } else {
                 continue;
             }
-            present++;
-            if (earliest == null || day.checkIn().compareTo(earliest) < 0) {
-                earliest = day.checkIn();
-            }
-            if (latest == null || day.checkOut().compareTo(latest) > 0) {
-                latest = day.checkOut();
-            }
+
+            days.add(new StudentAttendanceDayResponse(
+                "d-" + date,
+                date.toString(),
+                checkIn,
+                checkOut,
+                gate,
+                dayStatus,
+                lessonRows
+            ));
         }
 
         return new StudentAttendanceResponse(
             source,
             days,
-            new StudentAttendanceSummaryResponse(present, absent, earliest, latest)
+            new StudentAttendanceSummaryResponse(presentDays, absentDays, lateLessons, earliest, latest)
         );
     }
 
@@ -135,6 +203,163 @@ final class AttendanceMapper {
             return false;
         }
         return true;
+    }
+
+    static LocalTime parseLessonTime(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String value = raw.trim();
+        for (DateTimeFormatter formatter : TIME_FORMATS) {
+            try {
+                return LocalTime.parse(value, formatter).withSecond(0).withNano(0);
+            } catch (DateTimeParseException ignored) {
+                // next
+            }
+        }
+        Matcher timeMatcher = TIME_ONLY.matcher(value);
+        if (!timeMatcher.find()) {
+            return null;
+        }
+        int hour = Integer.parseInt(timeMatcher.group(1));
+        int minute = Integer.parseInt(timeMatcher.group(2));
+        if (hour > 23 || minute > 59) {
+            return null;
+        }
+        return LocalTime.of(hour, minute);
+    }
+
+    private static List<PresenceInterval> buildIntervals(List<ParsedEvent> dayEvents) {
+        List<PresenceInterval> intervals = new ArrayList<>();
+        boolean hasDirected = dayEvents.stream().anyMatch(e -> e.direction() != Direction.UNKNOWN);
+        if (!hasDirected) {
+            return intervals;
+        }
+
+        boolean inside = false;
+        LocalTime enteredAt = null;
+        String enterGate = null;
+        for (ParsedEvent event : dayEvents) {
+            if (event.direction() == Direction.IN) {
+                if (!inside) {
+                    inside = true;
+                    enteredAt = event.time();
+                    enterGate = event.gate();
+                }
+            } else if (event.direction() == Direction.OUT) {
+                if (inside) {
+                    intervals.add(new PresenceInterval(enteredAt, event.time(), enterGate));
+                    inside = false;
+                    enteredAt = null;
+                    enterGate = null;
+                }
+            }
+        }
+        if (inside && enteredAt != null) {
+            intervals.add(new PresenceInterval(enteredAt, LocalTime.of(23, 59), enterGate));
+        }
+        return intervals;
+    }
+
+    private static LessonOutcome evaluateLesson(
+        CampusLesson lesson,
+        List<PresenceInterval> intervals,
+        List<ParsedEvent> dayEvents
+    ) {
+        LocalTime start = lesson.start();
+        LocalTime end = lesson.end() != null ? lesson.end() : start.plusMinutes(90);
+
+        if (!intervals.isEmpty()) {
+            for (PresenceInterval interval : intervals) {
+                if (!interval.start().isAfter(start) && interval.end().isAfter(start)) {
+                    return new LessonOutcome(STATUS_PRESENT, interval.start(), 0);
+                }
+            }
+            LocalTime firstInDuring = null;
+            for (PresenceInterval interval : intervals) {
+                if (!interval.start().isBefore(start) && !interval.start().isAfter(end)) {
+                    if (firstInDuring == null || interval.start().isBefore(firstInDuring)) {
+                        firstInDuring = interval.start();
+                    }
+                }
+            }
+            if (firstInDuring != null) {
+                int minutes = (int) java.time.Duration.between(start, firstInDuring).toMinutes();
+                return new LessonOutcome(STATUS_LATE, firstInDuring, Math.max(1, minutes));
+            }
+            return new LessonOutcome(STATUS_ABSENT, null, null);
+        }
+
+        // ZKBio / без направления: любой проход в окне пары
+        LocalTime firstPunch = null;
+        for (ParsedEvent event : dayEvents) {
+            if (event.time().isBefore(start) || event.time().isAfter(end)) {
+                continue;
+            }
+            if (firstPunch == null || event.time().isBefore(firstPunch)) {
+                firstPunch = event.time();
+            }
+        }
+        if (firstPunch == null) {
+            // проход до начала пары в тот же день — считаем вовремя, если был любой проход до start
+            for (ParsedEvent event : dayEvents) {
+                if (!event.time().isAfter(start)) {
+                    if (firstPunch == null || event.time().isBefore(firstPunch)) {
+                        firstPunch = event.time();
+                    }
+                }
+            }
+            if (firstPunch != null) {
+                return new LessonOutcome(STATUS_PRESENT, firstPunch, 0);
+            }
+            return new LessonOutcome(STATUS_ABSENT, null, null);
+        }
+        if (!firstPunch.isAfter(start)) {
+            return new LessonOutcome(STATUS_PRESENT, firstPunch, 0);
+        }
+        int minutes = (int) java.time.Duration.between(start, firstPunch).toMinutes();
+        return new LessonOutcome(STATUS_LATE, firstPunch, Math.max(1, minutes));
+    }
+
+    private static boolean hasUnknownPresence(List<ParsedEvent> dayEvents) {
+        boolean hasDirected = dayEvents.stream().anyMatch(e -> e.direction() != Direction.UNKNOWN);
+        if (hasDirected) {
+            return false;
+        }
+        return !dayEvents.isEmpty();
+    }
+
+    private static LocalTime firstArrival(List<PresenceInterval> intervals, List<ParsedEvent> dayEvents) {
+        if (!intervals.isEmpty()) {
+            return intervals.stream().map(PresenceInterval::start).min(LocalTime::compareTo).orElse(null);
+        }
+        return dayEvents.stream().map(ParsedEvent::time).min(LocalTime::compareTo).orElse(null);
+    }
+
+    private static LocalTime lastDeparture(List<PresenceInterval> intervals, List<ParsedEvent> dayEvents) {
+        if (!intervals.isEmpty()) {
+            LocalTime last = intervals.stream().map(PresenceInterval::end).max(LocalTime::compareTo).orElse(null);
+            if (last != null && last.equals(LocalTime.of(23, 59))) {
+                // ещё на территории — покажем последний известный проход
+                return dayEvents.stream().map(ParsedEvent::time).max(LocalTime::compareTo).orElse(last);
+            }
+            return last;
+        }
+        return dayEvents.stream().map(ParsedEvent::time).max(LocalTime::compareTo).orElse(null);
+    }
+
+    private static String firstGate(List<ParsedEvent> dayEvents) {
+        for (ParsedEvent event : dayEvents) {
+            if (event.direction() == Direction.IN && event.gate() != null && !event.gate().isBlank()) {
+                return event.gate();
+            }
+        }
+        for (ParsedEvent event : dayEvents) {
+            if (event.gate() != null && !event.gate().isBlank()) {
+                return event.gate();
+            }
+        }
+        return "";
     }
 
     private static ParsedInstant parse(String raw) {
@@ -192,28 +417,19 @@ final class AttendanceMapper {
         return new ParsedInstant(date, time);
     }
 
+    private static String blankToEmpty(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static int safeHash(String value) {
+        return blankToEmpty(value).hashCode();
+    }
+
     private record ParsedInstant(LocalDate date, LocalTime time) {}
 
-    private static final class DayAgg {
-        LocalTime earliest;
-        LocalTime latest;
-        String gate;
+    private record ParsedEvent(LocalTime time, String gate, Direction direction) {}
 
-        DayAgg(LocalDate ignored) {}
+    private record PresenceInterval(LocalTime start, LocalTime end, String gate) {}
 
-        void accept(LocalTime time, String eventGate) {
-            if (earliest == null || time.isBefore(earliest)) {
-                earliest = time;
-                if (eventGate != null && !eventGate.isBlank()) {
-                    gate = eventGate;
-                }
-            }
-            if (latest == null || time.isAfter(latest)) {
-                latest = time;
-            }
-            if ((gate == null || gate.isBlank()) && eventGate != null && !eventGate.isBlank()) {
-                gate = eventGate;
-            }
-        }
-    }
+    private record LessonOutcome(String status, LocalTime arrivedAt, Integer lateMinutes) {}
 }

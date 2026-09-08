@@ -87,6 +87,7 @@ public class StudentService {
     private final PercoClient percoClient;
     private final ZKBioClient zkbioClient;
     private final AttendanceCache attendanceCache;
+    private final String percoUncontrolledZone;
     private final String fixedCode;
     private final Duration otpTtl;
     private final int otpMaxAttempts;
@@ -102,6 +103,7 @@ public class StudentService {
         PercoClient percoClient,
         ZKBioClient zkbioClient,
         AttendanceCache attendanceCache,
+        @Value("${app.perco.uncontrolled-zone:Неконтролируемая территория}") String percoUncontrolledZone,
         @Value("${app.auth.fixed-code:}") String fixedCode,
         @Value("${app.auth.otp-ttl-seconds:300}") long otpTtlSeconds,
         @Value("${app.auth.otp-max-attempts:5}") int otpMaxAttempts,
@@ -116,6 +118,7 @@ public class StudentService {
         this.percoClient = percoClient;
         this.zkbioClient = zkbioClient;
         this.attendanceCache = attendanceCache;
+        this.percoUncontrolledZone = percoUncontrolledZone;
         this.fixedCode = fixedCode;
         this.otpTtl = Duration.ofSeconds(Math.max(60, otpTtlSeconds));
         this.otpMaxAttempts = Math.max(1, otpMaxAttempts);
@@ -492,13 +495,13 @@ public class StudentService {
                     throw new CompletionException(e);
                 }
             });
-            CompletableFuture<Set<LocalDate>> campusDaysFuture = CompletableFuture.supplyAsync(
-                () -> campusLessonDates(session, studentId, begin, end, groupName)
+            CompletableFuture<List<CampusLesson>> campusLessonsFuture = CompletableFuture.supplyAsync(
+                () -> campusLessons(session, studentId, begin, end, groupName)
             );
 
             List<SkudAccessEvent> events = eventsFuture.join();
-            Set<LocalDate> campusDays = campusDaysFuture.join();
-            StudentAttendanceResponse response = AttendanceMapper.toResponse("perco", events, campusDays);
+            List<CampusLesson> campusLessons = campusLessonsFuture.join();
+            StudentAttendanceResponse response = AttendanceMapper.toResponse("perco", events, campusLessons);
             attendanceCache.put(studentId, begin, end, "perco", response);
             return response;
         } catch (CompletionException ex) {
@@ -548,13 +551,13 @@ public class StudentService {
                     throw new CompletionException(e);
                 }
             });
-            CompletableFuture<Set<LocalDate>> campusDaysFuture = CompletableFuture.supplyAsync(
-                () -> campusLessonDates(session, studentId, begin, end, groupName)
+            CompletableFuture<List<CampusLesson>> campusLessonsFuture = CompletableFuture.supplyAsync(
+                () -> campusLessons(session, studentId, begin, end, groupName)
             );
 
             List<SkudAccessEvent> events = eventsFuture.join();
-            Set<LocalDate> campusDays = campusDaysFuture.join();
-            StudentAttendanceResponse response = AttendanceMapper.toResponse("zkbio", events, campusDays);
+            List<CampusLesson> campusLessons = campusLessonsFuture.join();
+            StudentAttendanceResponse response = AttendanceMapper.toResponse("zkbio", events, campusLessons);
             attendanceCache.put(studentId, begin, end, "zkbio", response);
             return response;
         } catch (CompletionException ex) {
@@ -578,7 +581,7 @@ public class StudentService {
         return Optional.of(profile.group().trim());
     }
 
-    private static List<SkudAccessEvent> mapPercoEvents(List<PercoAccessEvent> events) {
+    private List<SkudAccessEvent> mapPercoEvents(List<PercoAccessEvent> events) {
         if (events == null || events.isEmpty()) {
             return List.of();
         }
@@ -587,13 +590,18 @@ public class StudentService {
             if (event == null) {
                 continue;
             }
-            mapped.add(new SkudAccessEvent(event.resolvedTimeLabel(), event.resolvedGate()));
+            var direction = event.resolveDirection(percoUncontrolledZone);
+            mapped.add(new SkudAccessEvent(
+                event.resolvedTimeLabel(),
+                event.resolvedDisplayGate(direction),
+                direction
+            ));
         }
         return mapped;
     }
 
-    /** Даты с очными занятиями в аудитории за период (по расписанию группы). */
-    private Set<LocalDate> campusLessonDates(
+    /** Очные пары за период (по расписанию группы). */
+    private List<CampusLesson> campusLessons(
         HttpSession session,
         String studentId,
         LocalDate begin,
@@ -608,7 +616,7 @@ public class StudentService {
             );
             List<LocalDate> anchors = ScheduleMapper.weekAnchorsForRange(begin, end);
             List<ScheduleWeekApiResponse> weeks = fetchWeeksParallel(context, anchors);
-            Set<LocalDate> dates = new LinkedHashSet<>();
+            List<CampusLesson> lessons = new ArrayList<>();
             for (ScheduleWeekApiResponse week : weeks) {
                 if (week == null || week.schedule() == null) {
                     continue;
@@ -622,16 +630,28 @@ public class StudentService {
                             continue;
                         }
                         LocalDate date = ScheduleMapper.parseApiDay(lesson.data());
-                        if (date != null && !date.isBefore(begin) && !date.isAfter(end)) {
-                            dates.add(date);
+                        if (date == null || date.isBefore(begin) || date.isAfter(end)) {
+                            continue;
                         }
+                        var start = AttendanceMapper.parseLessonTime(lesson.timeStart());
+                        if (start == null) {
+                            continue;
+                        }
+                        var endTime = AttendanceMapper.parseLessonTime(lesson.timeEnd());
+                        lessons.add(new CampusLesson(
+                            date,
+                            start,
+                            endTime,
+                            lesson.discipline(),
+                            lesson.classroom()
+                        ));
                     }
                 }
             }
-            return dates;
+            return lessons;
         } catch (RuntimeException ex) {
             // Расписание недоступно — показываем только проходы СКУД
-            return Set.of();
+            return List.of();
         }
     }
 

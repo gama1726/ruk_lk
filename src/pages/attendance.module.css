@@ -42,7 +42,7 @@
 
 @media (min-width: 960px) {
   .summary {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -71,6 +71,93 @@
 
 .summaryAbsent {
   color: var(--color-danger, #b42318);
+}
+
+.summaryLate {
+  color: #b54708;
+}
+
+.lessonsBlock {
+  margin: 0 0 var(--page-gap);
+  padding: var(--panel-padding);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.lessonsTitle {
+  margin: 0 0 0.85rem;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.lessonDayList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.lessonDayTitle {
+  margin: 0 0 0.4rem;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.lessonList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.lessonRow {
+  display: grid;
+  gap: 0.15rem 0.75rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted, #f6f5f8);
+  font-size: var(--font-size-sm);
+}
+
+@media (min-width: 720px) {
+  .lessonRow {
+    grid-template-columns: 6.5rem minmax(0, 1fr) auto;
+    align-items: baseline;
+  }
+}
+
+.lessonLate {
+  background: color-mix(in srgb, #f79009 12%, transparent);
+}
+
+.lessonAbsent {
+  background: color-mix(in srgb, var(--color-danger-bg, #fee4e2) 70%, transparent);
+}
+
+.lessonTime {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.lessonSubject {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.lessonStatus {
+  color: var(--color-text-secondary);
+}
+
+.cardLessons {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 .tableWrap {

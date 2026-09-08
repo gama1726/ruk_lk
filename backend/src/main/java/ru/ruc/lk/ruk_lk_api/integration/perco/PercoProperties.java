@@ -12,7 +12,9 @@ public record PercoProperties(
     Integer divisionId,
     Integer accessTemplateId,
     int photoWidth,
-    int photoHeight
+    int photoHeight,
+    /** Имя зоны «улица» в Perco для IN/OUT. */
+    String uncontrolledZone
 ) {
     public PercoProperties {
         if (photoWidth <= 0) {
@@ -20,6 +22,9 @@ public record PercoProperties(
         }
         if (photoHeight <= 0) {
             photoHeight = 333;
+        }
+        if (uncontrolledZone == null || uncontrolledZone.isBlank()) {
+            uncontrolledZone = "Неконтролируемая территория";
         }
     }
 }

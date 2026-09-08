@@ -9,7 +9,8 @@ public record StudentAttendanceResponse(
     StudentAttendanceSummaryResponse summary
 ) {
     /**
-     * @param status {@code present} — был проход; {@code absent} — были занятия в вузе, прохода нет
+     * @param status {@code present} — был на территории; {@code absent} — очные пары без присутствия
+     * @param lessons очные пары дня со статусом вовремя / опоздание / отсутствие
      */
     public record StudentAttendanceDayResponse(
         String id,
@@ -17,12 +18,30 @@ public record StudentAttendanceResponse(
         String checkIn,
         String checkOut,
         String gate,
-        String status
+        String status,
+        List<StudentAttendanceLessonResponse> lessons
+    ) {}
+
+    /**
+     * @param status {@code present} | {@code late} | {@code absent}
+     * @param arrivedAt время появления на территории относительно пары (пусто при отсутствии)
+     * @param lateMinutes минуты опоздания; 0 если вовремя; null при отсутствии
+     */
+    public record StudentAttendanceLessonResponse(
+        String id,
+        String subject,
+        String startTime,
+        String endTime,
+        String classroom,
+        String status,
+        String arrivedAt,
+        Integer lateMinutes
     ) {}
 
     public record StudentAttendanceSummaryResponse(
         int days,
         int absentDays,
+        int lateLessons,
         String earliest,
         String latest
     ) {}

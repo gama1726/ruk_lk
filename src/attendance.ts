@@ -16,6 +16,7 @@ import {
 export type AttendanceSummaryDto = {
   days: number
   absentDays?: number
+  lateLessons?: number
   earliest: string | null
   latest: string | null
 }
@@ -97,6 +98,7 @@ export {
   formatAttendanceDate,
   formatStayDuration,
   isAttendanceAbsent,
+  lessonStatusLabel,
   mockPresets as attendancePeriodPresets,
   mockFilter as filterAttendanceDays,
   mockSummary as attendanceSummaryForRange,

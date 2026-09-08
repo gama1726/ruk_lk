@@ -103,17 +103,29 @@ export function isAttendanceAbsent(day: AttendanceDay): boolean {
   return day.status === 'absent'
 }
 
+export function lessonStatusLabel(status: string | undefined): string {
+  if (status === 'late') return 'Опоздание'
+  if (status === 'absent') return 'Неявка'
+  if (status === 'present') return 'Вовремя'
+  return '—'
+}
+
 export function attendanceSummaryForRange(from: string, to: string): {
   days: number
   absentDays: number
+  lateLessons: number
   earliest: string | null
   latest: string | null
 } {
   const rows = filterAttendanceDays(from, to)
   const present = rows.filter((r) => !isAttendanceAbsent(r))
   const absentDays = rows.length - present.length
+  const lateLessons = rows.reduce(
+    (sum, row) => sum + (row.lessons?.filter((l) => l.status === 'late').length ?? 0),
+    0,
+  )
   if (present.length === 0) {
-    return { days: 0, absentDays, earliest: null, latest: null }
+    return { days: 0, absentDays, lateLessons, earliest: null, latest: null }
   }
   let earliest = present[0].checkIn
   let latest = present[0].checkOut
@@ -121,5 +133,5 @@ export function attendanceSummaryForRange(from: string, to: string): {
     if (row.checkIn < earliest) earliest = row.checkIn
     if (row.checkOut > latest) latest = row.checkOut
   }
-  return { days: present.length, absentDays, earliest, latest }
+  return { days: present.length, absentDays, lateLessons, earliest, latest }
 }
