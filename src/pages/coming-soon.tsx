@@ -9,7 +9,7 @@ export function ComingSoon({ title, note }: Props) {
   return (
     <>
       <ScreenHeader title={title} subtitle={note} />
-      <NoData title="Пока нет данных" />
+      <NoData title="Скоро" description="Раздел в разработке" />
     </>
   )
 }

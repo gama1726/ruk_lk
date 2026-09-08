@@ -41,6 +41,7 @@ const branchesWithEmblem = new Set([
   'arzamas',
   'ufa',
   'volgograd',
+  'izhevsk',
 ])
 
 /** Конфигурация филиалов по id (сопоставляется с resolveUniversityBranch). */

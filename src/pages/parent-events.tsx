@@ -2,8 +2,8 @@
  * @file Календарь мероприятий — кабинет родителя.
  */
 
-import { EventsCalendar } from '@/blocks/events-calendar'
+import { ComingSoon } from '@/pages/coming-soon'
 
 export function ParentEvents() {
-  return <EventsCalendar subtitle="Мероприятия университета" />
+  return <ComingSoon title="Мероприятия" />
 }
