@@ -1,6 +1,6 @@
 /**
  * @file Мок заявлений и хранилище в сессии.
- * @remarks Студент: Мишичкин Г.Д. После F5 — снова seed.
+ * @remarks После F5 — снова seed.
  */
 
 import { create } from 'zustand'

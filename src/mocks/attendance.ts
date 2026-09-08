@@ -1,6 +1,6 @@
 /**
  * @file Мок выгрузки проходов в вуз (СКУД).
- * @remarks Студент: Мишичкин Г.Д. Позже — из системы контроля доступа.
+ * @remarks Позже — из системы контроля доступа.
  */
 
 import type { AttendanceDay, AttendancePeriodPreset } from './attendance-types'

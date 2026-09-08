@@ -1,6 +1,6 @@
 /**
  * @file Мок сводного электронного журнала (как на дизайн-макете).
- * @remarks Заменится ответом API 1С. Студент: Мишичкин Г.Д.
+ * @remarks Заменится ответом API 1С.
  */
 
 import type {
@@ -15,8 +15,8 @@ import type {
   JournalUpcomingLesson,
 } from './e-journal-types'
 
-export const journalStudentName = 'Мишичкин Г.Д.'
-export const journalStudentFullName = 'Мишичкин Георгий Дмитриевич'
+export const journalStudentName = 'Иванов А.С.'
+export const journalStudentFullName = 'Иванов Артём Сергеевич'
 
 export const journalSemesters: JournalSemester[] = [
   { id: '2026-spring', label: 'Весенний 2026' },
