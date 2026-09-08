@@ -2,7 +2,7 @@
  * @file UI посещаемости (студент и родитель).
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { ApiError } from '@/apiClient'
 import {
   buildAttendancePeriodPresets,
@@ -18,6 +18,7 @@ import {
   attendanceSummaryForRange,
   filterAttendanceDays,
 } from '@/mocks/attendance'
+import type { AttendanceDay, AttendanceLesson } from '@/mocks/attendance-types'
 import {
   ScreenHeader,
   Select,
@@ -41,6 +42,79 @@ type Props = {
   enabled?: boolean
 }
 
+function displayGate(gate: string | undefined): string {
+  if (!gate) return '—'
+  return gate.replace(/\s*·\s*опозданий на пары:\s*\d+/i, '').trim() || '—'
+}
+
+function lessonDotClass(status: string | undefined): string {
+  if (status === 'late') return styles.dotLate
+  if (status === 'absent') return styles.dotAbsent
+  return styles.dotPresent
+}
+
+function lessonDotTitle(lesson: AttendanceLesson): string {
+  const parts = [
+    lessonStatusLabel(lesson.status),
+    `${lesson.startTime}${lesson.endTime ? `–${lesson.endTime}` : ''}`,
+    lesson.subject || 'Занятие',
+  ]
+  if (lesson.status === 'late' && lesson.lateMinutes) {
+    parts.push(`${lesson.lateMinutes} мин`)
+  }
+  return parts.filter(Boolean).join(' · ')
+}
+
+function LessonDots({ lessons }: { lessons: AttendanceLesson[] }) {
+  if (lessons.length === 0) return null
+  const visible = lessons.slice(0, 8)
+  const rest = lessons.length - visible.length
+  return (
+    <span className={styles.dots} aria-label="Статусы пар">
+      {visible.map((lesson) => (
+        <span
+          key={lesson.id}
+          className={`${styles.dot} ${lessonDotClass(lesson.status)}`}
+          title={lessonDotTitle(lesson)}
+        />
+      ))}
+      {rest > 0 ? <span className={styles.dotsMore}>+{rest}</span> : null}
+    </span>
+  )
+}
+
+function LessonDetails({ lessons }: { lessons: AttendanceLesson[] }) {
+  return (
+    <ul className={styles.lessonList}>
+      {lessons.map((lesson) => (
+        <li
+          key={lesson.id}
+          className={[
+            styles.lessonRow,
+            lesson.status === 'late' ? styles.lessonLate : '',
+            lesson.status === 'absent' ? styles.lessonAbsent : '',
+            lesson.status === 'present' ? styles.lessonPresent : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          <span className={styles.lessonTime}>
+            {lesson.startTime}
+            {lesson.endTime ? `–${lesson.endTime}` : ''}
+          </span>
+          <span className={styles.lessonSubject}>{lesson.subject || 'Занятие'}</span>
+          <span className={styles.lessonStatus}>
+            <span className={`${styles.dot} ${lessonDotClass(lesson.status)}`} aria-hidden="true" />
+            {lessonStatusLabel(lesson.status)}
+            {lesson.status === 'late' && lesson.lateMinutes ? ` · ${lesson.lateMinutes} мин` : ''}
+            {lesson.arrivedAt ? ` · вход ${lesson.arrivedAt}` : ''}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: Props) {
   const apiEnabled = isAttendanceApiEnabled()
 
@@ -59,6 +133,11 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
   const [apiData, setApiData] = useState<StudentAttendanceDto | null>(null)
   const [loading, setLoading] = useState(apiEnabled && enabled)
   const [error, setError] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setExpandedId(null)
+  }, [appliedFrom, appliedTo])
 
   useEffect(() => {
     if (!enabled || !apiEnabled) {
@@ -138,6 +217,11 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
     setTo(defaultPreset.to)
     setAppliedFrom(defaultPreset.from)
     setAppliedTo(defaultPreset.to)
+  }
+
+  const toggleExpand = (row: AttendanceDay) => {
+    if (!row.lessons?.length) return
+    setExpandedId((prev) => (prev === row.id ? null : row.id))
   }
 
   return (
@@ -228,93 +312,108 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableHeader className={styles.expandCol} />
                   <TableHeader>Дата</TableHeader>
                   <TableHeader>Пришёл в вуз</TableHeader>
                   <TableHeader>Ушёл из вуза</TableHeader>
                   <TableHeader>Время в вузе</TableHeader>
-                  <TableHeader>КПП / статус</TableHeader>
+                  <TableHeader>КПП / пары</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {rows.map((r) => {
                   const absent = isAttendanceAbsent(r)
+                  const lessons = r.lessons ?? []
+                  const expandable = lessons.length > 0
+                  const expanded = expandedId === r.id
                   return (
-                    <TableRow key={r.id} className={absent ? styles.rowAbsent : undefined}>
-                      <TableCell>{formatAttendanceDate(r.date)}</TableCell>
-                      {absent ? (
-                        <TableCell className={styles.absentCell} colSpan={3}>
-                          Отсутствовал
+                    <Fragment key={r.id}>
+                      <TableRow
+                        className={[
+                          absent ? styles.rowAbsent : '',
+                          expandable ? styles.rowExpandable : '',
+                          expanded ? styles.rowExpanded : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={expandable ? () => toggleExpand(r) : undefined}
+                      >
+                        <TableCell className={styles.expandCol}>
+                          {expandable ? (
+                            <span className={styles.chevron} aria-hidden="true">
+                              {expanded ? '▾' : '▸'}
+                            </span>
+                          ) : null}
                         </TableCell>
-                      ) : (
-                        <>
-                          <TableCell className={styles.timeCell}>{r.checkIn}</TableCell>
-                          <TableCell className={styles.timeCell}>{r.checkOut}</TableCell>
-                          <TableCell>{formatStayDuration(r.checkIn, r.checkOut)}</TableCell>
-                        </>
-                      )}
-                      <TableCell className={absent ? styles.absentGate : styles.gateCell}>
-                        {r.gate ?? '—'}
-                      </TableCell>
-                    </TableRow>
+                        <TableCell>{formatAttendanceDate(r.date)}</TableCell>
+                        {absent ? (
+                          <TableCell className={styles.absentCell} colSpan={3}>
+                            Отсутствовал
+                          </TableCell>
+                        ) : (
+                          <>
+                            <TableCell className={styles.timeCell}>{r.checkIn}</TableCell>
+                            <TableCell className={styles.timeCell}>{r.checkOut}</TableCell>
+                            <TableCell>{formatStayDuration(r.checkIn, r.checkOut)}</TableCell>
+                          </>
+                        )}
+                        <TableCell className={absent ? styles.absentGate : styles.gateCell}>
+                          <div className={styles.gateStack}>
+                            {!absent ? <LessonDots lessons={lessons} /> : null}
+                            <span>{absent ? (r.gate ?? '—') : displayGate(r.gate)}</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {expanded ? (
+                        <TableRow className={styles.detailRow}>
+                          <TableCell colSpan={6}>
+                            <LessonDetails lessons={lessons} />
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </Fragment>
                   )
                 })}
               </TableBody>
             </Table>
           </div>
 
-          {rows.some((r) => (r.lessons?.length ?? 0) > 0) ? (
-            <div className={styles.lessonsBlock}>
-              <h2 className={styles.lessonsTitle}>Пары по дням</h2>
-              <ul className={styles.lessonDayList}>
-                {rows
-                  .filter((r) => (r.lessons?.length ?? 0) > 0)
-                  .map((r) => (
-                    <li key={`lessons-${r.id}`} className={styles.lessonDay}>
-                      <h3 className={styles.lessonDayTitle}>{formatAttendanceDate(r.date)}</h3>
-                      <ul className={styles.lessonList}>
-                        {r.lessons!.map((lesson) => (
-                          <li
-                            key={lesson.id}
-                            className={[
-                              styles.lessonRow,
-                              lesson.status === 'late' ? styles.lessonLate : '',
-                              lesson.status === 'absent' ? styles.lessonAbsent : '',
-                            ]
-                              .filter(Boolean)
-                              .join(' ')}
-                          >
-                            <span className={styles.lessonTime}>
-                              {lesson.startTime}
-                              {lesson.endTime ? `–${lesson.endTime}` : ''}
-                            </span>
-                            <span className={styles.lessonSubject}>{lesson.subject || 'Занятие'}</span>
-                            <span className={styles.lessonStatus}>
-                              {lessonStatusLabel(lesson.status)}
-                              {lesson.status === 'late' && lesson.lateMinutes
-                                ? ` · ${lesson.lateMinutes} мин`
-                                : ''}
-                              {lesson.arrivedAt ? ` · вход ${lesson.arrivedAt}` : ''}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          ) : null}
-
           <ul className={styles.cards}>
             {rows.map((r) => {
               const absent = isAttendanceAbsent(r)
+              const lessons = r.lessons ?? []
+              const expandable = lessons.length > 0
+              const expanded = expandedId === r.id
               return (
                 <li
                   key={r.id}
-                  className={`${styles.card} ${absent ? styles.cardAbsent : ''}`}
+                  className={[
+                    styles.card,
+                    absent ? styles.cardAbsent : '',
+                    expandable ? styles.cardExpandable : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                 >
-                  <strong className={absent ? styles.absentTitle : undefined}>
-                    {formatAttendanceDate(r.date)}
-                  </strong>
+                  <button
+                    type="button"
+                    className={styles.cardToggle}
+                    onClick={() => toggleExpand(r)}
+                    disabled={!expandable}
+                    aria-expanded={expanded}
+                  >
+                    <span className={styles.cardHead}>
+                      {expandable ? (
+                        <span className={styles.chevron} aria-hidden="true">
+                          {expanded ? '▾' : '▸'}
+                        </span>
+                      ) : null}
+                      <strong className={absent ? styles.absentTitle : undefined}>
+                        {formatAttendanceDate(r.date)}
+                      </strong>
+                      {!absent && lessons.length > 0 ? <LessonDots lessons={lessons} /> : null}
+                    </span>
+                  </button>
                   {absent ? (
                     <>
                       <p className={styles.absentStatus}>Отсутствовал</p>
@@ -330,21 +429,10 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
                       <p className={styles.cardLine}>
                         В вузе: {formatStayDuration(r.checkIn, r.checkOut)}
                       </p>
-                      {r.gate ? <p className={styles.cardLine}>{r.gate}</p> : null}
+                      {r.gate ? <p className={styles.cardLine}>{displayGate(r.gate)}</p> : null}
                     </>
                   )}
-                  {r.lessons && r.lessons.length > 0 ? (
-                    <ul className={styles.cardLessons}>
-                      {r.lessons.map((lesson) => (
-                        <li key={lesson.id}>
-                          {lesson.startTime} {lesson.subject || 'Занятие'} — {lessonStatusLabel(lesson.status)}
-                          {lesson.status === 'late' && lesson.lateMinutes
-                            ? ` (${lesson.lateMinutes} мин)`
-                            : ''}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
+                  {expanded ? <LessonDetails lessons={lessons} /> : null}
                 </li>
               )
             })}

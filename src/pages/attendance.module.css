@@ -139,6 +139,10 @@
   background: color-mix(in srgb, var(--color-danger-bg, #fee4e2) 70%, transparent);
 }
 
+.lessonPresent {
+  background: color-mix(in srgb, #2e90fa 8%, transparent);
+}
+
 .lessonTime {
   font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
@@ -150,6 +154,9 @@
 }
 
 .lessonStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   color: var(--color-text-secondary);
 }
 
@@ -158,6 +165,101 @@
   padding-left: 1.1rem;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+}
+
+.expandCol {
+  width: 1.5rem;
+  padding-right: 0 !important;
+}
+
+.chevron {
+  display: inline-block;
+  width: 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.rowExpandable {
+  cursor: pointer;
+}
+
+.rowExpandable:hover td {
+  background: color-mix(in srgb, var(--color-primary, #51308e) 4%, transparent);
+}
+
+.rowExpanded td {
+  border-bottom-color: transparent;
+}
+
+.detailRow td {
+  padding-top: 0.25rem;
+  padding-bottom: 0.9rem;
+  background: color-mix(in srgb, var(--color-primary, #51308e) 3%, var(--color-surface));
+}
+
+.gateStack {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dots {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.dotPresent {
+  background: #2e90fa;
+}
+
+.dotLate {
+  background: #f79009;
+}
+
+.dotAbsent {
+  background: #f04438;
+}
+
+.dotsMore {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.cardToggle {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.cardToggle:disabled {
+  cursor: default;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.cardExpandable {
+  cursor: default;
 }
 
 .tableWrap {
