@@ -11,6 +11,7 @@ import {
   formatAttendanceDate,
   formatStayDuration,
   isAttendanceAbsent,
+  lessonStatusLabel,
 } from '@/mocks/attendance'
 
 export type AttendanceSummaryDto = {
