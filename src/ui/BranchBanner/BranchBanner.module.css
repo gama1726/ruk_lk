@@ -253,11 +253,17 @@
   }
 
   .badge {
-    flex-basis: 100%;
+    /* 100% + margin-left иначе вылезает за правый край карточки */
+    box-sizing: border-box;
+    flex: 0 1 auto;
+    flex-basis: calc(100% - 52px - 16px);
+    max-width: calc(100% - 52px - 16px);
     margin-left: calc(52px + 16px);
   }
 
   .bannerNoEmblem .badge {
+    flex-basis: calc(100% - 3rem - 16px);
+    max-width: calc(100% - 3rem - 16px);
     margin-left: calc(3rem + 16px);
   }
 }
