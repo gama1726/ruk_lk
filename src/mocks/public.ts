@@ -3,7 +3,7 @@
  */
 
 export const supportContacts = {
-  email: 'a.s.baymurzaev@ruc.su',
+  email: 'support.my@ruc.su',
   hours: 'Пн–Пт, 9:00–18:00',
   note: 'По вопросам работы личного кабинета и доступа к сервисам.',
 }
