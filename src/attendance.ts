@@ -30,7 +30,7 @@ export type StudentAttendanceDto = {
 }
 
 /** Максимальный диапазон дат посещаемости (включительно по разнице календарных дней). */
-export const ATTENDANCE_MAX_RANGE_DAYS = 31
+export const ATTENDANCE_MAX_RANGE_DAYS = 14
 
 export function isAttendanceRangeTooLong(from: string, to: string): boolean {
   if (!from || !to) return false
@@ -79,14 +79,6 @@ export function buildAttendancePeriodPresets(today = new Date()) {
   const endOfWeek = new Date(startOfWeek)
   endOfWeek.setDate(startOfWeek.getDate() + 6)
 
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-
-  const monthLabel = new Intl.DateTimeFormat('ru-RU', {
-    month: 'long',
-    year: 'numeric',
-  }).format(monthStart)
-
   return [
     {
       id: 'week',
@@ -95,18 +87,12 @@ export function buildAttendancePeriodPresets(today = new Date()) {
       to: iso(endOfWeek),
     },
     {
-      id: 'month',
-      label: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
-      from: iso(monthStart),
-      to: iso(monthEnd),
-    },
-    {
-      id: '30d',
-      label: 'Последние 30 дней',
-      from: iso(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29)),
+      id: '7d',
+      label: 'Последние 7 дней',
+      from: iso(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6)),
       to: iso(today),
     },
-    { id: 'custom', label: 'Свой период', from: '', to: '' },
+    { id: 'custom', label: 'Свой период (до 14 дней)', from: '', to: '' },
   ]
 }
 

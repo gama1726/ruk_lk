@@ -465,8 +465,8 @@ public class StudentService {
         }
         LocalDate begin = from.isBefore(to) ? from : to;
         LocalDate end = from.isBefore(to) ? to : from;
-        if (begin.plusDays(31).isBefore(end)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Период не больше 31 дня");
+        if (begin.plusDays(14).isBefore(end)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Период не больше 14 дней");
         }
 
         if (profile != null && CampusSupport.isKazanKkiCampus(

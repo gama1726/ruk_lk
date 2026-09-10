@@ -13,7 +13,7 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
 @Component
 public class AttendanceCache {
 
-    private static final long TTL_MS = Duration.ofMinutes(5).toMillis();
+    private static final long TTL_MS = Duration.ofMinutes(20).toMillis();
 
     private final ConcurrentHashMap<String, Entry> byKey = new ConcurrentHashMap<>();
     Optional<StudentAttendanceResponse> get(

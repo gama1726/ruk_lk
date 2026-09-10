@@ -134,13 +134,16 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
   const [presetId, setPresetId] = useState(defaultPreset.id)
   const [from, setFrom] = useState(defaultPreset.from)
   const [to, setTo] = useState(defaultPreset.to)
-  const [appliedFrom, setAppliedFrom] = useState(defaultPreset.from)
-  const [appliedTo, setAppliedTo] = useState(defaultPreset.to)
+  // Пусто до нажатия «Показать» — без автозапроса в Perco при открытии раздела.
+  const [appliedFrom, setAppliedFrom] = useState('')
+  const [appliedTo, setAppliedTo] = useState('')
 
   const [apiData, setApiData] = useState<StudentAttendanceDto | null>(null)
-  const [loading, setLoading] = useState(apiEnabled && enabled)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const hasAppliedPeriod = Boolean(appliedFrom && appliedTo)
 
   useEffect(() => {
     setExpandedId(null)
@@ -151,7 +154,7 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
       setLoading(false)
       return
     }
-    if (!appliedFrom || !appliedTo) {
+    if (!hasAppliedPeriod) {
       setApiData(null)
       setLoading(false)
       return
@@ -177,14 +180,25 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
     return () => {
       cancelled = true
     }
-  }, [enabled, apiEnabled, appliedFrom, appliedTo, fetchAttendance])
+  }, [enabled, apiEnabled, hasAppliedPeriod, appliedFrom, appliedTo, fetchAttendance])
 
   const rows = useMemo(() => {
+    if (!hasAppliedPeriod) return []
     if (apiEnabled) return apiData?.days ?? []
     return filterAttendanceDays(appliedFrom, appliedTo)
-  }, [apiEnabled, apiData, appliedFrom, appliedTo])
+  }, [apiEnabled, apiData, appliedFrom, appliedTo, hasAppliedPeriod])
 
   const summary = useMemo(() => {
+    if (!hasAppliedPeriod) {
+      return {
+        days: 0,
+        absentDays: 0,
+        lateLessons: 0,
+        unconfirmedLessons: 0,
+        earliest: null as string | null,
+        latest: null as string | null,
+      }
+    }
     if (apiEnabled) {
       return (
         apiData?.summary ?? {
@@ -198,13 +212,14 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
       )
     }
     return attendanceSummaryForRange(appliedFrom, appliedTo)
-  }, [apiEnabled, apiData, appliedFrom, appliedTo])
+  }, [apiEnabled, apiData, appliedFrom, appliedTo, hasAppliedPeriod])
 
   const absentDays = summary.absentDays ?? 0
   const lateLessons = summary.lateLessons ?? 0
   const unconfirmedLessons = summary.unconfirmedLessons ?? 0
   const showSummary =
-    summary.days > 0 || absentDays > 0 || lateLessons > 0 || unconfirmedLessons > 0
+    hasAppliedPeriod &&
+    (summary.days > 0 || absentDays > 0 || lateLessons > 0 || unconfirmedLessons > 0)
 
   const presetOptions = presets.map((p) => ({ value: p.id, label: p.label }))
 
@@ -221,6 +236,10 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
       setError(`Период не больше ${ATTENDANCE_MAX_RANGE_DAYS} дней`)
       return
     }
+    if (!from || !to) {
+      setError('Укажите даты периода')
+      return
+    }
     setError(null)
     setAppliedFrom(from)
     setAppliedTo(to)
@@ -230,8 +249,10 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
     setPresetId(defaultPreset.id)
     setFrom(defaultPreset.from)
     setTo(defaultPreset.to)
-    setAppliedFrom(defaultPreset.from)
-    setAppliedTo(defaultPreset.to)
+    setAppliedFrom('')
+    setAppliedTo('')
+    setApiData(null)
+    setError(null)
   }
 
   const toggleExpand = (row: AttendanceDay) => {
@@ -318,7 +339,14 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
         </section>
       ) : null}
 
-      {!loading && !error && rows.length === 0 ? (
+      {!loading && !error && !hasAppliedPeriod ? (
+        <NoData
+          title="Выберите период"
+          description="Укажите даты и нажмите «Показать», чтобы загрузить проходы."
+        />
+      ) : null}
+
+      {!loading && !error && hasAppliedPeriod && rows.length === 0 ? (
         <NoData
           title="Нет данных"
           description={
@@ -329,7 +357,7 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
         />
       ) : null}
 
-      {!loading && !error && rows.length > 0 ? (
+      {!loading && !error && hasAppliedPeriod && rows.length > 0 ? (
         <>
           <div className={styles.tableWrap}>
             <Table>

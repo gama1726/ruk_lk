@@ -6,6 +6,7 @@ import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -41,6 +42,10 @@ import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
 public class HttpPercoClient implements PercoClient {
 
     private static final Logger log = LoggerFactory.getLogger(HttpPercoClient.class);
+
+    private static final int ACCESS_ROWS = 100;
+    private static final int ACCESS_MAX_PAGES_PER_CHUNK = 3;
+    private static final int ACCESS_CHUNK_DAYS = 7;
 
     private final RestClient restClient;
     private final PercoProperties properties;
@@ -94,34 +99,24 @@ public class HttpPercoClient implements PercoClient {
 
         authenticate();
 
+        // Лёгкий запрос: найти сотрудника по табельному → дальше фильтр по user_id.
+        PercoStaffMember staff = findStaffByZachetka(tabel);
+        String userId = requireStaffId(staff, tabel);
+
         List<PercoAccessEvent> all = new ArrayList<>();
-        int page = 0;
-        int rowsPerPage = 500;
-        int guard = 0;
-        while (guard++ < 50) {
-            PercoAccessEventsResponse response = fetchAccessEventsPage(tabel, begin, end, page, rowsPerPage);
-            List<PercoAccessEvent> batch = response == null || response.rows() == null
-                ? List.of()
-                : response.rows();
-            for (PercoAccessEvent event : batch) {
-                String eventTabel = event.resolvedTabelNumber();
-                if (eventTabel != null && tabel.equalsIgnoreCase(eventTabel)) {
-                    all.add(event);
-                } else if (eventTabel == null && batch.size() == 1) {
-                    all.add(event);
-                }
+        for (LocalDate chunkBegin = begin; !chunkBegin.isAfter(end); ) {
+            LocalDate chunkEnd = chunkBegin.plusDays(ACCESS_CHUNK_DAYS - 1);
+            if (chunkEnd.isAfter(end)) {
+                chunkEnd = end;
             }
-            int total = response != null && response.total() != null ? response.total() : batch.size();
-            int loaded = (page + 1) * rowsPerPage;
-            if (batch.isEmpty() || loaded >= total) {
-                break;
-            }
-            page++;
+            all.addAll(fetchAccessEventsForUserChunk(userId, tabel, chunkBegin, chunkEnd));
+            chunkBegin = chunkEnd.plusDays(1);
         }
 
         log.info(
-            "Perco проходы: зачётка={}, {}..{}, событий={}",
+            "Perco проходы: зачётка={}, userId={}, {}..{}, событий={}",
             tabel,
+            userId,
             begin,
             end,
             all.size()
@@ -129,21 +124,81 @@ public class HttpPercoClient implements PercoClient {
         return all;
     }
 
-    private PercoAccessEventsResponse fetchAccessEventsPage(
+    private List<PercoAccessEvent> fetchAccessEventsForUserChunk(
+        String userId,
         String tabel,
+        LocalDate begin,
+        LocalDate end
+    ) throws PercoException {
+        List<PercoAccessEvent> all = new ArrayList<>();
+        String filters = userIdFilter(userId);
+
+        for (int page = 0; page < ACCESS_MAX_PAGES_PER_CHUNK; page++) {
+            PercoAccessEventsResponse response = fetchAccessEventsPage(filters, begin, end, page, ACCESS_ROWS);
+            List<PercoAccessEvent> batch = response == null || response.rows() == null
+                ? List.of()
+                : response.rows();
+            if (batch.isEmpty()) {
+                break;
+            }
+
+            int matched = 0;
+            for (PercoAccessEvent event : batch) {
+                if (eventMatchesUser(event, userId, tabel)) {
+                    all.add(event);
+                    matched++;
+                }
+            }
+
+            int total = response.total() != null ? response.total() : batch.size();
+            // filters не сработал — total огромный, а совпадений мало: не листаем дальше.
+            if (matched == 0 || (total > 500 && matched < Math.max(1, batch.size() / 5))) {
+                log.warn(
+                    "Perco accessReports: подозрительный ответ (total={}, matched={}/{}), page={}, {}..{}",
+                    total,
+                    matched,
+                    batch.size(),
+                    page,
+                    begin,
+                    end
+                );
+                break;
+            }
+
+            int loaded = (page + 1) * ACCESS_ROWS;
+            if (loaded >= total) {
+                break;
+            }
+        }
+        return all;
+    }
+
+    private static boolean eventMatchesUser(PercoAccessEvent event, String userId, String tabel) {
+        if (event == null) {
+            return false;
+        }
+        if (event.userId() != null && userId.equals(String.valueOf(event.userId()).trim())) {
+            return true;
+        }
+        String eventTabel = event.resolvedTabelNumber();
+        return eventTabel != null && tabel.equalsIgnoreCase(eventTabel);
+    }
+
+    private PercoAccessEventsResponse fetchAccessEventsPage(
+        String filtersJson,
         LocalDate begin,
         LocalDate end,
         int page,
         int rows
     ) throws PercoException {
         try {
-            return requestAccessEventsPage(tabel, begin, end, page, rows);
+            return requestAccessEventsPage(filtersJson, begin, end, page, rows);
         } catch (RestClientResponseException e) {
             if (e.getStatusCode().value() == 401) {
                 token = null;
                 authenticate();
                 try {
-                    return requestAccessEventsPage(tabel, begin, end, page, rows);
+                    return requestAccessEventsPage(filtersJson, begin, end, page, rows);
                 } catch (RestClientResponseException retry) {
                     log.error(
                         "Perco accessReports HTTP {}: {}",
@@ -162,11 +217,11 @@ public class HttpPercoClient implements PercoClient {
     }
 
     /**
-     * Отчёт проходов с фильтром по табельному (как {@code /users/staff/table}),
-     * без текстового {@code searchString}.
+     * Отчёт проходов с фильтром по {@code user_id} (после поиска сотрудника по табельному).
+     * Период режется на короткие куски — иначе Perco падает на тяжёлом accessReports.
      */
     private PercoAccessEventsResponse requestAccessEventsPage(
-        String tabel,
+        String filtersJson,
         LocalDate begin,
         LocalDate end,
         int page,
@@ -188,13 +243,18 @@ public class HttpPercoClient implements PercoClient {
                 token,
                 begin.toString(),
                 end.toString(),
-                tabelNumberFilter(tabel),
+                filtersJson,
                 page,
                 rows
             )
             .header("Authorization", "Bearer " + token)
             .retrieve()
             .body(PercoAccessEventsResponse.class);
+    }
+
+    private static String userIdFilter(String userId) {
+        return "{\"type\":\"and\",\"rows\":[{\"column\":\"user_id\",\"value\":\"%s\"}]}"
+            .formatted(escapeJson(userId));
     }
 
     /** Фильтр Perco: колонка tabel_number (substring-match на стороне API). */
@@ -434,33 +494,40 @@ public class HttpPercoClient implements PercoClient {
      * JDK HttpClient этого не умеет надёжно (SAN/IP).
      */
     private static HttpComponentsClientHttpRequestFactory buildRequestFactory(boolean trustSelfSigned) {
+        HttpComponentsClientHttpRequestFactory factory;
         if (!trustSelfSigned) {
-            return new HttpComponentsClientHttpRequestFactory();
-        }
-        try {
-            SSLContext sslContext = SSLContexts.custom()
-                .loadTrustMaterial(null, TrustAllStrategy.INSTANCE)
-                .build();
+            factory = new HttpComponentsClientHttpRequestFactory();
+        } else {
+            try {
+                SSLContext sslContext = SSLContexts.custom()
+                    .loadTrustMaterial(null, TrustAllStrategy.INSTANCE)
+                    .build();
 
-            CloseableHttpClient httpClient = HttpClients.custom()
-                .setConnectionManager(
-                    PoolingHttpClientConnectionManagerBuilder.create()
-                        .setTlsSocketStrategy(
-                            // CLIENT + Noop: без встроенной JSSE-проверки SAN (BUILTIN ломает доступ по IP)
-                            new DefaultClientTlsStrategy(
-                                sslContext,
-                                HostnameVerificationPolicy.CLIENT,
-                                NoopHostnameVerifier.INSTANCE
+                CloseableHttpClient httpClient = HttpClients.custom()
+                    .setConnectionManager(
+                        PoolingHttpClientConnectionManagerBuilder.create()
+                            .setTlsSocketStrategy(
+                                // CLIENT + Noop: без встроенной JSSE-проверки SAN (BUILTIN ломает доступ по IP)
+                                new DefaultClientTlsStrategy(
+                                    sslContext,
+                                    HostnameVerificationPolicy.CLIENT,
+                                    NoopHostnameVerifier.INSTANCE
+                                )
                             )
-                        )
-                        .build()
-                )
-                .evictExpiredConnections()
-                .build();
+                            .build()
+                    )
+                    .evictExpiredConnections()
+                    .build();
 
-            return new HttpComponentsClientHttpRequestFactory(httpClient);
-        } catch (Exception e) {
-            throw new IllegalStateException("Не удалось настроить SSL для Perco-Web", e);
+                factory = new HttpComponentsClientHttpRequestFactory(httpClient);
+            } catch (Exception e) {
+                throw new IllegalStateException("Не удалось настроить SSL для Perco-Web", e);
+            }
         }
+        // Не держим Perco бесконечно: лучше 504 у нас, чем полный даун СКУД.
+        factory.setConnectTimeout(Duration.ofSeconds(5));
+        factory.setConnectionRequestTimeout(Duration.ofSeconds(5));
+        factory.setReadTimeout(Duration.ofSeconds(25));
+        return factory;
     }
 }
