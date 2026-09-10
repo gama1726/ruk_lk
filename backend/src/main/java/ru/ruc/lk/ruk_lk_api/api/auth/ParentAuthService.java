@@ -186,6 +186,7 @@ public class ParentAuthService {
             try {
                 maxSender.sendLoginCode(maxUserId, maxLoginRecipientName(member), code);
             } catch (MaxSendException e) {
+                session.setAttribute(LAST_SEND_AT_KEY, Instant.now());
                 throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "Не удалось отправить код в MAX. Попробуйте email или позже."
@@ -196,6 +197,7 @@ public class ParentAuthService {
             try {
                 emailSender.sendLoginCode(email, "родитель", code);
             } catch (EmailSendException e) {
+                session.setAttribute(LAST_SEND_AT_KEY, Instant.now());
                 throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "Не удалось отправить код на email. Попробуйте позже."
@@ -505,14 +507,15 @@ public class ParentAuthService {
     }
 
     private void enforceSendCooldown(HttpSession session) {
-        if (sendCooldown.isZero()) {
+        if (sendCooldown.isZero() || sendCooldown.isNegative()) {
             return;
         }
         Object raw = session.getAttribute(LAST_SEND_AT_KEY);
         if (raw instanceof Instant last && Instant.now().isBefore(last.plus(sendCooldown))) {
+            long retryAfter = Duration.between(Instant.now(), last.plus(sendCooldown)).toSeconds();
             throw new ResponseStatusException(
                 HttpStatus.TOO_MANY_REQUESTS,
-                "Подождите перед повторной отправкой кода"
+                "Подождите " + Math.max(1, retryAfter) + " с. перед повторной отправкой кода"
             );
         }
     }

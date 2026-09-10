@@ -10,6 +10,7 @@ import { paths } from '@/paths'
 import { LoginChannelPicker } from '@/blocks/login-channel-picker'
 import { AuthCard } from '@/blocks/auth-card'
 import card from '@/blocks/auth-card.module.css'
+import { remainingCooldownSec, sendCodeCooldownSec } from '@/send-code-cooldown'
 import { Button } from '@/ui'
 import form from './auth-form.module.css'
 import pub from './public.module.css'
@@ -28,12 +29,24 @@ export function ParentLoginDelivery() {
   const [bindUrl, setBindUrl] = useState<string>()
   const [bindBusy, setBindBusy] = useState(false)
   const [checkBusy, setCheckBusy] = useState(false)
+  const [cooldownUntilMs, setCooldownUntilMs] = useState<number>()
+  const [nowMs, setNowMs] = useState(() => Date.now())
 
   useEffect(() => {
     void fetchLoginChannels().then((c) => setMaxEnabled(c.maxEnabled))
   }, [fetchLoginChannels])
 
-  const needsMaxBind = maxEnabled && !!pendingDelivery && !pendingDelivery.maxAvailable && !!pendingDelivery.maskedPhone
+  useEffect(() => {
+    if (cooldownUntilMs == null) return
+    const id = window.setInterval(() => setNowMs(Date.now()), 500)
+    return () => window.clearInterval(id)
+  }, [cooldownUntilMs])
+
+  const cooldownLeft = remainingCooldownSec(cooldownUntilMs, nowMs)
+  const onCooldown = cooldownLeft > 0
+
+  const needsMaxBind =
+    maxEnabled && !!pendingDelivery && !pendingDelivery.maxAvailable && !!pendingDelivery.maskedPhone
 
   useEffect(() => {
     if (!needsMaxBind) {
@@ -113,6 +126,11 @@ export function ParentLoginDelivery() {
     e.preventDefault()
     setError(undefined)
 
+    if (onCooldown) {
+      setError(`Подождите ${cooldownLeft} с. перед повторной отправкой кода`)
+      return
+    }
+
     if (!pendingDelivery.canSendCode) {
       setError('Для входа не указаны email и телефон в базе университета. Обратитесь в деканат.')
       return
@@ -140,6 +158,11 @@ export function ParentLoginDelivery() {
           return
         }
       }
+      const pause = sendCodeCooldownSec(result)
+      if (pause > 0) {
+        setCooldownUntilMs(Date.now() + pause * 1000)
+        setNowMs(Date.now())
+      }
       setError(result)
       return
     }
@@ -157,7 +180,7 @@ export function ParentLoginDelivery() {
           <LoginChannelPicker
             value={channel}
             onChange={setChannel}
-            disabled={busy || !pendingDelivery.canSendCode}
+            disabled={busy || onCooldown || !pendingDelivery.canSendCode}
             emailHint={pendingDelivery.maskedEmail ?? undefined}
             phoneHint={maxBound ? 'Код придёт в чат с ботом' : 'Нужна привязка к боту'}
             emailDisabled={emailDisabled}
@@ -217,9 +240,11 @@ export function ParentLoginDelivery() {
             fullWidth
             size="lg"
             loading={busy}
-            disabled={!pendingDelivery.canSendCode || (channel === 'MAX' && maxDisabled)}
+            disabled={
+              onCooldown || !pendingDelivery.canSendCode || (channel === 'MAX' && maxDisabled)
+            }
           >
-            Отправить код
+            {onCooldown ? `Повтор через ${cooldownLeft} с.` : 'Отправить код'}
           </Button>
         </form>
 

@@ -125,6 +125,21 @@ public class OutboundLoadMetrics {
         }
     }
 
+    public void resetAll() {
+        byKey.clear();
+        totalInFlight.set(0);
+        synchronized (recentErrors) {
+            recentErrors.clear();
+        }
+        try {
+            repository.deleteAllInBatch();
+        } catch (RuntimeException e) {
+            log.warn("Не удалось очистить outbound_service_load_stats: {}", e.getMessage());
+        }
+        dirty.set(false);
+        log.info("Метрики исходящей нагрузки сброшены");
+    }
+
     public OutboundLoadSnapshotDto snapshot() {
         long now = System.currentTimeMillis();
         sampleRpmAll(now);

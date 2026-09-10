@@ -170,6 +170,7 @@ public class AuthService {
             try {
                 maxSender.sendLoginCode(maxUserId, pending.fullName(), code);
             } catch (MaxSendException e) {
+                markSendAttempt(session);
                 throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "Не удалось отправить код в MAX. Попробуйте email или позже."
@@ -180,6 +181,7 @@ public class AuthService {
             try {
                 emailSender.sendLoginCode(pending.email(), pending.fullName(), code);
             } catch (EmailSendException e) {
+                markSendAttempt(session);
                 throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "Не удалось отправить код входа на email. Попробуйте позже."
@@ -357,6 +359,11 @@ public class AuthService {
                 "Подождите " + Math.max(1, retryAfter) + " с. перед повторной отправкой кода"
             );
         }
+    }
+
+    /** Фиксируем попытку и при ошибке доставки — иначе при 503 можно долбить без паузы. */
+    private void markSendAttempt(HttpSession session) {
+        session.setAttribute(LAST_SEND_AT_KEY, Instant.now());
     }
 
     /** Свежий телефон из 1С перед отправкой в MAX; при сбое 1С — номер из identify. */

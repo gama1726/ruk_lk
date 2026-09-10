@@ -32,12 +32,15 @@ public class ApiLoadMetrics {
     private static final Logger log = LoggerFactory.getLogger(ApiLoadMetrics.class);
     private static final long WINDOW_MS = 60_000L;
     private static final int MAX_KEYS = 400;
+    private static final int MAX_RECENT_ERRORS = 40;
 
     private final ApiEndpointLoadStatsRepository repository;
     private final ConcurrentHashMap<String, EndpointStats> byKey = new ConcurrentHashMap<>();
     private final AtomicInteger totalInFlight = new AtomicInteger();
     private final AtomicLong startedAtMs = new AtomicLong(System.currentTimeMillis());
     private final AtomicBoolean dirty = new AtomicBoolean(false);
+    private final java.util.Deque<ru.ruc.lk.ruk_lk_api.metrics.dto.OutboundErrorDto> recentErrors =
+        new java.util.ArrayDeque<>();
 
     public ApiLoadMetrics(ApiEndpointLoadStatsRepository repository) {
         this.repository = repository;
@@ -78,7 +81,48 @@ public class ApiLoadMetrics {
         stats.inFlight.updateAndGet(v -> Math.max(0, v - 1));
         totalInFlight.updateAndGet(v -> Math.max(0, v - 1));
         stats.recordCompletion(Math.max(0, durationMs), status);
+        if (status >= 400) {
+            pushError(method, normalize(path), status);
+        }
         dirty.set(true);
+    }
+
+    public void resetAll() {
+        byKey.clear();
+        totalInFlight.set(0);
+        startedAtMs.set(System.currentTimeMillis());
+        synchronized (recentErrors) {
+            recentErrors.clear();
+        }
+        try {
+            repository.deleteAllInBatch();
+        } catch (RuntimeException e) {
+            log.warn("Не удалось очистить api_endpoint_load_stats: {}", e.getMessage());
+        }
+        dirty.set(false);
+        log.info("Метрики входящей нагрузки сброшены");
+    }
+
+    private void pushError(String method, String path, int status) {
+        var row = new ru.ruc.lk.ruk_lk_api.metrics.dto.OutboundErrorDto(
+            System.currentTimeMillis(),
+            "api",
+            method + " " + path,
+            status,
+            ""
+        );
+        synchronized (recentErrors) {
+            recentErrors.addFirst(row);
+            while (recentErrors.size() > MAX_RECENT_ERRORS) {
+                recentErrors.removeLast();
+            }
+        }
+    }
+
+    private List<ru.ruc.lk.ruk_lk_api.metrics.dto.OutboundErrorDto> recentErrorsSnapshot() {
+        synchronized (recentErrors) {
+            return List.copyOf(recentErrors);
+        }
     }
 
     public ApiLoadSnapshotDto snapshot() {
@@ -116,7 +160,8 @@ public class ApiLoadMetrics {
             0,
             0,
             List.of(),
-            List.of()
+            List.of(),
+            recentErrorsSnapshot()
         );
     }
 

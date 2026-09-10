@@ -1,6 +1,7 @@
 package ru.ruc.lk.ruk_lk_api.events;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,6 +29,18 @@ public class EventsAdminLoadController {
     @GetMapping
     public ApiLoadSnapshotDto load(HttpSession session) {
         EventsAdminAuthService.require(session);
+        return snapshot();
+    }
+
+    @PostMapping("/reset")
+    public ApiLoadSnapshotDto reset(HttpSession session) {
+        EventsAdminAuthService.require(session);
+        apiLoadMetrics.resetAll();
+        outboundLoadMetrics.resetAll();
+        return snapshot();
+    }
+
+    private ApiLoadSnapshotDto snapshot() {
         ApiLoadSnapshotDto inbound = apiLoadMetrics.snapshot();
         OutboundLoadSnapshotDto outbound = outboundLoadMetrics.snapshot();
         return new ApiLoadSnapshotDto(
@@ -40,7 +53,8 @@ public class EventsAdminLoadController {
             outbound.totalInFlight(),
             outbound.totalRequestsPerMinute(),
             outbound.calls(),
-            outbound.recentErrors()
+            outbound.recentErrors(),
+            inbound.recentApiErrors()
         );
     }
 }

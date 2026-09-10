@@ -9,6 +9,7 @@ import { paths } from '@/paths'
 import { LoginChannelPicker } from '@/blocks/login-channel-picker'
 import { AuthCard } from '@/blocks/auth-card'
 import card from '@/blocks/auth-card.module.css'
+import { remainingCooldownSec, sendCodeCooldownSec } from '@/send-code-cooldown'
 import { Button } from '@/ui'
 import form from './auth-form.module.css'
 
@@ -26,10 +27,21 @@ export function LoginDelivery() {
   const [bindUrl, setBindUrl] = useState<string>()
   const [bindBusy, setBindBusy] = useState(false)
   const [checkBusy, setCheckBusy] = useState(false)
+  const [cooldownUntilMs, setCooldownUntilMs] = useState<number>()
+  const [nowMs, setNowMs] = useState(() => Date.now())
 
   useEffect(() => {
     void fetchLoginChannels().then((c) => setMaxEnabled(c.maxEnabled))
   }, [fetchLoginChannels])
+
+  useEffect(() => {
+    if (cooldownUntilMs == null) return
+    const id = window.setInterval(() => setNowMs(Date.now()), 500)
+    return () => window.clearInterval(id)
+  }, [cooldownUntilMs])
+
+  const cooldownLeft = remainingCooldownSec(cooldownUntilMs, nowMs)
+  const onCooldown = cooldownLeft > 0
 
   const needsMaxBind = maxEnabled && !!pendingIdentification && !pendingIdentification.maxAvailable
 
@@ -100,6 +112,11 @@ export function LoginDelivery() {
     e.preventDefault()
     setError(undefined)
 
+    if (onCooldown) {
+      setError(`Подождите ${cooldownLeft} с. перед повторной отправкой кода`)
+      return
+    }
+
     if (channel === 'MAX' && maxDisabled) {
       setError('Сначала привяжите MAX через бота')
       return
@@ -122,6 +139,11 @@ export function LoginDelivery() {
           return
         }
       }
+      const pause = sendCodeCooldownSec(result)
+      if (pause > 0) {
+        setCooldownUntilMs(Date.now() + pause * 1000)
+        setNowMs(Date.now())
+      }
       setError(result)
       return
     }
@@ -138,7 +160,7 @@ export function LoginDelivery() {
         <LoginChannelPicker
           value={channel}
           onChange={setChannel}
-          disabled={busy}
+          disabled={busy || onCooldown}
           emailHint={pendingIdentification.maskedEmail}
           phoneHint={
             maxBound
@@ -197,8 +219,14 @@ export function LoginDelivery() {
 
         {error && <p className={form.error}>{error}</p>}
 
-        <Button type="submit" fullWidth size="lg" loading={busy} disabled={channel === 'MAX' && maxDisabled}>
-          Отправить код
+        <Button
+          type="submit"
+          fullWidth
+          size="lg"
+          loading={busy}
+          disabled={onCooldown || (channel === 'MAX' && maxDisabled)}
+        >
+          {onCooldown ? `Повтор через ${cooldownLeft} с.` : 'Отправить код'}
         </Button>
       </form>
 

@@ -12,5 +12,6 @@ public record ApiLoadSnapshotDto(
     int outboundInFlight,
     double outboundRequestsPerMinute,
     List<ApiLoadEndpointDto> outbound,
-    List<OutboundErrorDto> recentOutboundErrors
+    List<OutboundErrorDto> recentOutboundErrors,
+    List<OutboundErrorDto> recentApiErrors
 ) {}

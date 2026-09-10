@@ -119,8 +119,13 @@ export type ApiLoadSnapshot = {
   outboundRequestsPerMinute: number
   outbound: ApiLoadEndpoint[]
   recentOutboundErrors: OutboundError[]
+  recentApiErrors: OutboundError[]
 }
 
 export async function fetchEventsAdminLoad(): Promise<ApiLoadSnapshot> {
   return apiGet<ApiLoadSnapshot>('/api/admin/events/load')
+}
+
+export async function resetEventsAdminLoad(): Promise<ApiLoadSnapshot> {
+  return apiPost<ApiLoadSnapshot>('/api/admin/events/load/reset', {})
 }

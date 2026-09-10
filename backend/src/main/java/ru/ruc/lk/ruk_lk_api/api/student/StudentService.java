@@ -187,6 +187,7 @@ public class StudentService {
         try {
             emailSender.sendEmailChangeCode(email, student.fullName(), code);
         } catch (EmailSendException e) {
+            session.setAttribute(EMAIL_CHANGE_LAST_SEND_AT_KEY, Instant.now());
             throw new ResponseStatusException(
                 HttpStatus.SERVICE_UNAVAILABLE,
                 "Не удалось отправить код на новую почту. Попробуйте позже."

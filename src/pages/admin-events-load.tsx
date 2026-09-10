@@ -6,11 +6,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '@/apiClient'
 import {
   fetchEventsAdminLoad,
+  resetEventsAdminLoad,
   type ApiLoadEndpoint,
   type ApiLoadSnapshot,
   type OutboundError,
 } from '@/events-admin'
-import { Loader, LoadError } from '@/ui'
+import { Button, Loader, LoadError } from '@/ui'
 import styles from './admin-events.module.css'
 
 const POLL_MS = 3000
@@ -85,9 +86,9 @@ function LoadTable({
   )
 }
 
-function RecentErrors({ rows }: { rows: OutboundError[] }) {
+function RecentErrors({ rows, emptyHint }: { rows: OutboundError[]; emptyHint: string }) {
   if (rows.length === 0) {
-    return <p className={styles.statsHint}>Ошибок исходящих вызовов пока нет.</p>
+    return <p className={styles.statsHint}>{emptyHint}</p>
   }
 
   return (
@@ -122,6 +123,7 @@ export function AdminEventsLoad() {
   const [load, setLoad] = useState<ApiLoadSnapshot | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [resetting, setResetting] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
@@ -141,6 +143,22 @@ export function AdminEventsLoad() {
     return () => window.clearInterval(id)
   }, [refresh])
 
+  const onReset = async () => {
+    if (!window.confirm('Сбросить накопительную статистику нагрузки (API + исходящие)?')) {
+      return
+    }
+    setResetting(true)
+    try {
+      const data = await resetEventsAdminLoad()
+      setLoad(data)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось сбросить метрики')
+    } finally {
+      setResetting(false)
+    }
+  }
+
   const uptimeMin =
     load == null
       ? 0
@@ -149,7 +167,8 @@ export function AdminEventsLoad() {
   const outbound = load?.outbound ?? []
   const outboundInFlight = load?.outboundInFlight ?? 0
   const outboundRpm = load?.outboundRequestsPerMinute ?? 0
-  const recentErrors = load?.recentOutboundErrors ?? []
+  const recentOutbound = load?.recentOutboundErrors ?? []
+  const recentApi = load?.recentApiErrors ?? []
 
   return (
     <section className={styles.statsSection} aria-label="Нагрузка API">
@@ -157,12 +176,14 @@ export function AdminEventsLoad() {
         <div>
           <h2 className={styles.statsTitle}>Нагрузка API</h2>
           <p className={styles.statsHint}>
-            Входящие запросы к ЛК и отдельно исходящие вызовы к сервисам. Unisender и MAX — разные
-            строки (`unisender` / `max`) и операции (`send-login-code`, `send-email-change-code`,
-            `bind-request-phone`…). Обновление каждые {POLL_MS / 1000} с.
+            Свежие ошибки — в лентах ниже (до 40). Lifetime-цифры в таблицах копятся в БД. Обновление
+            каждые {POLL_MS / 1000} с.
             {load ? ` Аптайм процесса ≈ ${uptimeMin} мин.` : ''}
           </p>
         </div>
+        <Button type="button" variant="secondary" loading={resetting} onClick={() => void onReset()}>
+          Сбросить статистику
+        </Button>
       </div>
 
       {loading && !load ? <Loader /> : null}
@@ -190,16 +211,23 @@ export function AdminEventsLoad() {
           </div>
 
           <div className={styles.usersCard}>
-            <h3 className={styles.chartTitle}>Последние ошибки исходящих</h3>
-            <p className={styles.statsHint}>До 40 последних сбоев (в памяти процесса, после рестарта пусто).</p>
-            <RecentErrors rows={recentErrors} />
+            <h3 className={styles.chartTitle}>Свежие ошибки API</h3>
+            <p className={styles.statsHint}>
+              Последние 4xx/5xx входящих запросов (в памяти). Смотрите `POST /api/auth/send-code`.
+            </p>
+            <RecentErrors rows={recentApi} emptyHint="Свежих ошибок API нет." />
+          </div>
+
+          <div className={styles.usersCard}>
+            <h3 className={styles.chartTitle}>Свежие ошибки исходящих</h3>
+            <p className={styles.statsHint}>
+              Unisender / MAX / 1С и др. — кто именно падает сейчас.
+            </p>
+            <RecentErrors rows={recentOutbound} emptyHint="Свежих ошибок исходящих нет." />
           </div>
 
           <div className={styles.usersCard}>
             <h3 className={styles.chartTitle}>Исходящие сервисы</h3>
-            <p className={styles.statsHint}>
-              Смотрите колонку «Сервис»: unisender vs max. «Операция» — тип вызова.
-            </p>
             <LoadTable rows={outbound} serviceColumn />
           </div>
 
