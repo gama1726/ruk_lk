@@ -78,7 +78,7 @@ export function AdminPassPhotoRejectModal({
     >
       <p className={styles.studentHint}>
         Студент: <strong>{studentName}</strong>
-        {zachetka ? <> · зачётка {zachetka}</> : null}
+        {zachetka ? <> · студенческий билет {zachetka}</> : null}
       </p>
 
       <div className={styles.templates}>

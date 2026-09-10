@@ -27,7 +27,7 @@ import styles from './pass-photo.module.css'
 const tips = [
   'Снимите себя анфас у светлой однотонной стены.',
   'В кадре — голова и плечи, лицо хорошо видно.',
-  'Отдельно приложите фото зачётки (разворот с фото, номером и ФИО) — для проверки сотрудником.',
+  'Отдельно приложите фото студенческого билета (разворот с фото, номером и ФИО) — для проверки сотрудником.',
   `Формат ${PASS_PHOTO_FORMAT_HINT}, до ${Math.round(PASS_PHOTO_MAX_BYTES / (1024 * 1024))} МБ.`,
   `Минимальный размер фото лица — ${PASS_PHOTO_MIN_WIDTH}×${PASS_PHOTO_MIN_HEIGHT} пикселей.`,
 ]
@@ -132,7 +132,7 @@ export function PassPhoto() {
         setIdCardFile(picked)
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось проверить фото зачётки')
+      setError(e instanceof Error ? e.message : 'Не удалось проверить фото студенческого билета')
     } finally {
       setIdCardChecking(false)
     }
@@ -232,7 +232,7 @@ export function PassPhoto() {
     <>
       <ScreenHeader
         title="Фото для пропуска"
-        subtitle="Загрузите фото лица и фото зачётки. После проверки сотрудником лицо будет использовано для пропуска."
+        subtitle="Загрузите фото лица и фото студенческого билета. После проверки сотрудником лицо будет использовано для пропуска."
       />
 
       {submission?.status && (
@@ -263,9 +263,9 @@ export function PassPhoto() {
                   <img
                     className={styles.currentPhoto}
                     src={passPhotoImageUrl(submission.id, false, 'id-card')}
-                    alt="Фото зачётки"
+                    alt="Фото студенческого билета"
                   />
-                  <figcaption>Зачётка</figcaption>
+                  <figcaption>Студенческий билет</figcaption>
                 </figure>
               ) : null}
             </div>
@@ -337,17 +337,21 @@ export function PassPhoto() {
               </ul>
             )}
 
-            <h2 className={styles.h2}>2. Фото зачётки</h2>
+            <h2 className={styles.h2}>2. Фото студенческого билета</h2>
             <p className={styles.muted}>
-              Нужно для проверки: на снимке должны быть видны фото, номер зачётки и ФИО.
+              Нужно для проверки: на снимке должны быть видны фото, номер студенческого билета и ФИО.
             </p>
 
             <div className={styles.previewWrap}>
               {idCardPreviewUrl ? (
-                <img className={styles.preview} src={idCardPreviewUrl} alt="Превью зачётки" />
+                <img
+                  className={styles.preview}
+                  src={idCardPreviewUrl}
+                  alt="Превью студенческого билета"
+                />
               ) : (
                 <div className={styles.idCardPlaceholder}>
-                  <span>Фото зачётки</span>
+                  <span>Фото студенческого билета</span>
                 </div>
               )}
             </div>
@@ -365,7 +369,7 @@ export function PassPhoto() {
               onClick={() => idCardInputRef.current?.click()}
               disabled={idCardChecking || uploading}
             >
-              {idCardChecking ? 'Проверка…' : 'Выбрать фото зачётки'}
+              {idCardChecking ? 'Проверка…' : 'Выбрать фото студенческого билета'}
             </Button>
 
             {idCardIssues.length > 0 && (

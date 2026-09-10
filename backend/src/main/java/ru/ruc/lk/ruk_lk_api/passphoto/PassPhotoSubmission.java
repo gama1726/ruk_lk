@@ -32,7 +32,7 @@ public class PassPhotoSubmission {
     @Column(nullable = false)
     private String storedFileName;
 
-    /** Фото зачётки для проверки админом (в Perco не уходит). */
+    /** Фото студенческого билета для проверки админом (в Perco не уходит). */
     @Column(length = 255)
     private String idCardStoredFileName;
 

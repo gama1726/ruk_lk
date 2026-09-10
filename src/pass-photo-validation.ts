@@ -111,7 +111,7 @@ export async function validatePassPhotoClient(file: File): Promise<ClientValidat
 export const ID_CARD_MIN_WIDTH = 200
 export const ID_CARD_MIN_HEIGHT = 200
 
-/** Фото зачётки: формат, вес, мягкий минимум разрешения. */
+/** Фото студенческого билета: формат, вес, мягкий минимум разрешения. */
 export async function validateIdCardClient(file: File): Promise<ClientValidationResult> {
   const issues: ClientValidationIssue[] = []
 
@@ -128,7 +128,7 @@ export async function validateIdCardClient(file: File): Promise<ClientValidation
     issues.push({
       code: 'FILE_TOO_LARGE',
       severity: 'FAIL',
-      message: 'Файл зачётки больше 2 МБ.',
+      message: 'Файл студенческого билета больше 2 МБ.',
     })
     return { ok: false, issues }
   }
@@ -138,7 +138,7 @@ export async function validateIdCardClient(file: File): Promise<ClientValidation
     issues.push({
       code: 'INVALID_FORMAT',
       severity: 'FAIL',
-      message: 'Не удалось прочитать фото зачётки.',
+      message: 'Не удалось прочитать фото студенческого билета.',
     })
     return { ok: false, issues }
   }
@@ -147,7 +147,7 @@ export async function validateIdCardClient(file: File): Promise<ClientValidation
     issues.push({
       code: 'IMAGE_TOO_SMALL',
       severity: 'FAIL',
-      message: `Фото зачётки слишком маленькое. Минимум ${ID_CARD_MIN_WIDTH}×${ID_CARD_MIN_HEIGHT} пикселей.`,
+      message: `Фото студенческого билета слишком маленькое. Минимум ${ID_CARD_MIN_WIDTH}×${ID_CARD_MIN_HEIGHT} пикселей.`,
     })
     return { ok: false, issues }
   }

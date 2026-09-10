@@ -36,11 +36,11 @@ export function AdminPassPhotoApproveModal({
     >
       <p className={styles.studentHint}>
         Студент: <strong>{studentName}</strong>
-        {zachetka ? <> · зачётка {zachetka}</> : null}
+        {zachetka ? <> · студенческий билет {zachetka}</> : null}
       </p>
       <p className={styles.confirmText}>
-        Фото лица будет отправлено в систему пропуска Perco. Фото зачётки остаётся только для
-        проверки. Студент увидит статус загрузки, пока интеграция не завершится.
+        Фото лица будет отправлено в систему пропуска Perco. Фото студенческого билета остаётся
+        только для проверки. Студент увидит статус загрузки, пока интеграция не завершится.
       </p>
     </Modal>
   )

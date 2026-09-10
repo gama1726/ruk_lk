@@ -111,7 +111,7 @@ public class PassPhotoService {
         if (idCardFile == null || idCardFile.isEmpty()) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Приложите фото зачётки для идентификации"
+                "Приложите фото студенческого билета для идентификации"
             );
         }
 
@@ -176,7 +176,7 @@ public class PassPhotoService {
             throw new PassPhotoValidationException(List.of(new PassPhotoIssue(
                 PassPhotoIssueCode.FILE_TOO_LARGE,
                 PassPhotoIssueSeverity.FAIL,
-                "Файл зачётки слишком большой. Максимум 2 МБ."
+                "Файл студенческого билета слишком большой. Максимум 2 МБ."
             )));
         }
 
@@ -222,7 +222,7 @@ public class PassPhotoService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет доступа к этому фото");
         }
         if (!PassPhotoMapper.hasIdCard(submission)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото зачётки не приложено");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото студенческого билета не приложено");
         }
         return storageService.read(submission.getIdCardStoredFileName());
     }
@@ -235,7 +235,7 @@ public class PassPhotoService {
     public byte[] readIdCardForAdmin(UUID id, EducationTrack track) throws IOException {
         PassPhotoSubmission submission = requireSubmissionForTrack(id, track);
         if (!PassPhotoMapper.hasIdCard(submission)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото зачётки не приложено");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото студенческого билета не приложено");
         }
         return storageService.read(submission.getIdCardStoredFileName());
     }

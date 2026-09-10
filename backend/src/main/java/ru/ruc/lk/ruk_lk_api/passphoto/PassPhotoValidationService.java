@@ -74,20 +74,20 @@ public class PassPhotoValidationService {
     }
 
     /**
-     * Фото зачётки: формат и вес, без жёсткого min разрешения лица.
+     * Фото студенческого билета: формат и вес, без жёсткого min разрешения лица.
      */
     public PassPhotoValidationResult validateIdCard(byte[] bytes, String contentType) {
         List<PassPhotoIssue> issues = new ArrayList<>();
 
         if (!isSupportedFormat(bytes, contentType)) {
             issues.add(issue(PassPhotoIssueCode.INVALID_FORMAT, PassPhotoIssueSeverity.FAIL,
-                "Загрузите фото зачётки в формате JPG, JPEG, BMP или PNG."));
+                "Загрузите фото студенческого билета в формате JPG, JPEG, BMP или PNG."));
             return new PassPhotoValidationResult(issues);
         }
 
         if (bytes.length > properties.maxSizeBytes()) {
             issues.add(issue(PassPhotoIssueCode.FILE_TOO_LARGE, PassPhotoIssueSeverity.FAIL,
-                "Файл зачётки слишком большой. Максимум 2 МБ."));
+                "Файл студенческого билета слишком большой. Максимум 2 МБ."));
             return new PassPhotoValidationResult(issues);
         }
 
@@ -96,19 +96,19 @@ public class PassPhotoValidationService {
             image = ExifOrientedImages.read(bytes);
         } catch (IOException e) {
             issues.add(issue(PassPhotoIssueCode.INVALID_FORMAT, PassPhotoIssueSeverity.FAIL,
-                "Не удалось прочитать фото зачётки."));
+                "Не удалось прочитать фото студенческого билета."));
             return new PassPhotoValidationResult(issues);
         }
 
         if (image == null) {
             issues.add(issue(PassPhotoIssueCode.INVALID_FORMAT, PassPhotoIssueSeverity.FAIL,
-                "Не удалось прочитать фото зачётки."));
+                "Не удалось прочитать фото студенческого билета."));
             return new PassPhotoValidationResult(issues);
         }
 
         if (image.getWidth() < 200 || image.getHeight() < 200) {
             issues.add(issue(PassPhotoIssueCode.IMAGE_TOO_SMALL, PassPhotoIssueSeverity.FAIL,
-                "Фото зачётки слишком маленькое. Минимум 200×200 пикселей."));
+                "Фото студенческого билета слишком маленькое. Минимум 200×200 пикселей."));
             return new PassPhotoValidationResult(issues);
         }
 

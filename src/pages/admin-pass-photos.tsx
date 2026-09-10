@@ -92,7 +92,7 @@ function AdminPassPhotoCard({
       <div className={styles.cardHead}>
         <div>
           <h3 className={styles.studentName}>{item.studentFullName}</h3>
-          <p className={styles.zachetka}>Зачётка {item.zachetka || item.studentId}</p>
+          <p className={styles.zachetka}>Студенческий билет {item.zachetka || item.studentId}</p>
         </div>
         <Badge variant={statusBadgeVariant(item.status)}>
           {passPhotoStatusLabel[item.status]}
@@ -141,7 +141,7 @@ function AdminPassPhotoCard({
                         onPhotoOpen({
                           src,
                           alt: `Фото лица ${item.studentFullName}`,
-                          caption: `${item.studentFullName} · лицо · зачётка ${item.zachetka || item.studentId}`,
+                          caption: `${item.studentFullName} · лицо · студ. билет ${item.zachetka || item.studentId}`,
                         })
                     : undefined
                 }
@@ -149,27 +149,27 @@ function AdminPassPhotoCard({
             </div>
             {item.hasIdCardImage ? (
               <div>
-                <p className={styles.photoLabel}>Зачётка</p>
+                <p className={styles.photoLabel}>Студенческий билет</p>
                 <AdminPassPhotoThumb
                   id={item.id}
                   role={role}
                   kind="id-card"
-                  alt={`Зачётка ${item.studentFullName}`}
+                  alt={`Студенческий билет ${item.studentFullName}`}
                   className={styles.thumb}
                   onOpen={
                     onPhotoOpen
                       ? (src) =>
                           onPhotoOpen({
                             src,
-                            alt: `Зачётка ${item.studentFullName}`,
-                            caption: `${item.studentFullName} · зачётка ${item.zachetka || item.studentId}`,
+                            alt: `Студенческий билет ${item.studentFullName}`,
+                            caption: `${item.studentFullName} · студ. билет ${item.zachetka || item.studentId}`,
                           })
                       : undefined
                   }
                 />
               </div>
             ) : (
-              <div className={styles.thumbLoading}>Фото зачётки нет</div>
+              <div className={styles.thumbLoading}>Фото студенческого билета нет</div>
             )}
           </div>
         </div>
@@ -609,7 +609,7 @@ export function AdminPassPhotos({ expectedRole }: Props) {
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="ФИО или номер зачётки"
+                placeholder="ФИО или номер студенческого билета"
                 autoComplete="off"
               />
               {search && (
