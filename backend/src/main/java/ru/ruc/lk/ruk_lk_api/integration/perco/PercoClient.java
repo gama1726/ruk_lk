@@ -14,7 +14,7 @@ public interface PercoClient {
     void uploadPassPhoto(String zachetka, byte[] jpeg) throws PercoException;
 
     /**
-     * События проходов: {@code staff/table} → {@code accessReports/events?userIds=…}.
+     * События проходов через УРВ: {@code staff/table} → {@code /taReports/eventsTable} по дням.
      *
      * @param zachetka табельный = номер зачётки
      * @param from включительно

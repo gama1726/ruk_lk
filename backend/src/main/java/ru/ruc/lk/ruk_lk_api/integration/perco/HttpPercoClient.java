@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
@@ -32,6 +33,8 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import tools.jackson.databind.JsonNode;
+
 import ru.ruc.lk.ruk_lk_api.imaging.ExifOrientedImages;
 import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
 
@@ -41,14 +44,10 @@ public class HttpPercoClient implements PercoClient {
 
     private static final Logger log = LoggerFactory.getLogger(HttpPercoClient.class);
 
-    private static final int ACCESS_ROWS = 100;
-    private static final int ACCESS_MAX_PAGES = 20;
-    /** С {@code userIds} период узкий; неделя — страховка на тяжёлых инстансах. */
-    private static final int ACCESS_CHUNK_DAYS = 7;
-
     private final RestClient restClient;
     private final PercoProperties properties;
     private String token;
+    private boolean loggedTaRowShape;
 
     public HttpPercoClient(PercoProperties properties, OutboundRestClients outboundRestClients) {
         this.properties = properties;
@@ -102,22 +101,17 @@ public class HttpPercoClient implements PercoClient {
 
         authenticate();
 
-        // staff/table → user id, затем accessReports?userIds=… (справочник Perco-Web).
+        // УРВ: /taReports/eventsTable — один сотрудник + один день (не accessReports!).
         PercoStaffMember staff = findStaffByZachetka(tabel);
         String staffId = requireStaffId(staff, tabel);
 
         List<PercoAccessEvent> all = new ArrayList<>();
-        for (LocalDate chunkBegin = begin; !chunkBegin.isAfter(end); ) {
-            LocalDate chunkEnd = chunkBegin.plusDays(ACCESS_CHUNK_DAYS - 1);
-            if (chunkEnd.isAfter(end)) {
-                chunkEnd = end;
-            }
-            all.addAll(fetchAccessEventsForUserChunk(staffId, tabel, chunkBegin, chunkEnd));
-            chunkBegin = chunkEnd.plusDays(1);
+        for (LocalDate day = begin; !day.isAfter(end); day = day.plusDays(1)) {
+            all.addAll(fetchTaEventsForDay(staffId, day));
         }
 
         log.info(
-            "Perco проходы: зачётка={}, staffId={}, {}..{}, событий={}",
+            "Perco УРВ проходы: зачётка={}, staffId={}, {}..{}, событий={}",
             tabel,
             staffId,
             begin,
@@ -127,196 +121,192 @@ public class HttpPercoClient implements PercoClient {
         return all;
     }
 
-    private List<PercoAccessEvent> fetchAccessEventsForUserChunk(
-        String staffId,
-        String tabel,
-        LocalDate begin,
-        LocalDate end
-    ) throws PercoException {
-        List<PercoAccessEvent> all = new ArrayList<>();
-
-        // Документация: page от 1; total = число страниц, records = всего записей.
-        for (int page = 1; page <= ACCESS_MAX_PAGES; page++) {
-            PercoAccessEventsResponse response = fetchAccessEventsPage(staffId, tabel, begin, end, page, ACCESS_ROWS);
-            List<PercoAccessEvent> batch = response == null || response.rows() == null
-                ? List.of()
-                : response.rows();
-            if (batch.isEmpty()) {
-                break;
-            }
-
-            int matched = 0;
-            for (PercoAccessEvent event : batch) {
-                if (matchesStaffEvent(event, staffId, tabel)) {
-                    all.add(event);
-                    matched++;
-                }
-            }
-
-            int pageCount = response.total() != null ? response.total() : 0;
-            int recordCount = response.records() != null
-                ? response.records()
-                : (pageCount > 0 ? pageCount * ACCESS_ROWS : batch.size());
-
-            // userIds не сработал — огромная выборка чужих событий.
-            if (matched == 0 && recordCount > 200) {
-                log.warn(
-                    "Perco accessReports: userIds не сузил выборку (records={}, matched={}/{}), page={}, staffId={}, {}..{}",
-                    recordCount,
-                    matched,
-                    batch.size(),
-                    page,
-                    staffId,
-                    begin,
-                    end
-                );
-                break;
-            }
-
-            if (pageCount > 0 && page >= pageCount) {
-                break;
-            }
-            if (page * ACCESS_ROWS >= recordCount) {
-                break;
-            }
-        }
-        return all;
-    }
-
-    private static boolean matchesStaffEvent(PercoAccessEvent event, String staffId, String tabel) {
-        if (event.userId() != null) {
-            String eventUserId = String.valueOf(event.userId()).trim();
-            if (!eventUserId.isEmpty() && !"null".equals(eventUserId) && staffId.equals(eventUserId)) {
-                return true;
-            }
-        }
-        String eventTabel = event.resolvedTabelNumber();
-        return eventTabel != null && tabel.equalsIgnoreCase(eventTabel);
-    }
-
-    private PercoAccessEventsResponse fetchAccessEventsPage(
-        String staffId,
-        String tabel,
-        LocalDate begin,
-        LocalDate end,
-        int page,
-        int rows
-    ) throws PercoException {
+    /**
+     * {@code GET /api/taReports/eventsTable} — лицензия УРВ, фильтр по ID пользователя и дате.
+     * type=false: все события, не только учитываемые в расчёте УРВ.
+     */
+    private List<PercoAccessEvent> fetchTaEventsForDay(String staffId, LocalDate date) throws PercoException {
         try {
-            return requestAccessEventsByUserIds(staffId, begin, end, page, rows);
+            return requestTaEventsTable(staffId, date);
         } catch (RestClientResponseException e) {
             if (e.getStatusCode().value() == 401) {
                 token = null;
                 authenticate();
                 try {
-                    return requestAccessEventsByUserIds(staffId, begin, end, page, rows);
+                    return requestTaEventsTable(staffId, date);
                 } catch (RestClientResponseException retry) {
-                    log.error(
-                        "Perco accessReports HTTP {}: {}",
-                        retry.getStatusCode(),
-                        retry.getResponseBodyAsString()
-                    );
-                    throw new PercoException(
-                        "Не удалось получить проходы из Perco-Web (HTTP " + retry.getStatusCode().value() + ")",
-                        retry
-                    );
+                    throw taEventsException(retry);
                 }
             }
-            // Старые версии без userIds — fallback filters.tabel_number (contains в справочнике).
-            int code = e.getStatusCode().value();
-            if (code >= 400 && code < 500) {
-                log.warn(
-                    "Perco accessReports userIds HTTP {}, fallback filters.tabel_number: {}",
-                    code,
-                    e.getResponseBodyAsString()
-                );
-                try {
-                    return requestAccessEventsByTabelFilter(tabel, begin, end, page, rows);
-                } catch (RestClientResponseException filterEx) {
-                    log.error(
-                        "Perco accessReports filters HTTP {}: {}",
-                        filterEx.getStatusCode(),
-                        filterEx.getResponseBodyAsString()
-                    );
-                    throw new PercoException(
-                        "Не удалось получить проходы из Perco-Web (HTTP "
-                            + filterEx.getStatusCode().value() + ")",
-                        filterEx
-                    );
-                }
-            }
-            log.error("Perco accessReports HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new PercoException(
-                "Не удалось получить проходы из Perco-Web (HTTP " + code + ")",
-                e
-            );
+            throw taEventsException(e);
         } catch (ResourceAccessException e) {
-            log.error("Perco accessReports I/O: {}", e.getMessage());
+            log.error("Perco taReports/eventsTable I/O: {}", e.getMessage());
             throw new PercoException("Не удалось подключиться к Perco-Web: " + rootMessage(e), e);
         }
     }
 
-    /**
-     * Основной путь: {@code userIds} — узкий фильтр по ID сотрудника (справочник Perco-Web).
-     */
-    private PercoAccessEventsResponse requestAccessEventsByUserIds(
-        String staffId,
-        LocalDate begin,
-        LocalDate end,
-        int page,
-        int rows
-    ) {
-        return restClient.get()
+    private List<PercoAccessEvent> requestTaEventsTable(String staffId, LocalDate date) {
+        JsonNode body = restClient.get()
             .uri(uriBuilder -> uriBuilder
-                .path("/api/accessReports/events")
+                .path("/api/taReports/eventsTable")
                 .queryParam("token", token)
-                .queryParam("group", "staff")
-                .queryParam("dateBegin", begin.toString())
-                .queryParam("dateEnd", end.toString())
-                .queryParam("userIds", staffId)
-                .queryParam("page", page)
-                .queryParam("rows", rows)
-                .queryParam("sidx", "time_label")
-                .queryParam("sord", "asc")
+                .queryParam("id", staffId)
+                .queryParam("date", date.toString())
+                .queryParam("type", "false")
                 .build())
             .header("Authorization", "Bearer " + token)
             .retrieve()
-            .body(PercoAccessEventsResponse.class);
+            .body(JsonNode.class);
+        return parseTaEventRows(body, date);
+    }
+
+    private PercoException taEventsException(RestClientResponseException e) {
+        int code = e.getStatusCode().value();
+        log.error("Perco taReports/eventsTable HTTP {}: {}", code, e.getResponseBodyAsString());
+        if (code == 403) {
+            return new PercoException(
+                "Нет доступа к УРВ Perco-Web (нужно право timeAttendanceReportsEventsTableGET)",
+                e
+            );
+        }
+        return new PercoException(
+            "Не удалось получить проходы из Perco-Web УРВ (HTTP " + code + ")",
+            e
+        );
+    }
+
+    private List<PercoAccessEvent> parseTaEventRows(JsonNode body, LocalDate date) {
+        if (body == null || body.isNull()) {
+            return List.of();
+        }
+        JsonNode rows = body.get("rows");
+        if (rows == null || !rows.isArray() || rows.isEmpty()) {
+            return List.of();
+        }
+
+        if (!loggedTaRowShape) {
+            loggedTaRowShape = true;
+            JsonNode sample = rows.get(0);
+            if (sample != null && sample.isObject()) {
+                List<String> keys = new ArrayList<>(sample.propertyNames());
+                log.info("Perco taReports/eventsTable поля строки: {}", keys);
+            }
+        }
+
+        List<PercoAccessEvent> events = new ArrayList<>(rows.size());
+        for (JsonNode row : rows) {
+            PercoAccessEvent event = mapTaRow(row, date);
+            if (event != null && event.resolvedTimeLabel() != null) {
+                events.add(event);
+            }
+        }
+        return events;
     }
 
     /**
-     * Fallback: filters по табельному (в справочнике — contains).
+     * Схема rows в справочнике пустая — читаем типичные алиасы полей УРВ/СКУД.
      */
-    private PercoAccessEventsResponse requestAccessEventsByTabelFilter(
-        String tabel,
-        LocalDate begin,
-        LocalDate end,
-        int page,
-        int rows
-    ) {
-        String filtersJson = tabelNumberFilter(tabel);
-        return restClient.get()
-            .uri(
-                "/api/accessReports/events"
-                    + "?token={token}"
-                    + "&group=staff"
-                    + "&dateBegin={dateBegin}"
-                    + "&dateEnd={dateEnd}"
-                    + "&filters={filters}"
-                    + "&page={page}"
-                    + "&rows={rows}"
-                    + "&sidx=time_label"
-                    + "&sord=asc",
-                token,
-                begin.toString(),
-                end.toString(),
-                filtersJson,
-                page,
-                rows
-            )
-            .header("Authorization", "Bearer " + token)
-            .retrieve()
-            .body(PercoAccessEventsResponse.class);
+    private static PercoAccessEvent mapTaRow(JsonNode row, LocalDate date) {
+        if (row == null || row.isNull() || !row.isObject()) {
+            return null;
+        }
+        String time = firstText(
+            row,
+            "time_label", "timeLabel", "datetime", "date_time", "event_datetime",
+            "event_time", "eventTime", "time", "label"
+        );
+        if (time != null && !time.contains("-") && !time.contains(".") && date != null) {
+            // Только время без даты — дополняем датой запроса.
+            time = date + " " + time.trim();
+        }
+
+        String enter = firstText(
+            row,
+            "zone_enter", "zoneEnter", "enter_zone", "area_enter", "room_enter",
+            "in_zone", "zone_in", "enter", "enter_name"
+        );
+        String exit = firstText(
+            row,
+            "zone_exit", "zoneExit", "exit_zone", "area_exit", "room_exit",
+            "out_zone", "zone_out", "exit", "exit_name"
+        );
+
+        if ((enter == null || enter.isBlank()) && (exit == null || exit.isBlank())) {
+            String zone = firstText(row, "zone", "area", "room", "device", "reader", "controller", "name");
+            String direction = firstText(
+                row,
+                "direction", "dir", "event", "event_name", "type_name", "event_type", "action"
+            );
+            if (zone != null && direction != null) {
+                String d = direction.toLowerCase(Locale.ROOT);
+                if (d.contains("вход") || d.contains("enter") || d.equals("in")) {
+                    enter = zone;
+                } else if (d.contains("выход") || d.contains("exit") || d.equals("out") || d.contains("уход")) {
+                    exit = zone;
+                } else {
+                    enter = zone;
+                }
+            } else if (zone != null) {
+                enter = zone;
+            }
+        }
+
+        Object id = textOrNumber(row, "id");
+        Object userId = textOrNumber(row, "user_id", "userId", "staff_id", "staffId");
+        String tabel = firstText(row, "tabel_number", "tabelNumber", "tab_number");
+        String fio = firstText(row, "fio", "name", "fio_name");
+        String identifier = firstText(row, "identifier", "card", "card_number");
+
+        return new PercoAccessEvent(
+            id,
+            tabel,
+            null,
+            fio,
+            time,
+            null,
+            identifier,
+            userId,
+            null,
+            exit,
+            null,
+            enter,
+            firstText(row, "division_name", "divisionName"),
+            firstText(row, "position_name", "positionName")
+        );
+    }
+
+    private static String firstText(JsonNode row, String... fields) {
+        for (String field : fields) {
+            JsonNode node = row.get(field);
+            if (node == null || node.isNull()) {
+                continue;
+            }
+            String value = node.isValueNode() ? node.asText() : node.toString();
+            if (value != null) {
+                value = value.trim();
+                if (!value.isEmpty() && !"null".equalsIgnoreCase(value)) {
+                    return value;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Object textOrNumber(JsonNode row, String... fields) {
+        for (String field : fields) {
+            JsonNode node = row.get(field);
+            if (node == null || node.isNull()) {
+                continue;
+            }
+            if (node.isNumber()) {
+                return node.numberValue();
+            }
+            String value = node.asText();
+            if (value != null && !value.isBlank() && !"null".equalsIgnoreCase(value)) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private static String tabelNumberFilter(String tabel) {
