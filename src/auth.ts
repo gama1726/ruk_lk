@@ -29,7 +29,7 @@ export type LoginCodeChannel = 'EMAIL' | 'MAX'
 /** Ответ `POST /api/auth/identify` */
 export type IdentifyResponseDto = {
   studentId: string
-  maskedEmail: string
+  maskedEmail: string | null
   maskedPhone: string
   emailAvailable: boolean
   maxAvailable: boolean
@@ -50,7 +50,7 @@ export type AuthChannelsDto = {
 
 export type PendingIdentification = {
   studentId: string
-  maskedEmail: string
+  maskedEmail: string | null
   maskedPhone: string
   emailAvailable: boolean
   maxAvailable: boolean
@@ -88,13 +88,9 @@ type AuthState = {
   identifyStudent: (studentId: string) => Promise<FieldError | null>
   sendLoginCode: (channel: LoginCodeChannel) => Promise<string | null>
   resendLoginCode: () => Promise<string | null>
-  signIn: (email: string, password: string) => FieldError | null
-  completeSso: (email: string, password: string) => FieldError | null
   confirmCode: (code: string) => Promise<string | null>
   signOut: () => Promise<void>
 }
-
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function toSession(me: MeResponseDto): Session {
   return {
@@ -231,7 +227,7 @@ export const useAuth = create<AuthState>((set) => ({
       set({
         pendingIdentification: {
           studentId: trimmed,
-          maskedEmail: maskEmail(`${trimmed}@student.ruc.local`),
+          maskedEmail: maskEmail(`${trimmed}@example.com`),
           maskedPhone: maskPhone('+79161234567'),
           emailAvailable: true,
           maxAvailable: true,
@@ -266,7 +262,7 @@ export const useAuth = create<AuthState>((set) => ({
     if (!isApiConfigured()) {
       set((state) => ({
         pendingLogin: {
-          email: `${state.pendingIdentification?.studentId ?? '23И0142'}@student.ruc.local`,
+          email: state.pendingIdentification?.maskedEmail ?? 'email',
           channel,
           deliveryHint:
             channel === 'MAX'
@@ -318,45 +314,6 @@ export const useAuth = create<AuthState>((set) => ({
       }
       return error instanceof Error ? error.message : 'Не удалось отправить код'
     }
-  },
-
-  signIn(email, password) {
-    const trimmed = email.trim()
-
-    if (!trimmed) return { field: 'login', message: 'Укажите почту' }
-    if (!emailPattern.test(trimmed)) return { field: 'login', message: 'Похоже, почта указана с ошибкой' }
-    if (!password) return { field: 'password', message: 'Укажите пароль' }
-    if (password.length < 4) return { field: 'password', message: 'Пароль слишком короткий' }
-
-    set({
-      pendingLogin: {
-        email: trimmed,
-        channel: 'EMAIL',
-        deliveryHint: trimmed,
-      },
-    })
-    return null
-  },
-
-  completeSso(email, password) {
-    const trimmed = email.trim()
-
-    if (!trimmed) return { field: 'login', message: 'Укажите почту' }
-    if (!emailPattern.test(trimmed)) return { field: 'login', message: 'Похоже, почта указана с ошибкой' }
-    if (!password) return { field: 'password', message: 'Укажите пароль' }
-    if (password.length < 4) return { field: 'password', message: 'Пароль слишком короткий' }
-
-    set({
-      session: {
-        studentId: '23И0142',
-        email: trimmed,
-        name: 'Иванов Артём Сергеевич',
-      },
-      pendingIdentification: null,
-      pendingLogin: null,
-    })
-
-    return null
   },
 
   async confirmCode(code) {

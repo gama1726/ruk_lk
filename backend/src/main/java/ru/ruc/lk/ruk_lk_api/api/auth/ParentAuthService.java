@@ -162,7 +162,7 @@ public class ParentAuthService {
                 );
             }
             maxUserId = binding.maxUserId().orElse(null);
-            if (maxUserId == null) {
+            if (!isMaxAvailable(maxUserId)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Сначала привяжите MAX через бота");
             }
         } else if (email == null || email.isBlank()) {
@@ -326,6 +326,10 @@ public class ParentAuthService {
         }
         Object raw = session.getAttribute(PENDING_CHALLENGE_KEY);
         if (!(raw instanceof PendingParentChallenge pending)) {
+            return Optional.empty();
+        }
+        if (pending.createdAt() == null || Instant.now().isAfter(pending.createdAt().plus(otpTtl))) {
+            session.removeAttribute(PENDING_CHALLENGE_KEY);
             return Optional.empty();
         }
         String hint = challengeHint(pending);
@@ -503,7 +507,12 @@ public class ParentAuthService {
         session.removeAttribute("STUDENT");
         session.removeAttribute("PENDING_IDENTIFICATION");
         session.removeAttribute("PENDING_CHALLENGE");
+        session.removeAttribute("AUTH_LAST_CODE_SENT_AT");
         session.removeAttribute(ScheduleContextService.SESSION_KEY);
+    }
+
+    private boolean isMaxAvailable(Long maxUserId) {
+        return maxBindingService.isLoginChannelEnabled() && maxUserId != null;
     }
 
     private void enforceSendCooldown(HttpSession session) {
@@ -575,10 +584,11 @@ public class ParentAuthService {
             return "guardian";
         }
         String normalized = relation.trim().toLowerCase();
-        if (normalized.contains("мать") || normalized.contains("мama")) {
+        if (normalized.contains("мать") || normalized.contains("мама") || normalized.contains("mama")) {
             return "mother";
         }
-        if (normalized.contains("отец") || normalized.contains("отца") || normalized.contains("пapa")) {
+        if (normalized.contains("отец") || normalized.contains("отца") || normalized.contains("папа")
+            || normalized.contains("papa")) {
             return "father";
         }
         return "guardian";

@@ -46,6 +46,15 @@ export function LoginDelivery() {
   const needsMaxBind = maxEnabled && !!pendingIdentification && !pendingIdentification.maxAvailable
 
   useEffect(() => {
+    if (!pendingIdentification) return
+    if (!pendingIdentification.emailAvailable && maxEnabled) {
+      setChannel('MAX')
+    } else if (pendingIdentification.emailAvailable) {
+      setChannel('EMAIL')
+    }
+  }, [pendingIdentification, maxEnabled])
+
+  useEffect(() => {
     if (!needsMaxBind) {
       setBindUrl(undefined)
       return
@@ -162,7 +171,7 @@ export function LoginDelivery() {
           value={channel}
           onChange={setChannel}
           disabled={busy || onCooldown}
-          emailHint={pendingIdentification.maskedEmail}
+          emailHint={pendingIdentification.maskedEmail ?? undefined}
           phoneHint={
             maxBound
               ? 'Код придёт в чат с ботом'

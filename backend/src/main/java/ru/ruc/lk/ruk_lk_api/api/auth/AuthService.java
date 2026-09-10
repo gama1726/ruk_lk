@@ -92,6 +92,7 @@ public class AuthService {
             maxBindingService.resolveBindingForLogin(me.studentId(), phone);
         Long maxUserId = binding.maxUserId().orElse(null);
 
+        clearParentSession(session);
         session.setAttribute(PENDING_IDENTIFICATION_KEY, new PendingIdentification(
             me.studentId(),
             me.fullName(),
@@ -102,6 +103,7 @@ public class AuthService {
         ));
         session.removeAttribute(PENDING_KEY);
         session.removeAttribute(SESSION_KEY);
+        session.removeAttribute(LAST_SEND_AT_KEY);
 
         return toIdentifyResponse(me.studentId(), email, phone, binding);
     }
@@ -160,6 +162,12 @@ public class AuthService {
                 );
             }
         } else {
+            if (pending.email() == null || pending.email().isBlank()) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Email не указан в базе университета. Войдите через MAX или обратитесь в деканат."
+                );
+            }
             maxUserId = maxBindingService.findMaxUserId(pending.studentId()).orElse(null);
         }
 
@@ -250,6 +258,12 @@ public class AuthService {
             }
             deliveryHint = maskPhone(pending.phone());
         } else {
+            if (pending.email() == null || pending.email().isBlank()) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Email не указан в базе университета. Войдите через MAX или обратитесь в деканат."
+                );
+            }
             try {
                 emailSender.sendLoginCode(pending.email(), pending.fullName(), code);
             } catch (EmailSendException e) {
@@ -342,6 +356,7 @@ public class AuthService {
 
         // Не invalidate(): иначе сбросятся параллельные сессии админок пропусков.
         // Session fixation — смена id сессии с сохранением атрибутов.
+        clearParentSession(session);
         session.removeAttribute(PENDING_KEY);
         session.removeAttribute(PENDING_IDENTIFICATION_KEY);
         session.removeAttribute(LAST_SEND_AT_KEY);
@@ -405,12 +420,22 @@ public class AuthService {
         if (session == null) {
             return;
         }
-        // Только студенческая часть — админки СПО/ВО в той же cookie остаются
+        // Студент + родительский pending/сессия; админки СПО/ВО в той же cookie остаются
+        clearParentSession(session);
         session.removeAttribute(SESSION_KEY);
         session.removeAttribute(PENDING_KEY);
         session.removeAttribute(PENDING_IDENTIFICATION_KEY);
         session.removeAttribute(LAST_SEND_AT_KEY);
         session.removeAttribute(ScheduleContextService.SESSION_KEY);
+    }
+
+    /** Сброс родительской сессии в той же cookie — не держим STUDENT и PARENT одновременно. */
+    private void clearParentSession(HttpSession session) {
+        session.removeAttribute(ParentAuthService.SESSION_KEY);
+        session.removeAttribute("PENDING_PARENT_FAMILY");
+        session.removeAttribute("PENDING_PARENT_MEMBER");
+        session.removeAttribute("PENDING_PARENT_CHALLENGE");
+        session.removeAttribute("PARENT_AUTH_LAST_CODE_SENT_AT");
     }
 
     private void enforceSendCooldown(HttpSession session) {
@@ -466,11 +491,12 @@ public class AuthService {
         String phone,
         MaxBindingService.BindingResolution binding
     ) {
+        boolean emailAvailable = email != null && !email.isBlank();
         return new IdentifyResponse(
             studentId,
-            maskEmail(email),
+            emailAvailable ? maskEmail(email) : null,
             maskPhone(phone),
-            true,
+            emailAvailable,
             isMaxAvailable(binding.maxUserId().orElse(null)),
             binding.phoneChanged()
         );
@@ -491,12 +517,13 @@ public class AuthService {
         );
     }
 
+    /** Реальная почта из 1С; без заглушек — иначе код «уходит» в несуществующий ящик. */
     private String resolveEmail(MeResponse me) {
         if (me.email() != null && !me.email().isBlank()) {
             return me.email().trim();
         }
-        log.warn("Почта студента не пришла из 1С для {}, используем заглушку до доработки HTTP-сервиса", me.studentId());
-        return me.studentId() + "@student.ruc.local";
+        log.warn("Почта студента не пришла из 1С для {}", me.studentId());
+        return "";
     }
 
     private String generateCode() {

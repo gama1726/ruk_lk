@@ -4,7 +4,8 @@
 
 import { ApiError } from '@/apiClient'
 
-const DEFAULT_COOLDOWN_SEC = 10
+/** Совпадает с app.auth.send-code-cooldown-seconds на бэкенде. */
+const DEFAULT_COOLDOWN_SEC = 60
 
 /** Секунды блокировки кнопки после ошибки отправки кода. 0 = не блокировать. */
 export function sendCodeCooldownSec(error: { message?: string; status?: number } | string | unknown): number {
@@ -24,7 +25,7 @@ export function sendCodeCooldownSec(error: { message?: string; status?: number }
 function fromStatusAndMessage(status: number, message: string): number {
   const fromText = message.match(/Подождите\s+(\d+)/i)
   if (fromText) {
-    return Math.min(DEFAULT_COOLDOWN_SEC, Math.max(1, Number(fromText[1])))
+    return Math.max(1, Number(fromText[1]))
   }
   if (status === 429 || status === 503 || status >= 500) {
     return DEFAULT_COOLDOWN_SEC
