@@ -43,10 +43,7 @@ public class HttpPercoClient implements PercoClient {
 
     private static final int ACCESS_ROWS = 100;
     private static final int ACCESS_MAX_PAGES = 20;
-    /**
-     * С корректным filters (identifier/fio) период можно брать целиком;
-     * режем на неделю только как страховка от тяжёлых отчётов.
-     */
+    /** С {@code userIds} период узкий; неделя — страховка на тяжёлых инстансах. */
     private static final int ACCESS_CHUNK_DAYS = 7;
 
     private final RestClient restClient;
@@ -105,28 +102,9 @@ public class HttpPercoClient implements PercoClient {
 
         authenticate();
 
-        // 1) Найти сотрудника по табельному (filters.tabel_number работает только в staff/table).
+        // staff/table → user id, затем accessReports?userIds=… (справочник Perco-Web).
         PercoStaffMember staff = findStaffByZachetka(tabel);
         String staffId = requireStaffId(staff, tabel);
-        List<String> cards = staff.resolvedIdentifiers();
-        if (cards.isEmpty()) {
-            // В table иногда нет карт — догружаем карточку.
-            staff = fetchStaffById(staffId);
-            cards = staff.resolvedIdentifiers();
-        }
-
-        // 2) accessReports: documented filters — identifier / fio (НЕ tabel_number, НЕ user_id).
-        //    См. документацию Perco-Web /accessReports/events (колонки filters).
-        String filters;
-        try {
-            filters = buildAccessReportFilters(staff, cards);
-        } catch (IllegalArgumentException e) {
-            throw new PercoException(
-                "У сотрудника в Perco-Web нет карты и ФИО для фильтра проходов (зачётка " + tabel + ")",
-                e
-            );
-        }
-        String searchHint = !cards.isEmpty() ? cards.getFirst() : staff.resolvedFio();
 
         List<PercoAccessEvent> all = new ArrayList<>();
         for (LocalDate chunkBegin = begin; !chunkBegin.isAfter(end); ) {
@@ -134,22 +112,14 @@ public class HttpPercoClient implements PercoClient {
             if (chunkEnd.isAfter(end)) {
                 chunkEnd = end;
             }
-            all.addAll(fetchAccessEventsForStaffChunk(
-                staffId,
-                tabel,
-                filters,
-                searchHint,
-                chunkBegin,
-                chunkEnd
-            ));
+            all.addAll(fetchAccessEventsForUserChunk(staffId, tabel, chunkBegin, chunkEnd));
             chunkBegin = chunkEnd.plusDays(1);
         }
 
         log.info(
-            "Perco проходы: зачётка={}, staffId={}, cards={}, {}..{}, событий={}",
+            "Perco проходы: зачётка={}, staffId={}, {}..{}, событий={}",
             tabel,
             staffId,
-            cards.size(),
             begin,
             end,
             all.size()
@@ -157,53 +127,17 @@ public class HttpPercoClient implements PercoClient {
         return all;
     }
 
-    /**
-     * Фильтр отчёта проходов по документации Perco-Web:
-     * column ∈ event_date, fio*, identifier*, division, position, access_template,
-     * supporting_document*, supporting_document_number*, in, out, accompanying_name*
-     * (* — поиск «содержит»).
-     */
-    private static String buildAccessReportFilters(PercoStaffMember staff, List<String> cards) {
-        if (cards != null && !cards.isEmpty()) {
-            StringBuilder rows = new StringBuilder();
-            for (int i = 0; i < cards.size(); i++) {
-                if (i > 0) {
-                    rows.append(',');
-                }
-                rows.append("{\"column\":\"identifier\",\"value\":\"")
-                    .append(escapeJson(cards.get(i)))
-                    .append("\"}");
-            }
-            // Несколько карт — OR.
-            return "{\"type\":\"or\",\"rows\":[" + rows + "]}";
-        }
-        String fio = staff.resolvedFio();
-        if (fio != null && !fio.isBlank()) {
-            return "{\"type\":\"and\",\"rows\":[{\"column\":\"fio\",\"value\":\"%s\"}]}"
-                .formatted(escapeJson(fio));
-        }
-        throw new IllegalArgumentException("Нет карты и ФИО для фильтра accessReports");
-    }
-
-    private List<PercoAccessEvent> fetchAccessEventsForStaffChunk(
+    private List<PercoAccessEvent> fetchAccessEventsForUserChunk(
         String staffId,
         String tabel,
-        String filters,
-        String searchHint,
         LocalDate begin,
         LocalDate end
     ) throws PercoException {
         List<PercoAccessEvent> all = new ArrayList<>();
 
-        for (int page = 0; page < ACCESS_MAX_PAGES; page++) {
-            PercoAccessEventsResponse response = fetchAccessEventsPage(
-                filters,
-                searchHint,
-                begin,
-                end,
-                page,
-                ACCESS_ROWS
-            );
+        // Документация: page от 1; total = число страниц, records = всего записей.
+        for (int page = 1; page <= ACCESS_MAX_PAGES; page++) {
+            PercoAccessEventsResponse response = fetchAccessEventsPage(staffId, tabel, begin, end, page, ACCESS_ROWS);
             List<PercoAccessEvent> batch = response == null || response.rows() == null
                 ? List.of()
                 : response.rows();
@@ -219,24 +153,19 @@ public class HttpPercoClient implements PercoClient {
                 }
             }
 
-            int total = response.total() != null ? response.total() : batch.size();
-            // Фильтр не сработал — Perco отдал чужой объём; не листаем дальше.
-            if (matched == 0 && total > batch.size() * 2) {
+            int pageCount = response.total() != null ? response.total() : 0;
+            int recordCount = response.records() != null
+                ? response.records()
+                : (pageCount > 0 ? pageCount * ACCESS_ROWS : batch.size());
+
+            // userIds не сработал — огромная выборка чужих событий.
+            if (matched == 0 && recordCount > 200) {
                 log.warn(
-                    "Perco accessReports: фильтр не сузил выборку (total={}, matched={}/{}), page={}, {}..{}",
-                    total,
+                    "Perco accessReports: userIds не сузил выборку (records={}, matched={}/{}), page={}, staffId={}, {}..{}",
+                    recordCount,
                     matched,
                     batch.size(),
                     page,
-                    begin,
-                    end
-                );
-                break;
-            }
-            if (matched == 0 && page == 0 && total > 200) {
-                log.warn(
-                    "Perco accessReports: слишком широкий ответ (total={}), staffId={}, {}..{}",
-                    total,
                     staffId,
                     begin,
                     end
@@ -244,8 +173,10 @@ public class HttpPercoClient implements PercoClient {
                 break;
             }
 
-            int loaded = (page + 1) * ACCESS_ROWS;
-            if (loaded >= total) {
+            if (pageCount > 0 && page >= pageCount) {
+                break;
+            }
+            if (page * ACCESS_ROWS >= recordCount) {
                 break;
             }
         }
@@ -264,21 +195,21 @@ public class HttpPercoClient implements PercoClient {
     }
 
     private PercoAccessEventsResponse fetchAccessEventsPage(
-        String filtersJson,
-        String searchHint,
+        String staffId,
+        String tabel,
         LocalDate begin,
         LocalDate end,
         int page,
         int rows
     ) throws PercoException {
         try {
-            return requestAccessEventsPageFiltered(filtersJson, begin, end, page, rows);
+            return requestAccessEventsByUserIds(staffId, begin, end, page, rows);
         } catch (RestClientResponseException e) {
             if (e.getStatusCode().value() == 401) {
                 token = null;
                 authenticate();
                 try {
-                    return requestAccessEventsPageFiltered(filtersJson, begin, end, page, rows);
+                    return requestAccessEventsByUserIds(staffId, begin, end, page, rows);
                 } catch (RestClientResponseException retry) {
                     log.error(
                         "Perco accessReports HTTP {}: {}",
@@ -291,26 +222,26 @@ public class HttpPercoClient implements PercoClient {
                     );
                 }
             }
-            // filters отвергнут — узкий searchString по карте/ФИО (не по табельному!).
+            // Старые версии без userIds — fallback filters.tabel_number (contains в справочнике).
             int code = e.getStatusCode().value();
-            if (code >= 400 && code < 500 && searchHint != null && !searchHint.isBlank()) {
+            if (code >= 400 && code < 500) {
                 log.warn(
-                    "Perco accessReports filters HTTP {}, fallback searchString: {}",
+                    "Perco accessReports userIds HTTP {}, fallback filters.tabel_number: {}",
                     code,
                     e.getResponseBodyAsString()
                 );
                 try {
-                    return requestAccessEventsPageSearch(searchHint, begin, end, page, rows);
-                } catch (RestClientResponseException searchEx) {
+                    return requestAccessEventsByTabelFilter(tabel, begin, end, page, rows);
+                } catch (RestClientResponseException filterEx) {
                     log.error(
-                        "Perco accessReports searchString HTTP {}: {}",
-                        searchEx.getStatusCode(),
-                        searchEx.getResponseBodyAsString()
+                        "Perco accessReports filters HTTP {}: {}",
+                        filterEx.getStatusCode(),
+                        filterEx.getResponseBodyAsString()
                     );
                     throw new PercoException(
                         "Не удалось получить проходы из Perco-Web (HTTP "
-                            + searchEx.getStatusCode().value() + ")",
-                        searchEx
+                            + filterEx.getStatusCode().value() + ")",
+                        filterEx
                     );
                 }
             }
@@ -326,16 +257,44 @@ public class HttpPercoClient implements PercoClient {
     }
 
     /**
-     * Отчёт проходов с {@code filters} по identifier или fio (документация Perco-Web).
+     * Основной путь: {@code userIds} — узкий фильтр по ID сотрудника (справочник Perco-Web).
      */
-    private PercoAccessEventsResponse requestAccessEventsPageFiltered(
-        String filtersJson,
+    private PercoAccessEventsResponse requestAccessEventsByUserIds(
+        String staffId,
         LocalDate begin,
         LocalDate end,
         int page,
         int rows
     ) {
-        // filters JSON содержит { } — через UriBuilder Spring воспринимает это как URI-шаблон.
+        return restClient.get()
+            .uri(uriBuilder -> uriBuilder
+                .path("/api/accessReports/events")
+                .queryParam("token", token)
+                .queryParam("group", "staff")
+                .queryParam("dateBegin", begin.toString())
+                .queryParam("dateEnd", end.toString())
+                .queryParam("userIds", staffId)
+                .queryParam("page", page)
+                .queryParam("rows", rows)
+                .queryParam("sidx", "time_label")
+                .queryParam("sord", "asc")
+                .build())
+            .header("Authorization", "Bearer " + token)
+            .retrieve()
+            .body(PercoAccessEventsResponse.class);
+    }
+
+    /**
+     * Fallback: filters по табельному (в справочнике — contains).
+     */
+    private PercoAccessEventsResponse requestAccessEventsByTabelFilter(
+        String tabel,
+        LocalDate begin,
+        LocalDate end,
+        int page,
+        int rows
+    ) {
+        String filtersJson = tabelNumberFilter(tabel);
         return restClient.get()
             .uri(
                 "/api/accessReports/events"
@@ -360,57 +319,9 @@ public class HttpPercoClient implements PercoClient {
             .body(PercoAccessEventsResponse.class);
     }
 
-    private PercoAccessEventsResponse requestAccessEventsPageSearch(
-        String searchHint,
-        LocalDate begin,
-        LocalDate end,
-        int page,
-        int rows
-    ) {
-        return restClient.get()
-            .uri(uriBuilder -> uriBuilder
-                .path("/api/accessReports/events")
-                .queryParam("token", token)
-                .queryParam("group", "staff")
-                .queryParam("dateBegin", begin.toString())
-                .queryParam("dateEnd", end.toString())
-                .queryParam("searchString", searchHint)
-                .queryParam("page", page)
-                .queryParam("rows", rows)
-                .queryParam("sidx", "time_label")
-                .queryParam("sord", "asc")
-                .build())
-            .header("Authorization", "Bearer " + token)
-            .retrieve()
-            .body(PercoAccessEventsResponse.class);
-    }
-
     private static String tabelNumberFilter(String tabel) {
         return "{\"type\":\"and\",\"rows\":[{\"column\":\"tabel_number\",\"value\":\"%s\"}]}"
             .formatted(escapeJson(tabel));
-    }
-
-    private PercoStaffMember fetchStaffById(String staffId) throws PercoException {
-        try {
-            PercoStaffMember staff = restClient.get()
-                .uri(uriBuilder -> uriBuilder
-                    .path("/api/users/staff/{id}")
-                    .queryParam("token", token)
-                    .build(staffId))
-                .header("Authorization", "Bearer " + token)
-                .retrieve()
-                .body(PercoStaffMember.class);
-            if (staff == null) {
-                throw new PercoException("Perco-Web: пустая карточка сотрудника id=" + staffId);
-            }
-            return staff;
-        } catch (RestClientResponseException e) {
-            log.error("Perco staff/{id} HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new PercoException("Не удалось получить карточку сотрудника в Perco-Web", e);
-        } catch (ResourceAccessException e) {
-            log.error("Perco staff/{id} I/O: {}", e.getMessage());
-            throw new PercoException("Не удалось подключиться к Perco-Web: " + rootMessage(e), e);
-        }
     }
 
     private void authenticate() throws PercoException {
