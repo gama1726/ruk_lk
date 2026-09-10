@@ -24,7 +24,8 @@ public class SecurityConfig {
         StudentSessionAuthFilter studentSessionAuthFilter,
         ParentSessionAuthFilter parentSessionAuthFilter,
         AdminSessionAuthFilter adminSessionAuthFilter,
-        EventsSessionAuthFilter eventsSessionAuthFilter
+        EventsSessionAuthFilter eventsSessionAuthFilter,
+        CabinetPresenceFilter cabinetPresenceFilter
     ) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
@@ -43,7 +44,8 @@ public class SecurityConfig {
             .addFilterBefore(adminSessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(eventsSessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(parentSessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(studentSessionAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(studentSessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(cabinetPresenceFilter, StudentSessionAuthFilter.class);
 
         return http.build();
     }

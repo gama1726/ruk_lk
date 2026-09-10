@@ -27,6 +27,7 @@ import ru.ruc.lk.ruk_lk_api.integration.max.MaxSendException;
 import ru.ruc.lk.ruk_lk_api.integration.max.VerificationMaxSender;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.api.student.ScheduleContextService;
+import ru.ruc.lk.ruk_lk_api.cabinet.CabinetUserService;
 
 @Service
 public class AuthService {
@@ -42,6 +43,7 @@ public class AuthService {
     private final VerificationMaxSender maxSender;
     private final MaxBindingService maxBindingService;
     private final ScheduleContextService scheduleContextService;
+    private final CabinetUserService cabinetUserService;
     private final String fixedCode;
     private final Duration otpTtl;
     private final int otpMaxAttempts;
@@ -53,6 +55,7 @@ public class AuthService {
         VerificationMaxSender maxSender,
         MaxBindingService maxBindingService,
         ScheduleContextService scheduleContextService,
+        CabinetUserService cabinetUserService,
         @Value("${app.auth.fixed-code:}") String fixedCode,
         @Value("${app.auth.otp-ttl-seconds:300}") long otpTtlSeconds,
         @Value("${app.auth.otp-max-attempts:5}") int otpMaxAttempts,
@@ -63,6 +66,7 @@ public class AuthService {
         this.maxSender = maxSender;
         this.maxBindingService = maxBindingService;
         this.scheduleContextService = scheduleContextService;
+        this.cabinetUserService = cabinetUserService;
         this.fixedCode = fixedCode;
         this.otpTtl = Duration.ofSeconds(Math.max(60, otpTtlSeconds));
         this.otpMaxAttempts = Math.max(1, otpMaxAttempts);
@@ -272,6 +276,11 @@ public class AuthService {
         session.setAttribute(SESSION_KEY, student);
         request.changeSessionId();
         scheduleContextService.warmQuietly(session, student);
+        try {
+            cabinetUserService.recordStudentLogin(student);
+        } catch (RuntimeException e) {
+            log.warn("Не удалось записать вход студента в статистику: {}", e.getMessage());
+        }
 
         return toMeResponse(student);
     }

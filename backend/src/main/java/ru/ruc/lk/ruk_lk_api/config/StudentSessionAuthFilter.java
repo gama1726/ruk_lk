@@ -19,7 +19,7 @@ import jakarta.servlet.http.HttpSession;
 @Component
 public class StudentSessionAuthFilter extends OncePerRequestFilter {
 
-    static final String SESSION_KEY = "STUDENT";
+    public static final String SESSION_KEY = "STUDENT";
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {

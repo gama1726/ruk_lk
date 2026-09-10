@@ -19,6 +19,7 @@ import {
 import { paths } from '@/paths'
 import { Button, Input, Loader, LoadError, Modal, NoData, Select, Textarea } from '@/ui'
 import { AdminEventsShell } from '@/pages/admin-events-shell'
+import { AdminEventsStats } from '@/pages/admin-events-stats'
 import styles from './admin-events.module.css'
 
 type Draft = {
@@ -163,6 +164,8 @@ export function AdminEventsPage() {
 
   return (
     <AdminEventsShell pageSection="Список" username={username} onLogout={() => void onLogout()}>
+      <AdminEventsStats />
+
       <div className={styles.toolbar}>
         <h1 className={styles.pageTitle}>Мероприятия</h1>
         <Button type="button" onClick={openCreate}>

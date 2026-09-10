@@ -32,6 +32,7 @@ import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCFamilyResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCParentMember;
 import ru.ruc.lk.ruk_lk_api.api.student.ScheduleContextService;
+import ru.ruc.lk.ruk_lk_api.cabinet.CabinetUserService;
 
 @Service
 public class ParentAuthService {
@@ -53,6 +54,7 @@ public class ParentAuthService {
     private final VerificationEmailSender emailSender;
     private final VerificationMaxSender maxSender;
     private final MaxBindingService maxBindingService;
+    private final CabinetUserService cabinetUserService;
     private final String fixedCode;
     private final Duration otpTtl;
     private final int otpMaxAttempts;
@@ -63,6 +65,7 @@ public class ParentAuthService {
         VerificationEmailSender emailSender,
         VerificationMaxSender maxSender,
         MaxBindingService maxBindingService,
+        CabinetUserService cabinetUserService,
         @Value("${app.auth.fixed-code:}") String fixedCode,
         @Value("${app.auth.otp-ttl-seconds:300}") long otpTtlSeconds,
         @Value("${app.auth.otp-max-attempts:5}") int otpMaxAttempts,
@@ -72,6 +75,7 @@ public class ParentAuthService {
         this.emailSender = emailSender;
         this.maxSender = maxSender;
         this.maxBindingService = maxBindingService;
+        this.cabinetUserService = cabinetUserService;
         this.fixedCode = fixedCode;
         this.otpTtl = Duration.ofSeconds(Math.max(60, otpTtlSeconds));
         this.otpMaxAttempts = Math.max(1, otpMaxAttempts);
@@ -276,6 +280,11 @@ public class ParentAuthService {
         session.removeAttribute(ScheduleContextService.SESSION_KEY);
         session.setAttribute(SESSION_KEY, parentSession);
         request.changeSessionId();
+        try {
+            cabinetUserService.recordParentLogin(parentSession);
+        } catch (RuntimeException e) {
+            log.warn("Не удалось записать вход родителя в статистику: {}", e.getMessage());
+        }
 
         return toMeResponse(parentSession);
     }

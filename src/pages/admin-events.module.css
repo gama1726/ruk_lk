@@ -305,3 +305,175 @@
   justify-content: flex-end;
   gap: 0.5rem;
 }
+
+.statsSection {
+  margin-bottom: 1.75rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.statsHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.statsTitle {
+  margin: 0 0 0.25rem;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+}
+
+.statsHint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.statsRange {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem;
+}
+
+.statsCards {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+}
+
+.statCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.statLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.statValue {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.chartCard,
+.usersCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.1rem;
+}
+
+.chartTitle {
+  margin: 0 0 0.85rem;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.2rem;
+  min-height: 140px;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.chartCol {
+  flex: 1 0 14px;
+  min-width: 14px;
+  max-width: 28px;
+  display: grid;
+  gap: 0.3rem;
+  justify-items: center;
+}
+
+.chartBars {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.chartBarStudent,
+.chartBarParent {
+  flex: 1;
+  min-height: 0;
+  border-radius: 3px 3px 0 0;
+}
+
+.chartBarStudent {
+  background: #51308e;
+}
+
+.chartBarParent {
+  background: #7c5cbf;
+}
+
+.chartDay {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.chartLegend i {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 2px;
+  margin-right: 0.35rem;
+  vertical-align: -1px;
+}
+
+.legendStudent {
+  background: #51308e;
+}
+
+.legendParent {
+  background: #7c5cbf;
+}
+
+.usersTableWrap {
+  overflow-x: auto;
+}
+
+.usersTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.usersTable th,
+.usersTable td {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.usersTable th {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+

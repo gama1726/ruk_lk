@@ -47,3 +47,36 @@ export async function updateAdminEvent(id: string, body: CampusEventWrite): Prom
 export async function deleteAdminEvent(id: string): Promise<void> {
   await apiDelete<{ ok: string }>(`/api/admin/events/${id}`)
 }
+
+export type CabinetStatsDay = {
+  date: string
+  students: number
+  parents: number
+  total: number
+}
+
+export type CabinetUserListItem = {
+  id: string
+  role: string
+  studentId: string
+  displayName: string
+  firstLoginAt: string
+  lastLoginAt: string
+  lastSeenAt: string
+}
+
+export type CabinetStats = {
+  totalRegistered: number
+  onlineNow: number
+  newInRange: number
+  onlineWindowMinutes: number
+  from: string
+  to: string
+  series: CabinetStatsDay[]
+  recentUsers: CabinetUserListItem[]
+}
+
+export async function fetchEventsAdminStats(from: string, to: string): Promise<CabinetStats> {
+  const params = new URLSearchParams({ from, to })
+  return apiGet<CabinetStats>(`/api/admin/events/stats?${params}`)
+}
