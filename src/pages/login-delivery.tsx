@@ -67,6 +67,7 @@ export function LoginDelivery() {
   useEffect(() => {
     if (!needsMaxBind) return
     const id = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return
       void refreshPendingIdentification()
     }, 4000)
     return () => window.clearInterval(id)

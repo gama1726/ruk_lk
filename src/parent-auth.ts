@@ -195,6 +195,9 @@ export const useParentAuth = create<ParentAuthState>((set, get) => ({
     try {
       return await apiGet<{ url: string; expiresInSeconds: number }>('/api/auth/parent/max-bind-link')
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        set({ pendingDelivery: null, pendingFamily: null, pendingChallenge: null })
+      }
       if (error instanceof ApiError) return error.message || 'Не удалось получить ссылку MAX'
       return error instanceof Error ? error.message : 'Не удалось получить ссылку MAX'
     }
@@ -209,6 +212,10 @@ export const useParentAuth = create<ParentAuthState>((set, get) => ({
       set({ pendingDelivery: delivery })
       return null
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        // Сессия/pending потеряны — сбрасываем шаг, иначе polling каждые 4с сыпет 401.
+        set({ pendingDelivery: null, pendingFamily: null, pendingChallenge: null })
+      }
       if (error instanceof ApiError) return error.message || 'Не удалось обновить данные'
       return error instanceof Error ? error.message : 'Не удалось обновить данные'
     }

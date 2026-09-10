@@ -70,6 +70,7 @@ export function ParentLoginDelivery() {
   useEffect(() => {
     if (!needsMaxBind) return
     const id = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return
       void refreshPendingDelivery()
     }, 4000)
     return () => window.clearInterval(id)

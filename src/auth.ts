@@ -189,6 +189,9 @@ export const useAuth = create<AuthState>((set) => ({
     try {
       return await apiGet<{ url: string; expiresInSeconds: number }>('/api/auth/max-bind-link')
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        set({ pendingIdentification: null, pendingLogin: null })
+      }
       if (error instanceof ApiError) {
         return error.message || 'Не удалось получить ссылку на бота MAX'
       }
@@ -208,6 +211,10 @@ export const useAuth = create<AuthState>((set) => ({
       })
       return null
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        // Сессия/pending потеряны — сбрасываем шаг, иначе polling каждые 4с сыпет 401.
+        set({ pendingIdentification: null, pendingLogin: null })
+      }
       if (error instanceof ApiError) {
         return error.message || 'Не удалось обновить статус привязки'
       }
