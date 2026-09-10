@@ -1,9 +1,30 @@
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: ruk-lk-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ruk_lk}
+      POSTGRES_USER: ${POSTGRES_USER:-ruk_lk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ruk_lk}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - ruk-lk
+
   api:
     build:
       context: ./backend
     container_name: ruk-lk-api
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - ./backend/application-local.properties:/app/application-local.properties:ro
       - ./data:/app/data
@@ -11,6 +32,9 @@ services:
       - ./certs/cacerts-with-mincifry:/app/certs/cacerts-with-mincifry:ro
     environment:
       SPRING_PROFILES_ACTIVE: onec,prod,docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-ruk_lk}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-ruk_lk}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-ruk_lk}
       JAVA_TOOL_OPTIONS: >-
         -Djavax.net.ssl.trustStore=/app/certs/cacerts-with-mincifry
         -Djavax.net.ssl.trustStorePassword=changeit

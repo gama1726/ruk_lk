@@ -31,5 +31,7 @@ backend/.idea
 backend/.vscode
 backend/data/
 
+# Docker volumes (postgres, pass-photos, старый H2)
+/data/
 
 docs/security-remediation.md
