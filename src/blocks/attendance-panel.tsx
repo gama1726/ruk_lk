@@ -10,6 +10,8 @@ import {
   formatStayDuration,
   isAttendanceAbsent,
   isAttendanceApiEnabled,
+  isAttendanceRangeTooLong,
+  ATTENDANCE_MAX_RANGE_DAYS,
   lessonStatusLabel,
   type StudentAttendanceDto,
 } from '@/attendance'
@@ -215,6 +217,11 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
   }
 
   const applyFilters = () => {
+    if (from && to && isAttendanceRangeTooLong(from, to)) {
+      setError(`Период не больше ${ATTENDANCE_MAX_RANGE_DAYS} дней`)
+      return
+    }
+    setError(null)
     setAppliedFrom(from)
     setAppliedTo(to)
   }

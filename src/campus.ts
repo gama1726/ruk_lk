@@ -24,14 +24,13 @@ export function isKazanKkiCampus(...parts: Array<string | null | undefined>): bo
 }
 
 /**
- * Раздел «Посещаемость»: временно скрыт для всех.
- * (раньше: головной вуз Perco / Казань ZKBio)
+ * Раздел «Посещаемость»: головной вуз (Perco) и Казань ККИ (ZKBio).
  */
-export const ATTENDANCE_FEATURE_ENABLED = false
+export const ATTENDANCE_FEATURE_ENABLED = true
 
 /**
  * Раздел «Посещаемость» в навигации.
- * Пока {@link ATTENDANCE_FEATURE_ENABLED} = false — никому не показываем.
+ * Головной кампус — всегда; филиалы — только Казань ККИ.
  */
 export function isAttendanceNavVisible(profile: {
   faculty?: string

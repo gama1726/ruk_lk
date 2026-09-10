@@ -29,6 +29,20 @@ export type StudentAttendanceDto = {
   summary: AttendanceSummaryDto
 }
 
+/** Максимальный диапазон дат посещаемости (включительно по разнице календарных дней). */
+export const ATTENDANCE_MAX_RANGE_DAYS = 31
+
+export function isAttendanceRangeTooLong(from: string, to: string): boolean {
+  if (!from || !to) return false
+  const start = new Date(`${from}T00:00:00`)
+  const end = new Date(`${to}T00:00:00`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false
+  const begin = start <= end ? start : end
+  const finish = start <= end ? end : start
+  const diffDays = Math.round((finish.getTime() - begin.getTime()) / 86_400_000)
+  return diffDays > ATTENDANCE_MAX_RANGE_DAYS
+}
+
 export function isAttendanceApiEnabled(): boolean {
   return isApiConfigured()
 }
