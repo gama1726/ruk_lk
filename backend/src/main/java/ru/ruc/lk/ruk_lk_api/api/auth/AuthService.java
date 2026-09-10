@@ -215,6 +215,76 @@ public class AuthService {
         );
     }
 
+    /** Повторная отправка по уже созданному challenge (тот же канал). */
+    public LoginChallengeResponse resendCode(HttpSession session) {
+        enforceSendCooldown(session);
+
+        Object raw = session.getAttribute(PENDING_KEY);
+        if (!(raw instanceof PendingChallenge pending)) {
+            throw new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Сначала запросите код входа"
+            );
+        }
+
+        LoginCodeChannel delivery = pending.channel() == null ? LoginCodeChannel.EMAIL : pending.channel();
+        String code = generateCode();
+        String deliveryHint;
+
+        if (delivery == LoginCodeChannel.MAX) {
+            Long maxUserId = pending.maxUserId();
+            if (!isMaxAvailable(maxUserId)) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Сначала привяжите MAX через бота"
+                );
+            }
+            try {
+                maxSender.sendLoginCode(maxUserId, pending.fullName(), code);
+            } catch (MaxSendException e) {
+                markSendAttempt(session);
+                throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Не удалось отправить код в MAX. Попробуйте email или позже."
+                );
+            }
+            deliveryHint = maskPhone(pending.phone());
+        } else {
+            try {
+                emailSender.sendLoginCode(pending.email(), pending.fullName(), code);
+            } catch (EmailSendException e) {
+                markSendAttempt(session);
+                throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Не удалось отправить код входа на email. Попробуйте позже."
+                );
+            }
+            deliveryHint = maskEmail(pending.email());
+        }
+
+        Instant now = Instant.now();
+        session.setAttribute(PENDING_KEY, new PendingChallenge(
+            pending.studentId(),
+            pending.fullName(),
+            pending.email(),
+            pending.phone(),
+            pending.maxUserId(),
+            delivery,
+            code,
+            pending.programs(),
+            now,
+            0
+        ));
+        session.setAttribute(LAST_SEND_AT_KEY, now);
+
+        return new LoginChallengeResponse(
+            pending.studentId(),
+            deliveryHint,
+            delivery,
+            deliveryHint
+        );
+    }
+
     /** Шаг 3: подтверждение кода, создание сессии (с ротацией session id). */
     public MeResponse verifyCode(String code, HttpServletRequest request) {
         HttpSession session = request.getSession(false);

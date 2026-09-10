@@ -63,6 +63,7 @@ type ParentAuthState = {
   fetchMaxBindLink: () => Promise<{ url: string } | string>
   refreshPendingDelivery: () => Promise<string | null>
   sendLoginCode: (channel: LoginCodeChannel) => Promise<string | null>
+  resendLoginCode: () => Promise<string | null>
   confirmCode: (code: string) => Promise<string | null>
   signOut: () => Promise<void>
 }
@@ -80,7 +81,7 @@ function toSession(me: ParentMeResponseDto): ParentSession {
   }
 }
 
-export const useParentAuth = create<ParentAuthState>((set) => ({
+export const useParentAuth = create<ParentAuthState>((set, get) => ({
   session: null,
   pendingFamily: null,
   pendingDelivery: null,
@@ -235,6 +236,11 @@ export const useParentAuth = create<ParentAuthState>((set) => ({
       if (error instanceof ApiError) return error.message || 'Не удалось отправить код'
       return error instanceof Error ? error.message : 'Не удалось отправить код'
     }
+  },
+
+  async resendLoginCode() {
+    const channel = get().pendingChallenge?.channel ?? 'EMAIL'
+    return get().sendLoginCode(channel)
   },
 
   async confirmCode(code) {

@@ -87,6 +87,7 @@ type AuthState = {
   refreshPendingIdentification: () => Promise<string | null>
   identifyStudent: (studentId: string) => Promise<FieldError | null>
   sendLoginCode: (channel: LoginCodeChannel) => Promise<string | null>
+  resendLoginCode: () => Promise<string | null>
   signIn: (email: string, password: string) => FieldError | null
   completeSso: (email: string, password: string) => FieldError | null
   confirmCode: (code: string) => Promise<string | null>
@@ -272,6 +273,29 @@ export const useAuth = create<AuthState>((set) => ({
 
     try {
       const challenge = await apiPost<LoginChallengeDto>('/api/auth/send-code', { channel })
+      set({
+        pendingLogin: {
+          email: challenge.email,
+          channel: challenge.channel ?? 'EMAIL',
+          deliveryHint: challenge.deliveryHint,
+        },
+        pendingIdentification: null,
+      })
+      return null
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return error.message || 'Не удалось отправить код'
+      }
+      return error instanceof Error ? error.message : 'Не удалось отправить код'
+    }
+  },
+
+  async resendLoginCode() {
+    if (!isApiConfigured()) {
+      return null
+    }
+    try {
+      const challenge = await apiPost<LoginChallengeDto>('/api/auth/resend-code', {})
       set({
         pendingLogin: {
           email: challenge.email,

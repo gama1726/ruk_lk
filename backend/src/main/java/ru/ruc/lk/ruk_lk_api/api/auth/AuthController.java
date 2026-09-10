@@ -67,6 +67,12 @@ public class AuthController {
         return authService.sendCode(body.channelOrDefault(), session);
     }
 
+    /** Повторная отправка кода при уже активном challenge. */
+    @PostMapping("/resend-code")
+    public LoginChallengeResponse resendCode(HttpSession session) {
+        return authService.resendCode(session);
+    }
+
     /** Шаг 3: код → сессия. */
     @PostMapping("/verify-code")
     public MeResponse verifyCode(@RequestBody VerifyCodeRequest body, HttpServletRequest request) {
