@@ -6,7 +6,6 @@ import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -16,7 +15,6 @@ import java.util.Map;
 import javax.imageio.ImageIO;
 import javax.net.ssl.SSLContext;
 
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
@@ -494,40 +492,38 @@ public class HttpPercoClient implements PercoClient {
      * JDK HttpClient этого не умеет надёжно (SAN/IP).
      */
     private static HttpComponentsClientHttpRequestFactory buildRequestFactory(boolean trustSelfSigned) {
-        HttpComponentsClientHttpRequestFactory factory;
-        if (!trustSelfSigned) {
-            factory = new HttpComponentsClientHttpRequestFactory();
-        } else {
-            try {
+        // Таймауты на Apache HttpClient 5 — API factory.setConnectTimeout(Duration) в этой версии Spring нет.
+        var requestConfig = org.apache.hc.client5.http.config.RequestConfig.custom()
+            .setConnectionRequestTimeout(org.apache.hc.core5.util.Timeout.ofSeconds(5))
+            .setResponseTimeout(org.apache.hc.core5.util.Timeout.ofSeconds(25))
+            .build();
+
+        try {
+            var clientBuilder = HttpClients.custom()
+                .setDefaultRequestConfig(requestConfig)
+                .evictExpiredConnections();
+
+            if (trustSelfSigned) {
                 SSLContext sslContext = SSLContexts.custom()
                     .loadTrustMaterial(null, TrustAllStrategy.INSTANCE)
                     .build();
-
-                CloseableHttpClient httpClient = HttpClients.custom()
-                    .setConnectionManager(
-                        PoolingHttpClientConnectionManagerBuilder.create()
-                            .setTlsSocketStrategy(
-                                // CLIENT + Noop: без встроенной JSSE-проверки SAN (BUILTIN ломает доступ по IP)
-                                new DefaultClientTlsStrategy(
-                                    sslContext,
-                                    HostnameVerificationPolicy.CLIENT,
-                                    NoopHostnameVerifier.INSTANCE
-                                )
+                clientBuilder.setConnectionManager(
+                    PoolingHttpClientConnectionManagerBuilder.create()
+                        .setTlsSocketStrategy(
+                            // CLIENT + Noop: без встроенной JSSE-проверки SAN (BUILTIN ломает доступ по IP)
+                            new DefaultClientTlsStrategy(
+                                sslContext,
+                                HostnameVerificationPolicy.CLIENT,
+                                NoopHostnameVerifier.INSTANCE
                             )
-                            .build()
-                    )
-                    .evictExpiredConnections()
-                    .build();
-
-                factory = new HttpComponentsClientHttpRequestFactory(httpClient);
-            } catch (Exception e) {
-                throw new IllegalStateException("Не удалось настроить SSL для Perco-Web", e);
+                        )
+                        .build()
+                );
             }
+
+            return new HttpComponentsClientHttpRequestFactory(clientBuilder.build());
+        } catch (Exception e) {
+            throw new IllegalStateException("Не удалось настроить HTTP-клиент для Perco-Web", e);
         }
-        // Не держим Perco бесконечно: лучше 504 у нас, чем полный даун СКУД.
-        factory.setConnectTimeout(Duration.ofSeconds(5));
-        factory.setConnectionRequestTimeout(Duration.ofSeconds(5));
-        factory.setReadTimeout(Duration.ofSeconds(25));
-        return factory;
     }
 }
