@@ -32,6 +32,10 @@ public class PassPhotoSubmission {
     @Column(nullable = false)
     private String storedFileName;
 
+    /** Фото зачётки для проверки админом (в Perco не уходит). */
+    @Column(length = 255)
+    private String idCardStoredFileName;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PassPhotoStatus status;
@@ -66,6 +70,7 @@ public class PassPhotoSubmission {
         String zachetka,
         EducationTrack educationTrack,
         String storedFileName,
+        String idCardStoredFileName,
         PassPhotoStatus status,
         String validationWarningsJson
     ) {
@@ -75,6 +80,7 @@ public class PassPhotoSubmission {
         this.zachetka = zachetka;
         this.educationTrack = educationTrack;
         this.storedFileName = storedFileName;
+        this.idCardStoredFileName = idCardStoredFileName;
         this.status = status;
         this.validationWarningsJson = validationWarningsJson;
         this.submittedAt = Instant.now();
@@ -106,6 +112,14 @@ public class PassPhotoSubmission {
 
     public String getStoredFileName() {
         return storedFileName;
+    }
+
+    public String getIdCardStoredFileName() {
+        return idCardStoredFileName;
+    }
+
+    public void setIdCardStoredFileName(String idCardStoredFileName) {
+        this.idCardStoredFileName = idCardStoredFileName;
     }
 
     public PassPhotoStatus getStatus() {

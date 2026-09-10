@@ -17,6 +17,7 @@ import {
   PASS_PHOTO_MAX_BYTES,
   PASS_PHOTO_MIN_HEIGHT,
   PASS_PHOTO_MIN_WIDTH,
+  validateIdCardClient,
   validatePassPhotoClient,
   type ClientValidationIssue,
 } from '@/pass-photo-validation'
@@ -26,23 +27,30 @@ import styles from './pass-photo.module.css'
 const tips = [
   'Снимите себя анфас у светлой однотонной стены.',
   'В кадре — голова и плечи, лицо хорошо видно.',
+  'Отдельно приложите фото зачётки (разворот с фото и ФИО) — для проверки сотрудником.',
   `Формат ${PASS_PHOTO_FORMAT_HINT}, до ${Math.round(PASS_PHOTO_MAX_BYTES / (1024 * 1024))} МБ.`,
-  `Минимальный размер фото — ${PASS_PHOTO_MIN_WIDTH}×${PASS_PHOTO_MIN_HEIGHT} пикселей.`,
+  `Минимальный размер фото лица — ${PASS_PHOTO_MIN_WIDTH}×${PASS_PHOTO_MIN_HEIGHT} пикселей.`,
 ]
 
 export function PassPhoto() {
   const [submission, setSubmission] = useState<PassPhotoSubmission | null>(null)
   const [loading, setLoading] = useState(true)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
+  const [idCardFile, setIdCardFile] = useState<File | null>(null)
   const [issues, setIssues] = useState<ClientValidationIssue[]>([])
+  const [idCardIssues, setIdCardIssues] = useState<ClientValidationIssue[]>([])
   const [clientOk, setClientOk] = useState(false)
+  const [idCardOk, setIdCardOk] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [idCardChecking, setIdCardChecking] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [consent, setConsent] = useState(false)
   const [avatarSaving, setAvatarSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const idCardInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     if (!isPassPhotoApiEnabled()) {
@@ -102,27 +110,63 @@ export function PassPhoto() {
     }
   }
 
+  const onPickIdCard = async (picked: File | null) => {
+    setError(null)
+    setIdCardIssues([])
+    setIdCardOk(false)
+    if (idCardPreviewUrl) URL.revokeObjectURL(idCardPreviewUrl)
+    setIdCardFile(null)
+    setIdCardPreviewUrl(null)
+
+    if (!picked) return
+
+    const url = URL.createObjectURL(picked)
+    setIdCardPreviewUrl(url)
+
+    setIdCardChecking(true)
+    try {
+      const clientResult = await validateIdCardClient(picked)
+      setIdCardIssues(clientResult.issues)
+      setIdCardOk(clientResult.ok)
+      if (clientResult.ok) {
+        setIdCardFile(picked)
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось проверить фото зачётки')
+    } finally {
+      setIdCardChecking(false)
+    }
+  }
+
   const onSubmit = async () => {
-    if (!file || !clientOk || !consent) return
+    if (!file || !idCardFile || !clientOk || !idCardOk || !consent) return
     setUploading(true)
     setError(null)
     try {
-      const data = await uploadPassPhoto(file)
+      const data = await uploadPassPhoto(file, idCardFile)
       setSubmission(data)
       setFile(null)
+      setIdCardFile(null)
       if (previewUrl) URL.revokeObjectURL(previewUrl)
+      if (idCardPreviewUrl) URL.revokeObjectURL(idCardPreviewUrl)
       setPreviewUrl(null)
+      setIdCardPreviewUrl(null)
       setIssues([])
+      setIdCardIssues([])
+      setClientOk(false)
+      setIdCardOk(false)
     } catch (e) {
       if (e instanceof ApiError) {
         setError(e.message)
         const withIssues = e as ApiError & { issues?: ClientValidationIssue[] }
         if (withIssues.issues?.length) {
-          setIssues(withIssues.issues.map((i) => ({
-            code: i.code ?? 'SERVER',
-            severity: (i.severity ?? 'FAIL') as 'FAIL' | 'WARN',
-            message: i.message,
-          })))
+          setIssues(
+            withIssues.issues.map((i) => ({
+              code: i.code ?? 'SERVER',
+              severity: (i.severity ?? 'FAIL') as 'FAIL' | 'WARN',
+              message: i.message,
+            })),
+          )
         }
       } else {
         setError('Не удалось отправить фото')
@@ -188,7 +232,7 @@ export function PassPhoto() {
     <>
       <ScreenHeader
         title="Фото для пропуска"
-        subtitle="Загрузите фото для пропуска. После проверки сотрудником оно будет использовано для доступа."
+        subtitle="Загрузите фото лица и фото зачётки. После проверки сотрудником лицо будет использовано для пропуска."
       />
 
       {submission?.status && (
@@ -202,12 +246,29 @@ export function PassPhoto() {
           {submission.status === 'PERCO_FAILED' && submission.percoError && (
             <p className={styles.rejectReason}>{submission.percoError}</p>
           )}
-          {submission.hasImage && submission.id && (
-            <img
-              className={styles.currentPhoto}
-              src={passPhotoImageUrl(submission.id)}
-              alt="Текущее загруженное фото"
-            />
+          {(submission.hasImage || submission.hasIdCardImage) && submission.id && (
+            <div className={styles.currentPhotos}>
+              {submission.hasImage ? (
+                <figure className={styles.currentFigure}>
+                  <img
+                    className={styles.currentPhoto}
+                    src={passPhotoImageUrl(submission.id)}
+                    alt="Фото лица"
+                  />
+                  <figcaption>Лицо</figcaption>
+                </figure>
+              ) : null}
+              {submission.hasIdCardImage ? (
+                <figure className={styles.currentFigure}>
+                  <img
+                    className={styles.currentPhoto}
+                    src={passPhotoImageUrl(submission.id, false, 'id-card')}
+                    alt="Фото зачётки"
+                  />
+                  <figcaption>Зачётка</figcaption>
+                </figure>
+              ) : null}
+            </div>
           )}
           {submission.status === 'PERCO_SYNCED' && submission.hasImage && (
             <label className={styles.consent}>
@@ -235,11 +296,11 @@ export function PassPhoto() {
           </Card>
 
           <Card padding="lg" className={styles.upload}>
-            <h2 className={styles.h2}>Загрузка</h2>
+            <h2 className={styles.h2}>1. Фото лица</h2>
 
             <div className={styles.previewWrap}>
               {previewUrl ? (
-                <img className={styles.preview} src={previewUrl} alt="Превью" />
+                <img className={styles.preview} src={previewUrl} alt="Превью лица" />
               ) : (
                 <div className={styles.previewPlaceholder}>
                   <span>Овал для лица</span>
@@ -260,7 +321,7 @@ export function PassPhoto() {
               onClick={() => inputRef.current?.click()}
               disabled={checking || uploading}
             >
-              {checking ? 'Проверка…' : 'Выбрать фото'}
+              {checking ? 'Проверка…' : 'Выбрать фото лица'}
             </Button>
 
             {issues.length > 0 && (
@@ -268,6 +329,50 @@ export function PassPhoto() {
                 {issues.map((issue, idx) => (
                   <li
                     key={`${issue.code}-${idx}`}
+                    className={issue.severity === 'FAIL' ? styles.issueFail : styles.issueWarn}
+                  >
+                    {issue.message}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <h2 className={styles.h2}>2. Фото зачётки</h2>
+            <p className={styles.muted}>
+              Нужно для проверки: сверьте, что на снимке видны номер зачётки и ФИО.
+            </p>
+
+            <div className={styles.previewWrap}>
+              {idCardPreviewUrl ? (
+                <img className={styles.preview} src={idCardPreviewUrl} alt="Превью зачётки" />
+              ) : (
+                <div className={styles.idCardPlaceholder}>
+                  <span>Фото зачётки</span>
+                </div>
+              )}
+            </div>
+
+            <input
+              ref={idCardInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/bmp,image/x-ms-bmp,.jpg,.jpeg,.bmp,.png"
+              className={styles.fileInput}
+              onChange={(e) => void onPickIdCard(e.target.files?.[0] ?? null)}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => idCardInputRef.current?.click()}
+              disabled={idCardChecking || uploading}
+            >
+              {idCardChecking ? 'Проверка…' : 'Выбрать фото зачётки'}
+            </Button>
+
+            {idCardIssues.length > 0 && (
+              <ul className={styles.issues}>
+                {idCardIssues.map((issue, idx) => (
+                  <li
+                    key={`id-${issue.code}-${idx}`}
                     className={issue.severity === 'FAIL' ? styles.issueFail : styles.issueWarn}
                   >
                     {issue.message}
@@ -290,7 +395,7 @@ export function PassPhoto() {
             <Button
               type="button"
               onClick={() => void onSubmit()}
-              disabled={!file || !clientOk || !consent || uploading}
+              disabled={!file || !idCardFile || !clientOk || !idCardOk || !consent || uploading}
             >
               {uploading ? 'Отправка…' : 'Отправить на проверку'}
             </Button>

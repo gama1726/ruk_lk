@@ -51,6 +51,22 @@
   object-fit: contain;
 }
 
+.currentPhotos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.currentFigure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
 .previewPlaceholder {
   width: 200px;
   height: 260px;
@@ -59,6 +75,20 @@
   justify-content: center;
   border: 2px solid var(--color-primary-muted);
   border-radius: 50% / 42%;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-align: center;
+  padding: 1rem;
+}
+
+.idCardPlaceholder {
+  width: 220px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   text-align: center;

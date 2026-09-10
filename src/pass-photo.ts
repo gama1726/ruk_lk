@@ -25,6 +25,7 @@ export type PassPhotoSubmission = {
   percoSyncedAt: string | null
   percoError: string | null
   hasImage: boolean
+  hasIdCardImage?: boolean
   canResubmit?: boolean
   nextResubmitAt?: string | null
   /** Показывать фото пропуска как аватар в ЛК (по умолчанию false). */
@@ -43,6 +44,7 @@ export type PassPhotoAdminItem = {
   rejectReason: string | null
   percoError: string | null
   resubmitAllowed?: boolean
+  hasIdCardImage?: boolean
 }
 
 export type AdminMe = {
@@ -56,10 +58,15 @@ export function adminRoleHeaders(role: EducationTrack): HeadersInit {
   return { [ADMIN_ROLE_HEADER]: role }
 }
 
-export function passPhotoImageUrl(id: string, admin?: boolean): string {
-  return admin
-    ? `${getApiBaseUrl()}/api/admin/pass-photos/${id}/image`
-    : `${getApiBaseUrl()}/api/student/pass-photo/${id}/image`
+export function passPhotoImageUrl(
+  id: string,
+  admin?: boolean,
+  kind: 'face' | 'id-card' = 'face',
+): string {
+  const base = admin
+    ? `${getApiBaseUrl()}/api/admin/pass-photos/${id}`
+    : `${getApiBaseUrl()}/api/student/pass-photo/${id}`
+  return kind === 'id-card' ? `${base}/id-card` : `${base}/image`
 }
 
 export async function fetchPassPhotoSubmission(): Promise<PassPhotoSubmission> {
@@ -77,9 +84,10 @@ export async function validatePassPhoto(file: File): Promise<PassPhotoValidation
   return apiPostFormData<PassPhotoValidationResponse>('/api/student/pass-photo/validate', form)
 }
 
-export async function uploadPassPhoto(file: File): Promise<PassPhotoSubmission> {
+export async function uploadPassPhoto(face: File, idCard: File): Promise<PassPhotoSubmission> {
   const form = new FormData()
-  form.append('file', file)
+  form.append('file', face)
+  form.append('idCard', idCard)
   return apiPostFormData<PassPhotoSubmission>('/api/student/pass-photo', form)
 }
 

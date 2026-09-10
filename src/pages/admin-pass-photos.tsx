@@ -126,22 +126,52 @@ function AdminPassPhotoCard({
         </div>
 
         <div className={styles.photoWrap}>
-          <AdminPassPhotoThumb
-            id={item.id}
-            role={role}
-            alt={`Фото ${item.studentFullName}`}
-            className={styles.thumb}
-            onOpen={
-              onPhotoOpen
-                ? (src) =>
-                    onPhotoOpen({
-                      src,
-                      alt: `Фото ${item.studentFullName}`,
-                      caption: `${item.studentFullName} · зачётка ${item.zachetka || item.studentId}`,
-                    })
-                : undefined
-            }
-          />
+          <div className={styles.photoPair}>
+            <div>
+              <p className={styles.photoLabel}>Лицо</p>
+              <AdminPassPhotoThumb
+                id={item.id}
+                role={role}
+                kind="face"
+                alt={`Фото лица ${item.studentFullName}`}
+                className={styles.thumb}
+                onOpen={
+                  onPhotoOpen
+                    ? (src) =>
+                        onPhotoOpen({
+                          src,
+                          alt: `Фото лица ${item.studentFullName}`,
+                          caption: `${item.studentFullName} · лицо · зачётка ${item.zachetka || item.studentId}`,
+                        })
+                    : undefined
+                }
+              />
+            </div>
+            {item.hasIdCardImage ? (
+              <div>
+                <p className={styles.photoLabel}>Зачётка</p>
+                <AdminPassPhotoThumb
+                  id={item.id}
+                  role={role}
+                  kind="id-card"
+                  alt={`Зачётка ${item.studentFullName}`}
+                  className={styles.thumb}
+                  onOpen={
+                    onPhotoOpen
+                      ? (src) =>
+                          onPhotoOpen({
+                            src,
+                            alt: `Зачётка ${item.studentFullName}`,
+                            caption: `${item.studentFullName} · зачётка ${item.zachetka || item.studentId}`,
+                          })
+                      : undefined
+                  }
+                />
+              </div>
+            ) : (
+              <div className={styles.thumbLoading}>Фото зачётки нет</div>
+            )}
+          </div>
         </div>
       </div>
 

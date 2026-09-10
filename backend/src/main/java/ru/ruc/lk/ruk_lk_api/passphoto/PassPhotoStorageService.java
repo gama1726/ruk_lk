@@ -24,11 +24,21 @@ public class PassPhotoStorageService {
         return fileName;
     }
 
+    public String saveIdCard(UUID submissionId, byte[] bytes) throws IOException {
+        String fileName = submissionId + "-idcard.jpg";
+        Path target = root.resolve(fileName);
+        Files.write(target, bytes);
+        return fileName;
+    }
+
     public byte[] read(String storedFileName) throws IOException {
         return Files.readAllBytes(root.resolve(storedFileName));
     }
 
     public void delete(String storedFileName) throws IOException {
+        if (storedFileName == null || storedFileName.isBlank()) {
+            return;
+        }
         Files.deleteIfExists(root.resolve(storedFileName));
     }
 }

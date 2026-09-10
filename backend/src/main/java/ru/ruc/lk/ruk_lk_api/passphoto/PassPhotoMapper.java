@@ -30,6 +30,7 @@ final class PassPhotoMapper {
             formatInstant(entity.getPercoSyncedAt()),
             entity.getPercoError(),
             entity.getStoredFileName() != null && !entity.getStoredFileName().isBlank(),
+            hasIdCard(entity),
             canResubmit,
             formatInstant(nextResubmitAt),
             useAsAvatar
@@ -48,8 +49,13 @@ final class PassPhotoMapper {
             entity.getReviewedAt(),
             entity.getRejectReason(),
             entity.getPercoError(),
-            entity.isResubmitAllowedByAdmin()
+            entity.isResubmitAllowedByAdmin(),
+            hasIdCard(entity)
         );
+    }
+
+    static boolean hasIdCard(PassPhotoSubmission entity) {
+        return entity.getIdCardStoredFileName() != null && !entity.getIdCardStoredFileName().isBlank();
     }
 
     static PassPhotoValidationResultDto toValidationDto(PassPhotoValidationResult result) {

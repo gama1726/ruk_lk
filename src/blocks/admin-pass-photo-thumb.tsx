@@ -8,10 +8,18 @@ type Props = {
   role: EducationTrack
   alt: string
   className?: string
+  kind?: 'face' | 'id-card'
   onOpen?: (src: string) => void
 }
 
-export function AdminPassPhotoThumb({ id, role, alt, className, onOpen }: Props) {
+export function AdminPassPhotoThumb({
+  id,
+  role,
+  alt,
+  className,
+  kind = 'face',
+  onOpen,
+}: Props) {
   const [src, setSrc] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -22,7 +30,8 @@ export function AdminPassPhotoThumb({ id, role, alt, className, onOpen }: Props)
     setFailed(false)
 
     void (async () => {
-      const response = await fetch(`${getApiBaseUrl()}/api/admin/pass-photos/${id}/image`, {
+      const path = kind === 'id-card' ? 'id-card' : 'image'
+      const response = await fetch(`${getApiBaseUrl()}/api/admin/pass-photos/${id}/${path}`, {
         credentials: 'include',
         headers: adminRoleHeaders(role),
       })
@@ -40,7 +49,7 @@ export function AdminPassPhotoThumb({ id, role, alt, className, onOpen }: Props)
       cancelled = true
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [id, role])
+  }, [id, role, kind])
 
   if (failed) {
     return <div className={styles.thumbLoading}>Не удалось загрузить фото</div>

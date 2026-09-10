@@ -62,14 +62,24 @@ public class PassPhotoController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public PassPhotoSubmissionDto upload(
         HttpSession session,
-        @RequestParam("file") MultipartFile file
+        @RequestParam("file") MultipartFile file,
+        @RequestParam("idCard") MultipartFile idCard
     ) throws IOException {
-        return passPhotoService.submit(session, file);
+        return passPhotoService.submit(session, file, idCard);
     }
 
     @GetMapping("/{id}/image")
     public ResponseEntity<byte[]> image(HttpSession session, @PathVariable UUID id) throws IOException {
         byte[] bytes = passPhotoService.readImageForStudent(session, id);
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_JPEG_VALUE)
+            .header(HttpHeaders.CACHE_CONTROL, "private, max-age=60")
+            .body(bytes);
+    }
+
+    @GetMapping("/{id}/id-card")
+    public ResponseEntity<byte[]> idCard(HttpSession session, @PathVariable UUID id) throws IOException {
+        byte[] bytes = passPhotoService.readIdCardForStudent(session, id);
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_JPEG_VALUE)
             .header(HttpHeaders.CACHE_CONTROL, "private, max-age=60")
@@ -111,6 +121,19 @@ class PassPhotoAdminController {
     ) throws IOException {
         AdminSession admin = AdminAuthService.requireRole(session, AdminAuthService.parseRoleHeader(request));
         byte[] bytes = passPhotoService.readImageForAdmin(id, admin.role());
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_JPEG_VALUE)
+            .body(bytes);
+    }
+
+    @GetMapping("/{id}/id-card")
+    public ResponseEntity<byte[]> idCard(
+        HttpServletRequest request,
+        HttpSession session,
+        @PathVariable UUID id
+    ) throws IOException {
+        AdminSession admin = AdminAuthService.requireRole(session, AdminAuthService.parseRoleHeader(request));
+        byte[] bytes = passPhotoService.readIdCardForAdmin(id, admin.role());
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_JPEG_VALUE)
             .body(bytes);

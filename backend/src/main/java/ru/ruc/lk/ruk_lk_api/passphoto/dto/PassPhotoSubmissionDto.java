@@ -14,6 +14,7 @@ public record PassPhotoSubmissionDto(
     String percoSyncedAt,
     String percoError,
     boolean hasImage,
+    boolean hasIdCardImage,
     /** Можно ли отправить новое фото сейчас (с учётом статуса и cooldown). */
     boolean canResubmit,
     /** Когда снова можно загрузить (ISO-8601), если canResubmit=false из‑за лимита. */

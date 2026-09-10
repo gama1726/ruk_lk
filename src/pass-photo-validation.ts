@@ -107,3 +107,50 @@ export async function validatePassPhotoClient(file: File): Promise<ClientValidat
 
   return { ok: true, issues }
 }
+
+export const ID_CARD_MIN_WIDTH = 200
+export const ID_CARD_MIN_HEIGHT = 200
+
+/** Фото зачётки: формат, вес, мягкий минимум разрешения. */
+export async function validateIdCardClient(file: File): Promise<ClientValidationResult> {
+  const issues: ClientValidationIssue[] = []
+
+  if (!isSupportedPassPhotoFormat(file)) {
+    issues.push({
+      code: 'INVALID_FORMAT',
+      severity: 'FAIL',
+      message: `Используйте формат ${PASS_PHOTO_FORMAT_HINT}.`,
+    })
+    return { ok: false, issues }
+  }
+
+  if (file.size > PASS_PHOTO_MAX_BYTES) {
+    issues.push({
+      code: 'FILE_TOO_LARGE',
+      severity: 'FAIL',
+      message: 'Файл зачётки больше 2 МБ.',
+    })
+    return { ok: false, issues }
+  }
+
+  const dimensions = await loadImageSize(file)
+  if (!dimensions) {
+    issues.push({
+      code: 'INVALID_FORMAT',
+      severity: 'FAIL',
+      message: 'Не удалось прочитать фото зачётки.',
+    })
+    return { ok: false, issues }
+  }
+
+  if (dimensions.width < ID_CARD_MIN_WIDTH || dimensions.height < ID_CARD_MIN_HEIGHT) {
+    issues.push({
+      code: 'IMAGE_TOO_SMALL',
+      severity: 'FAIL',
+      message: `Фото зачётки слишком маленькое. Минимум ${ID_CARD_MIN_WIDTH}×${ID_CARD_MIN_HEIGHT} пикселей.`,
+    })
+    return { ok: false, issues }
+  }
+
+  return { ok: true, issues }
+}

@@ -101,8 +101,19 @@ public class PassPhotoService {
         return PassPhotoMapper.toValidationDto(result);
     }
 
-    public PassPhotoSubmissionDto submit(HttpSession session, MultipartFile file) throws IOException {
+    public PassPhotoSubmissionDto submit(
+        HttpSession session,
+        MultipartFile file,
+        MultipartFile idCardFile
+    ) throws IOException {
         StudentSession student = requireStudent(session);
+
+        if (idCardFile == null || idCardFile.isEmpty()) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Приложите фото зачётки для идентификации"
+            );
+        }
 
         Optional<PassPhotoSubmission> latestOpt =
             repository.findFirstByStudentIdOrderBySubmittedAtDesc(student.studentId());
@@ -141,6 +152,13 @@ public class PassPhotoService {
             throw new PassPhotoValidationException(result.issues());
         }
 
+        byte[] idCardBytes = idCardFile.getBytes();
+        PassPhotoValidationResult idCardResult =
+            validationService.validateIdCard(idCardBytes, idCardFile.getContentType());
+        if (idCardResult.hasFailures()) {
+            throw new PassPhotoValidationException(idCardResult.issues());
+        }
+
         byte[] storedBytes = validationService.normalizeForStorage(bytes, contentType);
         if (storedBytes.length > validationService.maxSizeBytes()) {
             throw new PassPhotoValidationException(List.of(new PassPhotoIssue(
@@ -150,10 +168,23 @@ public class PassPhotoService {
             )));
         }
 
+        byte[] storedIdCard = validationService.normalizeForStorage(
+            idCardBytes,
+            idCardFile.getContentType()
+        );
+        if (storedIdCard.length > validationService.maxSizeBytes()) {
+            throw new PassPhotoValidationException(List.of(new PassPhotoIssue(
+                PassPhotoIssueCode.FILE_TOO_LARGE,
+                PassPhotoIssueSeverity.FAIL,
+                "Файл зачётки слишком большой. Максимум 2 МБ."
+            )));
+        }
+
         String zachetka = resolveZachetka(student.studentId());
         EducationTrack track = resolveEducationTrack(student.studentId());
         UUID id = UUID.randomUUID();
         String stored = storageService.save(id, storedBytes);
+        String idCardStored = storageService.saveIdCard(id, storedIdCard);
 
         List<PassPhotoIssue> warnings = result.issues().stream()
             .filter(i -> i.severity() == PassPhotoIssueSeverity.WARN)
@@ -166,6 +197,7 @@ public class PassPhotoService {
             zachetka,
             track,
             stored,
+            idCardStored,
             PassPhotoStatus.PENDING,
             PassPhotoMapper.warningsToJson(warnings)
         );
@@ -183,9 +215,29 @@ public class PassPhotoService {
         return storageService.read(submission.getStoredFileName());
     }
 
+    public byte[] readIdCardForStudent(HttpSession session, UUID id) throws IOException {
+        StudentSession student = requireStudent(session);
+        PassPhotoSubmission submission = requireSubmission(id);
+        if (!submission.getStudentId().equals(student.studentId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет доступа к этому фото");
+        }
+        if (!PassPhotoMapper.hasIdCard(submission)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото зачётки не приложено");
+        }
+        return storageService.read(submission.getIdCardStoredFileName());
+    }
+
     public byte[] readImageForAdmin(UUID id, EducationTrack track) throws IOException {
         PassPhotoSubmission submission = requireSubmissionForTrack(id, track);
         return storageService.read(submission.getStoredFileName());
+    }
+
+    public byte[] readIdCardForAdmin(UUID id, EducationTrack track) throws IOException {
+        PassPhotoSubmission submission = requireSubmissionForTrack(id, track);
+        if (!PassPhotoMapper.hasIdCard(submission)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото зачётки не приложено");
+        }
+        return storageService.read(submission.getIdCardStoredFileName());
     }
 
     private static final List<PassPhotoStatus> QUEUE_STATUSES = List.of(
@@ -329,10 +381,10 @@ public class PassPhotoService {
         }
 
         String fileName = submission.getStoredFileName();
+        String idCardFileName = submission.getIdCardStoredFileName();
         repository.delete(submission);
-        if (fileName != null && !fileName.isBlank()) {
-            storageService.delete(fileName);
-        }
+        storageService.delete(fileName);
+        storageService.delete(idCardFileName);
     }
 
     public PassPhotoSubmissionDto retryPerco(UUID id, String reviewer, EducationTrack track) throws IOException {
@@ -465,7 +517,7 @@ public class PassPhotoService {
 
     private static PassPhotoSubmissionDto emptyDto(boolean useAsAvatar) {
         return new PassPhotoSubmissionDto(
-            null, null, null, List.of(), null, null, null, null, false, true, null, useAsAvatar
+            null, null, null, List.of(), null, null, null, null, false, false, true, null, useAsAvatar
         );
     }
 
