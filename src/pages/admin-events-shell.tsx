@@ -17,7 +17,7 @@ type Props = {
 }
 
 export function AdminEventsShell({ pageSection, children, username, onLogout }: Props) {
-  usePageTitle(`${pageSection} — Календарь мероприятий — РУК`)
+  usePageTitle(`${pageSection} — Админка ЛК — РУК`)
 
   return (
     <div className={styles.shell}>
@@ -26,8 +26,8 @@ export function AdminEventsShell({ pageSection, children, username, onLogout }: 
           <Link to={paths.adminEvents} className={styles.brand}>
             <img src={logo} alt="РУК" className={styles.logo} />
             <div className={styles.brandText}>
-              <span className={styles.brandTitle}>Календарь мероприятий</span>
-              <span className={styles.brandSub}>Редактор</span>
+              <span className={styles.brandTitle}>Админка ЛК</span>
+              <span className={styles.brandSub}>Мероприятия и мониторинг</span>
             </div>
           </Link>
           <div className={styles.topActions}>

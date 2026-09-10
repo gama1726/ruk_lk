@@ -55,6 +55,8 @@ export const paths = {
   adminPassPhotosHeLogin: '/admin/pass-photos/he/login',
   adminEvents: '/admin/events',
   adminEventsLogin: '/admin/events/login',
+  adminEventsLoad: '/admin/events/load',
+  adminEventsUsers: '/admin/events/users',
   parentHome: '/parent',
   parentSurvey: '/parent/survey',
   parentContacts: '/parent/contacts',

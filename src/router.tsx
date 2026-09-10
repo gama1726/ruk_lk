@@ -54,7 +54,10 @@ import { EsportsRedirect } from '@/pages/esports-redirect'
 import { AdminPassPhotosHe, AdminPassPhotosSpo } from '@/pages/admin-pass-photos'
 import { AdminPassPhotoLogin } from '@/pages/admin-pass-photo-login'
 import { AdminEventsLogin } from '@/pages/admin-events-login'
+import { AdminEventsLayout } from '@/pages/admin-events-layout'
 import { AdminEventsPage } from '@/pages/admin-events'
+import { AdminEventsLoadPage } from '@/pages/admin-events-load-page'
+import { AdminEventsUsersPage } from '@/pages/admin-events-users-page'
 import { EventsPage } from '@/pages/events'
 import { ParentEvents } from '@/pages/parent-events'
 
@@ -158,6 +161,13 @@ export const router = createBrowserRouter([
   { path: paths.adminPassPhotosSpo, element: <AdminPassPhotosSpo /> },
   { path: paths.adminPassPhotosHe, element: <AdminPassPhotosHe /> },
   { path: paths.adminEventsLogin, element: <AdminEventsLogin /> },
-  { path: paths.adminEvents, element: <AdminEventsPage /> },
+  {
+    element: <AdminEventsLayout />,
+    children: [
+      { path: paths.adminEvents, element: <AdminEventsPage /> },
+      { path: paths.adminEventsLoad, element: <AdminEventsLoadPage /> },
+      { path: paths.adminEventsUsers, element: <AdminEventsUsersPage /> },
+    ],
+  },
   { path: '*', element: <Navigate to={paths.login} replace /> },
 ])

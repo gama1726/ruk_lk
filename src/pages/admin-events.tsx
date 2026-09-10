@@ -10,16 +10,12 @@ import type { CampusEventDto } from '@/events'
 import {
   createAdminEvent,
   deleteAdminEvent,
-  eventsAdminLogout,
-  eventsAdminMe,
   listAdminEvents,
   updateAdminEvent,
   type CampusEventWrite,
 } from '@/events-admin'
 import { paths } from '@/paths'
 import { Button, Input, Loader, LoadError, Modal, NoData, Select, Textarea } from '@/ui'
-import { AdminEventsShell } from '@/pages/admin-events-shell'
-import { AdminEventsStats } from '@/pages/admin-events-stats'
 import styles from './admin-events.module.css'
 
 type Draft = {
@@ -58,7 +54,6 @@ function asCampus(raw: string | undefined): EventCampusId {
 
 export function AdminEventsPage() {
   const navigate = useNavigate()
-  const [username, setUsername] = useState<string>()
   const [items, setItems] = useState<CampusEventDto[]>([])
   const [campusFilter, setCampusFilter] = useState<CampusFilter>('ALL')
   const [loading, setLoading] = useState(true)
@@ -73,8 +68,6 @@ export function AdminEventsPage() {
     setLoading(true)
     setError(null)
     try {
-      const me = await eventsAdminMe()
-      setUsername(me.username)
       const campus = campusFilter === 'ALL' ? undefined : campusFilter
       setItems(await listAdminEvents(campus))
     } catch (err) {
@@ -116,15 +109,6 @@ export function AdminEventsPage() {
     setModalOpen(true)
   }
 
-  const onLogout = async () => {
-    try {
-      await eventsAdminLogout()
-    } catch {
-      /* ignore */
-    }
-    navigate(paths.adminEventsLogin, { replace: true })
-  }
-
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -163,9 +147,7 @@ export function AdminEventsPage() {
   }
 
   return (
-    <AdminEventsShell pageSection="Список" username={username} onLogout={() => void onLogout()}>
-      <AdminEventsStats />
-
+    <>
       <div className={styles.toolbar}>
         <h1 className={styles.pageTitle}>Мероприятия</h1>
         <Button type="button" onClick={openCreate}>
@@ -310,6 +292,6 @@ export function AdminEventsPage() {
           {formError ? <p className={styles.error}>{formError}</p> : null}
         </form>
       </Modal>
-    </AdminEventsShell>
+    </>
   )
 }

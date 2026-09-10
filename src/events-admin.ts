@@ -80,3 +80,35 @@ export async function fetchEventsAdminStats(from: string, to: string): Promise<C
   const params = new URLSearchParams({ from, to })
   return apiGet<CabinetStats>(`/api/admin/events/stats?${params}`)
 }
+
+export type ApiLoadEndpoint = {
+  method: string
+  path: string
+  inFlight: number
+  requestsPerMinute: number
+  completedTotal: number
+  errors4xx: number
+  errors5xx: number
+  avgDurationMs: number
+  minDurationMs: number
+  maxDurationMs: number
+  avgInFlightAllTime: number
+  minInFlightAllTime: number
+  maxInFlightAllTime: number
+  avgRpmAllTime: number
+  minRpmAllTime: number
+  maxRpmAllTime: number
+}
+
+export type ApiLoadSnapshot = {
+  collectedAtMs: number
+  windowSeconds: number
+  totalInFlight: number
+  totalRequestsPerMinute: number
+  processStartedAtMs: number
+  endpoints: ApiLoadEndpoint[]
+}
+
+export async function fetchEventsAdminLoad(): Promise<ApiLoadSnapshot> {
+  return apiGet<ApiLoadSnapshot>('/api/admin/events/load')
+}
