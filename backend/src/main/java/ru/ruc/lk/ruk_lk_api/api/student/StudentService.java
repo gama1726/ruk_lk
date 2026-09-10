@@ -35,8 +35,6 @@ import ru.ruc.lk.ruk_lk_api.integration.perco.PercoAccessEvent;
 import ru.ruc.lk.ruk_lk_api.integration.perco.PercoClient;
 import ru.ruc.lk.ruk_lk_api.integration.perco.PercoException;
 import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent;
-import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioClient;
-import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioException;
 import ru.ruc.lk.ruk_lk_api.integration.rucnews.RucNewsClient;
 import ru.ruc.lk.ruk_lk_api.integration.rucnews.RucNewsItem;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
@@ -87,7 +85,6 @@ public class StudentService {
     private final RucNewsClient rucNewsClient;
     private final VerificationEmailSender emailSender;
     private final PercoClient percoClient;
-    private final ZKBioClient zkbioClient;
     private final AttendanceCache attendanceCache;
     private final boolean attendanceEnabled;
     private final String percoUncontrolledZone;
@@ -104,7 +101,6 @@ public class StudentService {
         RucNewsClient rucNewsClient,
         VerificationEmailSender emailSender,
         PercoClient percoClient,
-        ZKBioClient zkbioClient,
         AttendanceCache attendanceCache,
         @Value("${app.attendance.enabled:false}") boolean attendanceEnabled,
         @Value("${app.perco.uncontrolled-zone:Неконтролируемая территория}") String percoUncontrolledZone,
@@ -120,7 +116,6 @@ public class StudentService {
         this.rucNewsClient = rucNewsClient;
         this.emailSender = emailSender;
         this.percoClient = percoClient;
-        this.zkbioClient = zkbioClient;
         this.attendanceCache = attendanceCache;
         this.attendanceEnabled = attendanceEnabled;
         this.percoUncontrolledZone = percoUncontrolledZone;
@@ -439,8 +434,8 @@ public class StudentService {
     }
 
     /**
-     * Проходы на территорию: Perco (головной вуз) или ZKBio (Казань ККИ).
-     * Дни без прохода, но с очными парами по расписанию — отсутствие (оба кампуса).
+     * Проходы на территорию через Perco (пока только головной вуз).
+     * Дни без прохода, но с очными парами по расписанию — отсутствие.
      * Включается флагом {@code app.attendance.enabled}.
      */
     public StudentAttendanceResponse getAttendance(HttpSession session, LocalDate from, LocalDate to) {
@@ -469,16 +464,11 @@ public class StudentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Период не больше 14 дней");
         }
 
-        if (profile != null && CampusSupport.isKazanKkiCampus(
-            profile.faculty(), profile.department(), profile.branch())) {
-            return getKazanAttendance(session, studentId, profile, begin, end);
-        }
-
         if (profile != null && CampusSupport.isBranchCampus(
             profile.faculty(), profile.department(), profile.branch())) {
             throw new ResponseStatusException(
                 HttpStatus.FORBIDDEN,
-                "Посещаемость для этого филиала пока недоступна"
+                "Посещаемость пока доступна только для головного вуза"
             );
         }
 
@@ -522,61 +512,6 @@ public class StudentService {
                     detail != null && !detail.isBlank()
                         ? detail
                         : "Не удалось подключиться к сервису посещений"
-                );
-            }
-            throw ex;
-        }
-    }
-
-    private StudentAttendanceResponse getKazanAttendance(
-        HttpSession session,
-        String studentId,
-        OneCProfileResponse profile,
-        LocalDate begin,
-        LocalDate end
-    ) {
-        if (!zkbioClient.isEnabled()) {
-            throw new ResponseStatusException(
-                HttpStatus.SERVICE_UNAVAILABLE,
-                "Посещаемость Казанского филиала временно недоступна"
-            );
-        }
-
-        Optional<StudentAttendanceResponse> cached = attendanceCache.get(
-            studentId,
-            begin,
-            end,
-            "zkbio"
-        );
-        if (cached.isPresent()) {
-            return cached.get();
-        }
-
-        Optional<String> groupName = profileGroup(profile);
-        try {
-            CompletableFuture<List<SkudAccessEvent>> eventsFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return zkbioClient.fetchAccessEvents(studentId, begin, end);
-                } catch (ZKBioException e) {
-                    throw new CompletionException(e);
-                }
-            });
-            CompletableFuture<List<CampusLesson>> campusLessonsFuture = CompletableFuture.supplyAsync(
-                () -> campusLessons(session, studentId, begin, end, groupName)
-            );
-
-            List<SkudAccessEvent> events = eventsFuture.join();
-            List<CampusLesson> campusLessons = campusLessonsFuture.join();
-            StudentAttendanceResponse response = AttendanceMapper.toResponse("zkbio", events, campusLessons);
-            attendanceCache.put(studentId, begin, end, "zkbio", response);
-            return response;
-        } catch (CompletionException ex) {
-            Throwable cause = ex.getCause();
-            if (cause instanceof ZKBioException zkbioEx) {
-                log.warn("Посещаемость ZKBio недоступна: {}", zkbioEx.getMessage());
-                throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "Не удалось подключиться к сервису посещений"
                 );
             }
             throw ex;

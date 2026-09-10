@@ -2,7 +2,7 @@ package ru.ruc.lk.ruk_lk_api.api.student;
 
 import java.util.Locale;
 
-/** Головной кампус, филиалы и посещаемость по кампусу. */
+/** Головной кампус vs филиалы (посещаемость). */
 final class CampusSupport {
 
     private CampusSupport() {}
@@ -14,33 +14,5 @@ final class CampusSupport {
             }
         }
         return false;
-    }
-
-    /** Казанский филиал колледжа кооперации (ККИ) — ZKBio. */
-    static boolean isKazanKkiCampus(String... parts) {
-        if (!isBranchCampus(parts)) {
-            return false;
-        }
-        String haystack = joinLower(parts);
-        return haystack.contains("казан")
-            && (haystack.contains("кки") || haystack.contains("kci") || haystack.contains("кооператив"));
-    }
-
-    /** Посещаемость Perco — головной вуз (не филиал). */
-    static boolean isHeadCampusAttendance(String... parts) {
-        return !isBranchCampus(parts);
-    }
-
-    private static String joinLower(String... parts) {
-        StringBuilder sb = new StringBuilder();
-        for (String part : parts) {
-            if (part != null && !part.isBlank()) {
-                if (sb.length() > 0) {
-                    sb.append(' ');
-                }
-                sb.append(part.trim().toLowerCase(Locale.ROOT));
-            }
-        }
-        return sb.toString();
     }
 }

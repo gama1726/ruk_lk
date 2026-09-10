@@ -17,7 +17,7 @@ public record PercoProperties(
     String uncontrolledZone,
     /** Таймаут соединения с Perco, секунды. */
     int connectTimeoutSeconds,
-    /** Таймаут чтения ответа Perco (accessReports медленный), секунды. */
+    /** Таймаут чтения ответа Perco (УРВ по дням), секунды. */
     int readTimeoutSeconds
 ) {
     public PercoProperties {
@@ -34,7 +34,7 @@ public record PercoProperties(
             connectTimeoutSeconds = 10;
         }
         if (readTimeoutSeconds <= 0) {
-            readTimeoutSeconds = 90;
+            readTimeoutSeconds = 30;
         }
     }
 }

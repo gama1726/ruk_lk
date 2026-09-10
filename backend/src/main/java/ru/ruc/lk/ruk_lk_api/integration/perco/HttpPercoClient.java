@@ -10,7 +10,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
@@ -47,7 +46,6 @@ public class HttpPercoClient implements PercoClient {
     private final RestClient restClient;
     private final PercoProperties properties;
     private String token;
-    private boolean loggedTaRowShape;
 
     public HttpPercoClient(PercoProperties properties, OutboundRestClients outboundRestClients) {
         this.properties = properties;
@@ -184,15 +182,6 @@ public class HttpPercoClient implements PercoClient {
             return List.of();
         }
 
-        if (!loggedTaRowShape) {
-            loggedTaRowShape = true;
-            JsonNode sample = rows.get(0);
-            if (sample != null && sample.isObject()) {
-                List<String> keys = new ArrayList<>(sample.propertyNames());
-                log.info("Perco taReports/eventsTable поля строки: {}", keys);
-            }
-        }
-
         List<PercoAccessEvent> events = new ArrayList<>(rows.size());
         for (JsonNode row : rows) {
             PercoAccessEvent event = mapTaRow(row, date);
@@ -204,109 +193,46 @@ public class HttpPercoClient implements PercoClient {
     }
 
     /**
-     * Схема rows в справочнике пустая — читаем типичные алиасы полей УРВ/СКУД.
+     * УРВ {@code /taReports/eventsTable}: time_label, event_exit, event_enter, is_enter, calculate.
      */
     private static PercoAccessEvent mapTaRow(JsonNode row, LocalDate date) {
         if (row == null || row.isNull() || !row.isObject()) {
             return null;
         }
-        String time = firstText(
-            row,
-            "time_label", "timeLabel", "datetime", "date_time", "event_datetime",
-            "event_time", "eventTime", "time", "label"
-        );
+        String time = text(row, "time_label");
         if (time != null && !time.contains("-") && !time.contains(".") && date != null) {
-            // Только время без даты — дополняем датой запроса.
             time = date + " " + time.trim();
         }
-
-        String enter = firstText(
-            row,
-            "zone_enter", "zoneEnter", "enter_zone", "area_enter", "room_enter",
-            "in_zone", "zone_in", "enter", "enter_name"
-        );
-        String exit = firstText(
-            row,
-            "zone_exit", "zoneExit", "exit_zone", "area_exit", "room_exit",
-            "out_zone", "zone_out", "exit", "exit_name"
-        );
-
-        if ((enter == null || enter.isBlank()) && (exit == null || exit.isBlank())) {
-            String zone = firstText(row, "zone", "area", "room", "device", "reader", "controller", "name");
-            String direction = firstText(
-                row,
-                "direction", "dir", "event", "event_name", "type_name", "event_type", "action"
-            );
-            if (zone != null && direction != null) {
-                String d = direction.toLowerCase(Locale.ROOT);
-                if (d.contains("вход") || d.contains("enter") || d.equals("in")) {
-                    enter = zone;
-                } else if (d.contains("выход") || d.contains("exit") || d.equals("out") || d.contains("уход")) {
-                    exit = zone;
-                } else {
-                    enter = zone;
-                }
-            } else if (zone != null) {
-                enter = zone;
-            }
-        }
-
-        Object id = textOrNumber(row, "id");
-        Object userId = textOrNumber(row, "user_id", "userId", "staff_id", "staffId");
-        String tabel = firstText(row, "tabel_number", "tabelNumber", "tab_number");
-        String fio = firstText(row, "fio", "name", "fio_name");
-        String identifier = firstText(row, "identifier", "card", "card_number");
-
         return new PercoAccessEvent(
-            id,
-            tabel,
-            null,
-            fio,
+            numberOrText(row, "id"),
             time,
-            null,
-            identifier,
-            userId,
-            null,
-            exit,
-            null,
-            enter,
-            firstText(row, "division_name", "divisionName"),
-            firstText(row, "position_name", "positionName")
+            text(row, "event_exit"),
+            text(row, "event_enter")
         );
     }
 
-    private static String firstText(JsonNode row, String... fields) {
-        for (String field : fields) {
-            JsonNode node = row.get(field);
-            if (node == null || node.isNull()) {
-                continue;
-            }
-            String value = node.isValueNode() ? node.asText() : node.toString();
-            if (value != null) {
-                value = value.trim();
-                if (!value.isEmpty() && !"null".equalsIgnoreCase(value)) {
-                    return value;
-                }
-            }
+    private static String text(JsonNode row, String field) {
+        JsonNode node = row.get(field);
+        if (node == null || node.isNull() || !node.isValueNode()) {
+            return null;
         }
-        return null;
+        String value = node.asText();
+        if (value == null) {
+            return null;
+        }
+        value = value.trim();
+        return value.isEmpty() || "null".equalsIgnoreCase(value) ? null : value;
     }
 
-    private static Object textOrNumber(JsonNode row, String... fields) {
-        for (String field : fields) {
-            JsonNode node = row.get(field);
-            if (node == null || node.isNull()) {
-                continue;
-            }
-            if (node.isNumber()) {
-                return node.numberValue();
-            }
-            String value = node.asText();
-            if (value != null && !value.isBlank() && !"null".equalsIgnoreCase(value)) {
-                return value.trim();
-            }
+    private static Object numberOrText(JsonNode row, String field) {
+        JsonNode node = row.get(field);
+        if (node == null || node.isNull()) {
+            return null;
         }
-        return null;
+        if (node.isNumber()) {
+            return node.numberValue();
+        }
+        return text(row, field);
     }
 
     private static String tabelNumberFilter(String tabel) {

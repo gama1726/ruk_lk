@@ -11,9 +11,11 @@ import { useAppFeatures } from '@/features'
 import { programLabel } from '@/mocks/format'
 import { paths } from '@/paths'
 import { useCurrentProgram } from '@/study'
+import { useStudentProfile } from '@/student-profile-store'
 
 export function Attendance() {
   const program = useCurrentProgram()
+  const profile = useStudentProfile((s) => s.profile)
   const features = useAppFeatures((s) => s.features)
   const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
@@ -24,7 +26,7 @@ export function Attendance() {
 
   // Пока флаг не загружен — не редиректим и не отдаём пустой экран.
   const featureEnabled = featuresStatus !== 'ready' || features?.attendanceEnabled === true
-  const attendanceAllowed = isAttendanceNavVisible(null, featureEnabled)
+  const attendanceAllowed = isAttendanceNavVisible(profile, featureEnabled)
 
   if (featuresStatus === 'ready' && !attendanceAllowed) {
     return <Navigate to={paths.education} replace />

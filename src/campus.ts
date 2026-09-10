@@ -1,5 +1,5 @@
 /**
- * @file Признаки кампуса: головной вуз, филиалы, ZKBio (Казань ККИ).
+ * @file Признаки кампуса: головной вуз, филиалы.
  */
 
 /** Подразделение относится к филиалу (не головной кампус). */
@@ -10,23 +10,10 @@ export function isBranchCampus(...parts: Array<string | null | undefined>): bool
   })
 }
 
-/** Казанский филиал ККИ — посещаемость через ZKBio. */
-export function isKazanKkiCampus(...parts: Array<string | null | undefined>): boolean {
-  if (!isBranchCampus(...parts)) return false
-  const haystack = parts
-    .filter((p): p is string => Boolean(p?.trim()))
-    .join(' ')
-    .toLocaleLowerCase('ru-RU')
-  return (
-    haystack.includes('казан') &&
-    (haystack.includes('кки') || haystack.includes('kci') || haystack.includes('кооператив'))
-  )
-}
-
 /**
  * Раздел «Посещаемость» в навигации.
  * Глобальный флаг — {@code app.attendance.enabled} через {@link useAppFeatures}.
- * Головной кампус — всегда (если флаг включён); филиалы — только Казань ККИ.
+ * Пока только головной кампус (филиалы скрыты).
  */
 export function isAttendanceNavVisible(
   profile: {
@@ -38,9 +25,7 @@ export function isAttendanceNavVisible(
 ): boolean {
   if (!featureEnabled) return false
   if (!profile) return true
-  const parts = [profile.faculty, profile.department, profile.branch]
-  if (!isBranchCampus(...parts)) return true
-  return isKazanKkiCampus(...parts)
+  return !isBranchCampus(profile.faculty, profile.department, profile.branch)
 }
 
 /** Кампусы календаря мероприятий (админка и кабинеты). */

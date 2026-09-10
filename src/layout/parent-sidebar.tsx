@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import logo from '@/assets/ruk-logo.png'
+import { isAttendanceNavVisible } from '@/campus'
 import { useAppFeatures } from '@/features'
 import { SocialIcon } from '@/icons/social'
 import { NavIcon, type NavIconId } from '@/icons/nav'
@@ -16,6 +17,7 @@ import {
   parentSidebarTop,
   type ParentNavItem,
 } from '@/parent-nav'
+import { fetchParentProfile } from '@/parent-profile'
 import { useParentAuth } from '@/parent-auth'
 import { PARENT_CONSENT_MESSAGE } from '@/parent-consent'
 import { ParentMenuLink } from './nav-link'
@@ -29,12 +31,35 @@ export function ParentSidebar() {
   const attendanceEnabled = useAppFeatures((s) => s.features?.attendanceEnabled === true)
   const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
+  const [studentCampus, setStudentCampus] = useState<{
+    faculty?: string
+    department?: string
+    branch?: string
+  } | null>(null)
 
   useEffect(() => {
     if (featuresStatus === 'idle') void loadFeatures()
   }, [featuresStatus, loadFeatures])
 
-  const groups = useMemo(() => getParentSidebarGroups(attendanceEnabled), [attendanceEnabled])
+  useEffect(() => {
+    let cancelled = false
+    void fetchParentProfile()
+      .then((profile) => {
+        if (cancelled) return
+        setStudentCampus(profile.student)
+      })
+      .catch(() => {
+        if (!cancelled) setStudentCampus(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [session?.studentId])
+
+  const showAttendance =
+    attendanceEnabled && isAttendanceNavVisible(studentCampus, attendanceEnabled)
+
+  const groups = useMemo(() => getParentSidebarGroups(showAttendance), [showAttendance])
 
   return (
     <nav className={styles.sidebar} aria-label="Разделы кабинета родителя">
