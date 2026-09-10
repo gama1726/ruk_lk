@@ -92,7 +92,16 @@ public class ParentService {
     private int loadAcademicDebtCount(String studentId) {
         try {
             RecordBookResponse book = studentService.getRecordBookForStudentId(studentId);
-            return book.failedCount();
+            if (book.items() == null || book.items().isEmpty()) {
+                return book.failedCount();
+            }
+            int count = 0;
+            for (var entry : book.items()) {
+                if (entry != null && "failed".equalsIgnoreCase(entry.status())) {
+                    count++;
+                }
+            }
+            return count;
         } catch (ResponseStatusException ex) {
             if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
                 return 0;

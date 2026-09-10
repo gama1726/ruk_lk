@@ -36,6 +36,22 @@ final class GradebookMapper {
                 .toList();
         }
 
+        // Считаем по нормализованному status строк — агрегаты 1С (failedCount и т.п.)
+        // могут расходиться с фактическими «незачтено» / неудовлетворительно.
+        int failedCount = 0;
+        int notGradedCount = 0;
+        int passedCount = 0;
+        for (RecordBookEntryResponse entry : items) {
+            String status = entry.status() == null ? "" : entry.status();
+            if ("failed".equalsIgnoreCase(status)) {
+                failedCount++;
+            } else if ("not_graded".equalsIgnoreCase(status)) {
+                notGradedCount++;
+            } else {
+                passedCount++;
+            }
+        }
+
         return new RecordBookResponse(
             blankToEmpty(source.studentId()),
             blankToEmpty(source.studentFullName()),
@@ -49,9 +65,9 @@ final class GradebookMapper {
             blankToEmpty(source.currentCourse()),
             blankToEmpty(source.studentState()),
             blankToEmpty(source.currentStudyPlan()),
-            source.passedCount(),
-            source.failedCount(),
-            source.notGradedCount(),
+            passedCount,
+            failedCount,
+            notGradedCount,
             source.itemsCount() > 0 ? source.itemsCount() : items.size(),
             semesters,
             items
