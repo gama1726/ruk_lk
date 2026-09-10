@@ -1,5 +1,4 @@
 import type { NavIconId } from '@/icons/nav'
-import { ATTENDANCE_FEATURE_ENABLED } from '@/campus'
 import { paths } from '@/paths'
 
 export type ParentNavItem = {
@@ -18,31 +17,36 @@ export const parentSidebarTop: ParentNavItem[] = [
 
 export const parentSidebarBottom: ParentNavItem[] = []
 
-const parentStudyItems: ParentNavItem[] = [
+const parentStudyItemsBase: ParentNavItem[] = [
   { to: paths.parentSchedule, label: 'Расписание', icon: 'schedule' },
   { to: paths.parentRecordBook, label: 'Зачётная книжка ребёнка', icon: 'recordBook' },
-  ...(ATTENDANCE_FEATURE_ENABLED
-    ? ([{ to: paths.parentAttendance, label: 'Посещаемость', icon: 'attendance' }] as ParentNavItem[])
-    : []),
+  { to: paths.parentAttendance, label: 'Посещаемость', icon: 'attendance' },
   { to: paths.parentOrders, label: 'Приказы', icon: 'orders' },
 ]
 
-export const parentSidebarGroups: {
+export function getParentStudyItems(attendanceEnabled: boolean): ParentNavItem[] {
+  if (attendanceEnabled) return parentStudyItemsBase
+  return parentStudyItemsBase.filter((item) => item.to !== paths.parentAttendance)
+}
+
+export function getParentSidebarGroups(attendanceEnabled: boolean): {
   id: string
   label: string
   icon: NavIconId
   items: ParentNavItem[]
-}[] = [
-  {
-    id: 'study',
-    label: 'Обучение',
-    icon: 'program',
-    items: parentStudyItems,
-  },
-  {
-    id: 'finance',
-    label: 'Финансы',
-    icon: 'payments',
-    items: [{ to: paths.parentPayments, label: 'Оплата обучения', icon: 'payments' }],
-  },
-]
+}[] {
+  return [
+    {
+      id: 'study',
+      label: 'Обучение',
+      icon: 'program',
+      items: getParentStudyItems(attendanceEnabled),
+    },
+    {
+      id: 'finance',
+      label: 'Финансы',
+      icon: 'payments',
+      items: [{ to: paths.parentPayments, label: 'Оплата обучения', icon: 'payments' }],
+    },
+  ]
+}

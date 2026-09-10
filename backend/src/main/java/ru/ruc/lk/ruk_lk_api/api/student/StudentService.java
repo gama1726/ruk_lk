@@ -89,6 +89,7 @@ public class StudentService {
     private final PercoClient percoClient;
     private final ZKBioClient zkbioClient;
     private final AttendanceCache attendanceCache;
+    private final boolean attendanceEnabled;
     private final String percoUncontrolledZone;
     private final String fixedCode;
     private final Duration otpTtl;
@@ -105,6 +106,7 @@ public class StudentService {
         PercoClient percoClient,
         ZKBioClient zkbioClient,
         AttendanceCache attendanceCache,
+        @Value("${app.attendance.enabled:false}") boolean attendanceEnabled,
         @Value("${app.perco.uncontrolled-zone:Неконтролируемая территория}") String percoUncontrolledZone,
         @Value("${app.auth.fixed-code:}") String fixedCode,
         @Value("${app.auth.otp-ttl-seconds:300}") long otpTtlSeconds,
@@ -120,6 +122,7 @@ public class StudentService {
         this.percoClient = percoClient;
         this.zkbioClient = zkbioClient;
         this.attendanceCache = attendanceCache;
+        this.attendanceEnabled = attendanceEnabled;
         this.percoUncontrolledZone = percoUncontrolledZone;
         this.fixedCode = fixedCode;
         this.otpTtl = Duration.ofSeconds(Math.max(60, otpTtlSeconds));
@@ -438,14 +441,11 @@ public class StudentService {
     /**
      * Проходы на территорию: Perco (головной вуз) или ZKBio (Казань ККИ).
      * Дни без прохода, но с очными парами по расписанию — отсутствие (оба кампуса).
-     * Временно отключено — не ходим в СКУД, пока нет своей выгрузки проходов.
+     * Включается флагом {@code app.attendance.enabled}.
      */
     public StudentAttendanceResponse getAttendance(HttpSession session, LocalDate from, LocalDate to) {
-        requireStudent(session);
-        throw new ResponseStatusException(
-            HttpStatus.SERVICE_UNAVAILABLE,
-            "Раздел посещаемости временно недоступен"
-        );
+        StudentSession student = requireStudent(session);
+        return getAttendanceForStudentId(session, student.studentId(), from, to);
     }
 
     /** Посещаемость по номеру зачётки (родительский кабинет). */
@@ -455,19 +455,7 @@ public class StudentService {
         LocalDate from,
         LocalDate to
     ) {
-        throw new ResponseStatusException(
-            HttpStatus.SERVICE_UNAVAILABLE,
-            "Раздел посещаемости временно недоступен"
-        );
-    }
-
-    @SuppressWarnings("unused")
-    private StudentAttendanceResponse getAttendanceForStudentIdEnabled(
-        HttpSession session,
-        String studentId,
-        LocalDate from,
-        LocalDate to
-    ) {
+        requireAttendanceEnabled();
         OneCProfileResponse profile = onecClient
             .fetchProfile(studentId)
             .orElse(null);
@@ -835,6 +823,15 @@ public class StudentService {
     }
 
 
+
+    private void requireAttendanceEnabled() {
+        if (!attendanceEnabled) {
+            throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Раздел посещаемости временно недоступен"
+            );
+        }
+    }
 
     private StudentSession requireStudent(HttpSession session) {
 

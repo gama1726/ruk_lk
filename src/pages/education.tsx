@@ -6,6 +6,7 @@
 import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { isAttendanceNavVisible } from '@/campus'
+import { useAppFeatures } from '@/features'
 import { paths } from '@/paths'
 import { useStudentProfile } from '@/student-profile-store'
 import { ScreenHeader, Card } from '@/ui'
@@ -29,15 +30,22 @@ export function Education() {
   const profile = useStudentProfile((s) => s.profile)
   const status = useStudentProfile((s) => s.status)
   const load = useStudentProfile((s) => s.load)
+  const attendanceEnabled = useAppFeatures((s) => s.features?.attendanceEnabled === true)
+  const featuresStatus = useAppFeatures((s) => s.status)
+  const loadFeatures = useAppFeatures((s) => s.load)
 
   useEffect(() => {
     if (status === 'idle') void load()
   }, [status, load])
 
+  useEffect(() => {
+    if (featuresStatus === 'idle') void loadFeatures()
+  }, [featuresStatus, loadFeatures])
+
   const items = useMemo(() => {
-    if (isAttendanceNavVisible(profile)) return allItems
+    if (isAttendanceNavVisible(profile, attendanceEnabled)) return allItems
     return allItems.filter((item) => item.to !== paths.attendance)
-  }, [profile])
+  }, [profile, attendanceEnabled])
 
   return (
     <>

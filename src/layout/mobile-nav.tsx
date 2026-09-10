@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
 import { isAttendanceNavVisible, isEventsNavVisible } from '@/campus'
+import { useAppFeatures } from '@/features'
 import { NavIcon } from '@/icons/nav'
 import { paths } from '@/paths'
 import { buildMenu, mobileTabs } from '@/nav'
@@ -17,13 +18,20 @@ export function MobileNav() {
   const profile = useStudentProfile((s) => s.profile)
   const status = useStudentProfile((s) => s.status)
   const load = useStudentProfile((s) => s.load)
+  const attendanceEnabled = useAppFeatures((s) => s.features?.attendanceEnabled === true)
+  const featuresStatus = useAppFeatures((s) => s.status)
+  const loadFeatures = useAppFeatures((s) => s.load)
 
   useEffect(() => {
     if (status === 'idle') void load()
   }, [status, load])
 
+  useEffect(() => {
+    if (featuresStatus === 'idle') void loadFeatures()
+  }, [featuresStatus, loadFeatures])
+
   const menu = buildMenu({
-    attendance: isAttendanceNavVisible(profile),
+    attendance: isAttendanceNavVisible(profile, attendanceEnabled),
     events: isEventsNavVisible(profile),
   })
 

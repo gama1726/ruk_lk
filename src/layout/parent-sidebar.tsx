@@ -2,14 +2,20 @@
  * @file Сайдбар родительского кабинета.
  */
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import logo from '@/assets/ruk-logo.png'
+import { useAppFeatures } from '@/features'
 import { SocialIcon } from '@/icons/social'
-import { NavIcon } from '@/icons/nav'
+import { NavIcon, type NavIconId } from '@/icons/nav'
 import { socialLinks } from '@/mocks/public-nav'
 import { paths } from '@/paths'
-import { parentSidebarBottom, parentSidebarGroups, parentSidebarTop } from '@/parent-nav'
+import {
+  getParentSidebarGroups,
+  parentSidebarBottom,
+  parentSidebarTop,
+  type ParentNavItem,
+} from '@/parent-nav'
 import { useParentAuth } from '@/parent-auth'
 import { PARENT_CONSENT_MESSAGE } from '@/parent-consent'
 import { ParentMenuLink } from './nav-link'
@@ -20,6 +26,15 @@ export function ParentSidebar() {
   const session = useParentAuth((s) => s.session)
   const dataAllowed = session?.dataAccessAllowed !== false
   const lockTitle = session?.consentRequiredMessage ?? PARENT_CONSENT_MESSAGE
+  const attendanceEnabled = useAppFeatures((s) => s.features?.attendanceEnabled === true)
+  const featuresStatus = useAppFeatures((s) => s.status)
+  const loadFeatures = useAppFeatures((s) => s.load)
+
+  useEffect(() => {
+    if (featuresStatus === 'idle') void loadFeatures()
+  }, [featuresStatus, loadFeatures])
+
+  const groups = useMemo(() => getParentSidebarGroups(attendanceEnabled), [attendanceEnabled])
 
   return (
     <nav className={styles.sidebar} aria-label="Разделы кабинета родителя">
@@ -46,7 +61,7 @@ export function ParentSidebar() {
           ))}
         </ul>
 
-        {parentSidebarGroups.map((group) => (
+        {groups.map((group) => (
           <ParentNavGroup
             key={group.id}
             group={group}
@@ -102,7 +117,12 @@ function ParentNavGroup({
   dataAllowed,
   lockTitle,
 }: {
-  group: (typeof parentSidebarGroups)[number]
+  group: {
+    id: string
+    label: string
+    icon: NavIconId
+    items: ParentNavItem[]
+  }
   dataAllowed: boolean
   lockTitle: string
 }) {

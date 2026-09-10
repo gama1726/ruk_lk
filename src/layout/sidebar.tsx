@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import logo from '@/assets/ruk-logo.png'
 import { isAttendanceNavVisible, isEventsNavVisible } from '@/campus'
+import { useAppFeatures } from '@/features'
 import { SocialIcon } from '@/icons/social'
 import { socialLinks } from '@/mocks/public-nav'
 import { paths } from '@/paths'
@@ -15,13 +16,20 @@ export function Sidebar() {
   const profile = useStudentProfile((s) => s.profile)
   const status = useStudentProfile((s) => s.status)
   const load = useStudentProfile((s) => s.load)
+  const attendanceEnabled = useAppFeatures((s) => s.features?.attendanceEnabled === true)
+  const featuresStatus = useAppFeatures((s) => s.status)
+  const loadFeatures = useAppFeatures((s) => s.load)
 
   useEffect(() => {
     if (status === 'idle') void load()
   }, [status, load])
 
+  useEffect(() => {
+    if (featuresStatus === 'idle') void loadFeatures()
+  }, [featuresStatus, loadFeatures])
+
   const navOptions = {
-    attendance: isAttendanceNavVisible(profile),
+    attendance: isAttendanceNavVisible(profile, attendanceEnabled),
     events: isEventsNavVisible(profile),
   }
   const topItems = getSidebarTop(navOptions)
