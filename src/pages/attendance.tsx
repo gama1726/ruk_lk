@@ -14,20 +14,19 @@ import { useCurrentProgram } from '@/study'
 
 export function Attendance() {
   const program = useCurrentProgram()
-  const attendanceEnabled = useAppFeatures((s) => s.features?.attendanceEnabled === true)
+  const features = useAppFeatures((s) => s.features)
   const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
-  const attendanceAllowed = isAttendanceNavVisible(null, attendanceEnabled)
 
   useEffect(() => {
     if (featuresStatus === 'idle') void loadFeatures()
   }, [featuresStatus, loadFeatures])
 
-  if (featuresStatus !== 'ready') {
-    return null
-  }
+  // Пока флаг не загружен — не редиректим и не отдаём пустой экран.
+  const featureEnabled = featuresStatus !== 'ready' || features?.attendanceEnabled === true
+  const attendanceAllowed = isAttendanceNavVisible(null, featureEnabled)
 
-  if (!attendanceAllowed) {
+  if (featuresStatus === 'ready' && !attendanceAllowed) {
     return <Navigate to={paths.education} replace />
   }
 

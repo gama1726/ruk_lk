@@ -19,6 +19,8 @@ const offlineDefaults: AppFeatures = {
   attendanceEnabled: true,
 }
 
+let loadPromise: Promise<void> | null = null
+
 export const useAppFeatures = create<FeaturesState>((set, get) => ({
   features: isApiConfigured() ? null : offlineDefaults,
   status: isApiConfigured() ? 'idle' : 'ready',
@@ -28,14 +30,23 @@ export const useAppFeatures = create<FeaturesState>((set, get) => ({
       set({ features: offlineDefaults, status: 'ready' })
       return
     }
-    if (get().status === 'loading') return
+    if (get().status === 'ready' && get().features) return
+    if (loadPromise) return loadPromise
+
     set({ status: 'loading' })
-    try {
-      const features = await apiGet<AppFeatures>('/api/features')
-      set({ features, status: 'ready' })
-    } catch {
-      set({ features: { attendanceEnabled: false }, status: 'ready' })
-    }
+    loadPromise = (async () => {
+      try {
+        const features = await apiGet<AppFeatures>('/api/features')
+        set({ features, status: 'ready' })
+      } catch {
+        // Старый backend без /api/features — не прячем раздел молча навсегда.
+        set({ features: { attendanceEnabled: true }, status: 'ready' })
+      } finally {
+        loadPromise = null
+      }
+    })()
+
+    return loadPromise
   },
 }))
 

@@ -8,7 +8,7 @@ import { paths } from '@/paths'
 
 export function ParentAttendance() {
   const fetchAttendance = useCallback(fetchParentAttendance, [])
-  const attendanceEnabled = useAppFeatures((s) => s.features?.attendanceEnabled === true)
+  const features = useAppFeatures((s) => s.features)
   const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
 
@@ -16,11 +16,9 @@ export function ParentAttendance() {
     if (featuresStatus === 'idle') void loadFeatures()
   }, [featuresStatus, loadFeatures])
 
-  if (featuresStatus !== 'ready') {
-    return null
-  }
+  const featureEnabled = featuresStatus !== 'ready' || features?.attendanceEnabled === true
 
-  if (!attendanceEnabled) {
+  if (featuresStatus === 'ready' && !featureEnabled) {
     return <Navigate to={paths.parentHome} replace />
   }
 
@@ -28,7 +26,7 @@ export function ParentAttendance() {
 
   return (
     <ParentDataSection title="Посещаемость">
-      <AttendancePanel subtitle={subtitle} fetchAttendance={fetchAttendance} />
+      <AttendancePanel subtitle={subtitle} fetchAttendance={fetchAttendance} enabled={featureEnabled} />
     </ParentDataSection>
   )
 }
