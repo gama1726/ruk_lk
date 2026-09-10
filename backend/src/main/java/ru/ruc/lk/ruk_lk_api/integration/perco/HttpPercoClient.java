@@ -43,7 +43,8 @@ public class HttpPercoClient implements PercoClient {
 
     private static final int ACCESS_ROWS = 100;
     private static final int ACCESS_MAX_PAGES_PER_CHUNK = 3;
-    private static final int ACCESS_CHUNK_DAYS = 7;
+    /** По дням — иначе accessReports за неделю часто не успевает и даёт Read timed out. */
+    private static final int ACCESS_CHUNK_DAYS = 1;
 
     private final RestClient restClient;
     private final PercoProperties properties;
@@ -53,7 +54,11 @@ public class HttpPercoClient implements PercoClient {
         this.properties = properties;
         this.restClient = outboundRestClients.builder("perco")
             .baseUrl(trimTrailingSlash(properties.baseUrl()))
-            .requestFactory(buildRequestFactory(properties.trustSelfSigned()))
+            .requestFactory(buildRequestFactory(
+                properties.trustSelfSigned(),
+                properties.connectTimeoutSeconds(),
+                properties.readTimeoutSeconds()
+            ))
             .build();
     }
 
@@ -97,7 +102,7 @@ public class HttpPercoClient implements PercoClient {
 
         authenticate();
 
-        // accessReports плохо переваривает длинные периоды — режем на недели.
+        // accessReports плохо переваривает длинные периоды — режем по дням.
         // Фильтр по tabel_number (как в staff/table); user_id на отчёте часто не принимается.
         String filters = tabelNumberFilter(tabel);
 
@@ -530,11 +535,15 @@ public class HttpPercoClient implements PercoClient {
      * Как {@code curl -k} / Python {@code verify=False}: Apache HttpClient + TrustAll + NoopHostnameVerifier.
      * JDK HttpClient этого не умеет надёжно (SAN/IP).
      */
-    private static HttpComponentsClientHttpRequestFactory buildRequestFactory(boolean trustSelfSigned) {
+    private static HttpComponentsClientHttpRequestFactory buildRequestFactory(
+        boolean trustSelfSigned,
+        int connectTimeoutSeconds,
+        int readTimeoutSeconds
+    ) {
         // Таймауты на Apache HttpClient 5 — API factory.setConnectTimeout(Duration) в этой версии Spring нет.
         var requestConfig = org.apache.hc.client5.http.config.RequestConfig.custom()
-            .setConnectionRequestTimeout(org.apache.hc.core5.util.Timeout.ofSeconds(5))
-            .setResponseTimeout(org.apache.hc.core5.util.Timeout.ofSeconds(25))
+            .setConnectionRequestTimeout(org.apache.hc.core5.util.Timeout.ofSeconds(connectTimeoutSeconds))
+            .setResponseTimeout(org.apache.hc.core5.util.Timeout.ofSeconds(readTimeoutSeconds))
             .build();
 
         try {

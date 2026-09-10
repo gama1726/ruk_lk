@@ -14,7 +14,11 @@ public record PercoProperties(
     int photoWidth,
     int photoHeight,
     /** Имя зоны «улица» в Perco для IN/OUT. */
-    String uncontrolledZone
+    String uncontrolledZone,
+    /** Таймаут соединения с Perco, секунды. */
+    int connectTimeoutSeconds,
+    /** Таймаут чтения ответа Perco (accessReports медленный), секунды. */
+    int readTimeoutSeconds
 ) {
     public PercoProperties {
         if (photoWidth <= 0) {
@@ -25,6 +29,12 @@ public record PercoProperties(
         }
         if (uncontrolledZone == null || uncontrolledZone.isBlank()) {
             uncontrolledZone = "Неконтролируемая территория";
+        }
+        if (connectTimeoutSeconds <= 0) {
+            connectTimeoutSeconds = 10;
+        }
+        if (readTimeoutSeconds <= 0) {
+            readTimeoutSeconds = 90;
         }
     }
 }
