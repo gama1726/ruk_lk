@@ -516,9 +516,12 @@ public class StudentService {
             Throwable cause = ex.getCause();
             if (cause instanceof PercoException percoEx) {
                 log.warn("Посещаемость Perco недоступна: {}", percoEx.getMessage());
+                String detail = percoEx.getMessage();
                 throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "Не удалось подключиться к сервису посещений"
+                    detail != null && !detail.isBlank()
+                        ? detail
+                        : "Не удалось подключиться к сервису посещений"
                 );
             }
             throw ex;
