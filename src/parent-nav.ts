@@ -1,4 +1,5 @@
 import type { NavIconId } from '@/icons/nav'
+import { ATTENDANCE_FEATURE_ENABLED } from '@/campus'
 import { paths } from '@/paths'
 
 export type ParentNavItem = {
@@ -17,17 +18,26 @@ export const parentSidebarTop: ParentNavItem[] = [
 
 export const parentSidebarBottom: ParentNavItem[] = []
 
-export const parentSidebarGroups: { id: string; label: string; icon: NavIconId; items: ParentNavItem[] }[] = [
+const parentStudyItems: ParentNavItem[] = [
+  { to: paths.parentSchedule, label: 'Расписание', icon: 'schedule' },
+  { to: paths.parentRecordBook, label: 'Зачётная книжка ребёнка', icon: 'recordBook' },
+  ...(ATTENDANCE_FEATURE_ENABLED
+    ? ([{ to: paths.parentAttendance, label: 'Посещаемость', icon: 'attendance' }] as ParentNavItem[])
+    : []),
+  { to: paths.parentOrders, label: 'Приказы', icon: 'orders' },
+]
+
+export const parentSidebarGroups: {
+  id: string
+  label: string
+  icon: NavIconId
+  items: ParentNavItem[]
+}[] = [
   {
     id: 'study',
     label: 'Обучение',
     icon: 'program',
-    items: [
-      { to: paths.parentSchedule, label: 'Расписание', icon: 'schedule' },
-      { to: paths.parentRecordBook, label: 'Зачётная книжка ребёнка', icon: 'recordBook' },
-      { to: paths.parentAttendance, label: 'Посещаемость', icon: 'attendance' },
-      { to: paths.parentOrders, label: 'Приказы', icon: 'orders' },
-    ],
+    items: parentStudyItems,
   },
   {
     id: 'finance',

@@ -437,14 +437,31 @@ public class StudentService {
     /**
      * Проходы на территорию: Perco (головной вуз) или ZKBio (Казань ККИ).
      * Дни без прохода, но с очными парами по расписанию — отсутствие (оба кампуса).
+     * Временно отключено — не ходим в СКУД, пока нет своей выгрузки проходов.
      */
     public StudentAttendanceResponse getAttendance(HttpSession session, LocalDate from, LocalDate to) {
-        StudentSession student = requireStudent(session);
-        return getAttendanceForStudentId(session, student.studentId(), from, to);
+        requireStudent(session);
+        throw new ResponseStatusException(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "Раздел посещаемости временно недоступен"
+        );
     }
 
     /** Посещаемость по номеру зачётки (родительский кабинет). */
     public StudentAttendanceResponse getAttendanceForStudentId(
+        HttpSession session,
+        String studentId,
+        LocalDate from,
+        LocalDate to
+    ) {
+        throw new ResponseStatusException(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "Раздел посещаемости временно недоступен"
+        );
+    }
+
+    @SuppressWarnings("unused")
+    private StudentAttendanceResponse getAttendanceForStudentIdEnabled(
         HttpSession session,
         String studentId,
         LocalDate from,
