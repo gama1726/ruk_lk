@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom'
+import { ParentBetaTestingNotice } from '@/blocks/beta-testing-notice'
 import { ParentPaymentDebtWarning } from '@/blocks/payment-debt-warning'
 import { ParentCabinetHeader } from './parent-cabinet-header'
 import { ParentSidebar } from './parent-sidebar'
@@ -8,6 +9,7 @@ import styles from './cabinet.module.css'
 export function ParentCabinetShell() {
   return (
     <div className={styles.wrap}>
+      <ParentBetaTestingNotice />
       <ParentPaymentDebtWarning />
       <ParentSidebar />
       <div className={styles.main}>

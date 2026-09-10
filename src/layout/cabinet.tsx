@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom'
+import { BetaTestingNotice } from '@/blocks/beta-testing-notice'
 import { PaymentDebtWarning } from '@/blocks/payment-debt-warning'
 import { Sidebar } from './sidebar'
 import { CabinetHeader } from './cabinet-header'
@@ -18,6 +19,7 @@ export function CabinetShell() {
         </div>
       </div>
       <MobileNav />
+      <BetaTestingNotice />
       <PaymentDebtWarning />
     </div>
   )

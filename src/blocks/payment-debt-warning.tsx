@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
 import { isApiConfigured } from '@/apiClient'
 import {
+  BETA_NOTICE_DISMISSED_EVENT,
+  isBetaNoticeSeen,
+} from '@/blocks/beta-testing-notice'
+import {
   fetchParentPayments,
   fetchStudentPayments,
   isPaymentsApiEnabled,
@@ -131,6 +135,16 @@ function PaymentDebtWarningContainer({
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [data, setData] = useState<StudentPaymentsDto | null>(null)
+  const [betaReady, setBetaReady] = useState(() => isBetaNoticeSeen(sessionKey))
+
+  useEffect(() => {
+    setBetaReady(isBetaNoticeSeen(sessionKey))
+    if (!sessionKey || isBetaNoticeSeen(sessionKey)) return
+
+    const onBetaDismissed = () => setBetaReady(true)
+    window.addEventListener(BETA_NOTICE_DISMISSED_EVENT, onBetaDismissed)
+    return () => window.removeEventListener(BETA_NOTICE_DISMISSED_EVENT, onBetaDismissed)
+  }, [sessionKey])
 
   useEffect(() => {
     if (!enabled || !isApiConfigured() || !isPaymentsApiEnabled() || !sessionKey) return
@@ -145,7 +159,6 @@ function PaymentDebtWarningContainer({
         if (cancelled) return
         if (!hasPaymentDebt(result)) return
         setData(result)
-        setOpen(true)
       } catch {
         // тихо: не мешаем работе ЛК, если оплата недоступна
       }
@@ -155,6 +168,12 @@ function PaymentDebtWarningContainer({
       cancelled = true
     }
   }, [enabled, sessionKey, fetchPayments])
+
+  useEffect(() => {
+    if (!data || !betaReady || !sessionKey) return
+    if (sessionStorage.getItem(SESSION_KEY_PREFIX + sessionKey) === '1') return
+    setOpen(true)
+  }, [data, betaReady, sessionKey])
 
   const dismiss = useCallback(() => {
     if (sessionKey) {
