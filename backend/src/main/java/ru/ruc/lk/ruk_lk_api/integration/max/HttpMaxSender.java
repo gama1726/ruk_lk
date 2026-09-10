@@ -9,6 +9,9 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundOperationContext;
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
+
 @Component
 @ConditionalOnProperty(name = "app.max.enabled", havingValue = "true")
 public class HttpMaxSender implements VerificationMaxSender {
@@ -18,9 +21,9 @@ public class HttpMaxSender implements VerificationMaxSender {
     private final RestClient restClient;
     private final String botToken;
 
-    public HttpMaxSender(MaxProperties properties) {
+    public HttpMaxSender(MaxProperties properties, OutboundRestClients outboundRestClients) {
         this.botToken = properties.getBotToken() == null ? "" : properties.getBotToken().trim();
-        this.restClient = RestClient.builder()
+        this.restClient = outboundRestClients.builder("max")
             .baseUrl(properties.getApiUrl())
             .defaultHeader("Authorization", this.botToken)
             .build();
@@ -32,26 +35,36 @@ public class HttpMaxSender implements VerificationMaxSender {
     }
 
     @Override
+    public void sendLoginCode(long maxUserId, String recipientName, String code) {
+        OutboundOperationContext.call(
+            "send-login-code",
+            () -> VerificationMaxSender.super.sendLoginCode(maxUserId, recipientName, code)
+        );
+    }
+
+    @Override
     public void sendMessage(long maxUserId, String text) {
         if (!isConfigured()) {
             throw new MaxSendException("MAX не настроен: укажите app.max.bot-token");
         }
 
-        try {
-            restClient.post()
-                .uri(uriBuilder -> uriBuilder.path("/messages").queryParam("user_id", maxUserId).build())
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(new MaxMessageRequest(text))
-                .retrieve()
-                .toBodilessEntity();
-            log.info("Сообщение отправлено в MAX, user_id={}", maxUserId);
-        } catch (RestClientResponseException e) {
-            log.error("MAX HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new MaxSendException("Не удалось отправить сообщение в MAX", e);
-        } catch (RestClientException e) {
-            log.error("MAX request failed: {}", e.getMessage());
-            throw new MaxSendException("Не удалось отправить сообщение в MAX: " + e.getMessage(), e);
-        }
+        OutboundOperationContext.call(OutboundOperationContext.peekOr("send-message"), () -> {
+            try {
+                restClient.post()
+                    .uri(uriBuilder -> uriBuilder.path("/messages").queryParam("user_id", maxUserId).build())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new MaxMessageRequest(text))
+                    .retrieve()
+                    .toBodilessEntity();
+                log.info("Сообщение отправлено в MAX, user_id={}", maxUserId);
+            } catch (RestClientResponseException e) {
+                log.error("MAX HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+                throw new MaxSendException("Не удалось отправить сообщение в MAX", e);
+            } catch (RestClientException e) {
+                log.error("MAX request failed: {}", e.getMessage());
+                throw new MaxSendException("Не удалось отправить сообщение в MAX: " + e.getMessage(), e);
+            }
+        });
     }
 
     private record MaxMessageRequest(String text) {}

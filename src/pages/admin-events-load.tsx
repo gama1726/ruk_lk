@@ -1,14 +1,122 @@
 /**
- * @file Live-нагрузка API в админке мероприятий.
+ * @file Live-нагрузка API и исходящих сервисов в админке.
  */
 
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '@/apiClient'
-import { fetchEventsAdminLoad, type ApiLoadSnapshot } from '@/events-admin'
+import {
+  fetchEventsAdminLoad,
+  type ApiLoadEndpoint,
+  type ApiLoadSnapshot,
+  type OutboundError,
+} from '@/events-admin'
 import { Loader, LoadError } from '@/ui'
 import styles from './admin-events.module.css'
 
 const POLL_MS = 3000
+
+function formatTime(atMs: number): string {
+  try {
+    return new Date(atMs).toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch {
+    return String(atMs)
+  }
+}
+
+function LoadTable({
+  rows,
+  serviceColumn,
+}: {
+  rows: ApiLoadEndpoint[]
+  serviceColumn: boolean
+}) {
+  if (rows.length === 0) {
+    return <p className={styles.statsHint}>Пока нет запросов.</p>
+  }
+
+  return (
+    <div className={styles.usersTableWrap}>
+      <table className={styles.usersTable}>
+        <thead>
+          <tr>
+            <th>{serviceColumn ? 'Сервис' : 'Method'}</th>
+            <th>{serviceColumn ? 'Операция' : 'Path'}</th>
+            <th>Now</th>
+            <th>RPM</th>
+            <th>In-flight min/avg/max</th>
+            <th>RPM min/avg/max</th>
+            <th>ms min/avg/max</th>
+            <th>4xx</th>
+            <th>5xx</th>
+            <th>Всего</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr
+              key={`${row.method} ${row.path}`}
+              className={row.inFlight > 0 ? styles.loadRowActive : undefined}
+            >
+              <td>{row.method}</td>
+              <td className={styles.loadPath}>{row.path}</td>
+              <td>{row.inFlight}</td>
+              <td>{row.requestsPerMinute}</td>
+              <td>
+                {row.minInFlightAllTime} / {row.avgInFlightAllTime} / {row.maxInFlightAllTime}
+              </td>
+              <td>
+                {row.minRpmAllTime} / {row.avgRpmAllTime} / {row.maxRpmAllTime}
+              </td>
+              <td>
+                {row.minDurationMs} / {row.avgDurationMs} / {row.maxDurationMs}
+              </td>
+              <td>{row.errors4xx}</td>
+              <td>{row.errors5xx}</td>
+              <td>{row.completedTotal}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function RecentErrors({ rows }: { rows: OutboundError[] }) {
+  if (rows.length === 0) {
+    return <p className={styles.statsHint}>Ошибок исходящих вызовов пока нет.</p>
+  }
+
+  return (
+    <div className={styles.usersTableWrap}>
+      <table className={styles.usersTable}>
+        <thead>
+          <tr>
+            <th>Время</th>
+            <th>Сервис</th>
+            <th>Операция</th>
+            <th>HTTP</th>
+            <th>Деталь</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, idx) => (
+            <tr key={`${row.atMs}-${row.service}-${row.operation}-${idx}`}>
+              <td>{formatTime(row.atMs)}</td>
+              <td>{row.service}</td>
+              <td className={styles.loadPath}>{row.operation}</td>
+              <td>{row.status}</td>
+              <td className={styles.loadPath}>{row.detail || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
 export function AdminEventsLoad() {
   const [load, setLoad] = useState<ApiLoadSnapshot | null>(null)
@@ -38,15 +146,20 @@ export function AdminEventsLoad() {
       ? 0
       : Math.max(0, Math.floor((load.collectedAtMs - load.processStartedAtMs) / 60_000))
 
+  const outbound = load?.outbound ?? []
+  const outboundInFlight = load?.outboundInFlight ?? 0
+  const outboundRpm = load?.outboundRequestsPerMinute ?? 0
+  const recentErrors = load?.recentOutboundErrors ?? []
+
   return (
     <section className={styles.statsSection} aria-label="Нагрузка API">
       <div className={styles.statsHead}>
         <div>
           <h2 className={styles.statsTitle}>Нагрузка API</h2>
           <p className={styles.statsHint}>
-            Сейчас: in-flight и RPM (~{load?.windowSeconds ?? 60} с). За всё время: min / avg / max
-            одновременных запросов и RPM — пишутся в БД, переживают рестарт. Обновление каждые{' '}
-            {POLL_MS / 1000} с.
+            Входящие запросы к ЛК и отдельно исходящие вызовы к сервисам. Unisender и MAX — разные
+            строки (`unisender` / `max`) и операции (`send-login-code`, `send-email-change-code`,
+            `bind-request-phone`…). Обновление каждые {POLL_MS / 1000} с.
             {load ? ` Аптайм процесса ≈ ${uptimeMin} мин.` : ''}
           </p>
         </div>
@@ -59,69 +172,40 @@ export function AdminEventsLoad() {
         <>
           <div className={styles.statsCards}>
             <article className={styles.statCard}>
-              <span className={styles.statLabel}>Сейчас in-flight</span>
+              <span className={styles.statLabel}>API in-flight</span>
               <strong className={styles.statValue}>{load.totalInFlight}</strong>
             </article>
             <article className={styles.statCard}>
-              <span className={styles.statLabel}>Всего RPM</span>
+              <span className={styles.statLabel}>API RPM</span>
               <strong className={styles.statValue}>{load.totalRequestsPerMinute}</strong>
             </article>
             <article className={styles.statCard}>
-              <span className={styles.statLabel}>Endpoint’ов</span>
-              <strong className={styles.statValue}>{load.endpoints.length}</strong>
+              <span className={styles.statLabel}>Исходящие in-flight</span>
+              <strong className={styles.statValue}>{outboundInFlight}</strong>
+            </article>
+            <article className={styles.statCard}>
+              <span className={styles.statLabel}>Исходящие RPM</span>
+              <strong className={styles.statValue}>{outboundRpm}</strong>
             </article>
           </div>
 
           <div className={styles.usersCard}>
-            <h3 className={styles.chartTitle}>По endpoint’ам</h3>
-            {load.endpoints.length === 0 ? (
-              <p className={styles.statsHint}>Пока нет запросов к API.</p>
-            ) : (
-              <div className={styles.usersTableWrap}>
-                <table className={styles.usersTable}>
-                  <thead>
-                    <tr>
-                      <th>Method</th>
-                      <th>Path</th>
-                      <th>Now</th>
-                      <th>RPM</th>
-                      <th>In-flight min/avg/max</th>
-                      <th>RPM min/avg/max</th>
-                      <th>ms min/avg/max</th>
-                      <th>4xx</th>
-                      <th>5xx</th>
-                      <th>Всего</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {load.endpoints.map((row) => (
-                      <tr
-                        key={`${row.method} ${row.path}`}
-                        className={row.inFlight > 0 ? styles.loadRowActive : undefined}
-                      >
-                        <td>{row.method}</td>
-                        <td className={styles.loadPath}>{row.path}</td>
-                        <td>{row.inFlight}</td>
-                        <td>{row.requestsPerMinute}</td>
-                        <td>
-                          {row.minInFlightAllTime} / {row.avgInFlightAllTime} /{' '}
-                          {row.maxInFlightAllTime}
-                        </td>
-                        <td>
-                          {row.minRpmAllTime} / {row.avgRpmAllTime} / {row.maxRpmAllTime}
-                        </td>
-                        <td>
-                          {row.minDurationMs} / {row.avgDurationMs} / {row.maxDurationMs}
-                        </td>
-                        <td>{row.errors4xx}</td>
-                        <td>{row.errors5xx}</td>
-                        <td>{row.completedTotal}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <h3 className={styles.chartTitle}>Последние ошибки исходящих</h3>
+            <p className={styles.statsHint}>До 40 последних сбоев (в памяти процесса, после рестарта пусто).</p>
+            <RecentErrors rows={recentErrors} />
+          </div>
+
+          <div className={styles.usersCard}>
+            <h3 className={styles.chartTitle}>Исходящие сервисы</h3>
+            <p className={styles.statsHint}>
+              Смотрите колонку «Сервис»: unisender vs max. «Операция» — тип вызова.
+            </p>
+            <LoadTable rows={outbound} serviceColumn />
+          </div>
+
+          <div className={styles.usersCard}>
+            <h3 className={styles.chartTitle}>Входящие endpoint’ы ЛК</h3>
+            <LoadTable rows={load.endpoints} serviceColumn={false} />
             {error ? <p className={styles.error}>{error}</p> : null}
           </div>
         </>

@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
+
 @Component
 @ConditionalOnProperty(name = "app.max.enabled", havingValue = "true")
 public class MaxBotIdentity {
@@ -20,10 +22,12 @@ public class MaxBotIdentity {
     private static final Logger log = LoggerFactory.getLogger(MaxBotIdentity.class);
 
     private final MaxProperties properties;
+    private final OutboundRestClients outboundRestClients;
     private volatile String resolvedUsername = "";
 
-    public MaxBotIdentity(MaxProperties properties) {
+    public MaxBotIdentity(MaxProperties properties, OutboundRestClients outboundRestClients) {
         this.properties = properties;
+        this.outboundRestClients = outboundRestClients;
     }
 
     public String botUsername() {
@@ -50,7 +54,7 @@ public class MaxBotIdentity {
         }
 
         try {
-            RestClient client = RestClient.builder()
+            RestClient client = outboundRestClients.builder("max")
                 .baseUrl(properties.getApiUrl())
                 .defaultHeader("Authorization", botToken)
                 .build();

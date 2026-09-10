@@ -32,6 +32,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent;
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
 
 @Component
 @ConditionalOnProperty(name = "app.zkbio.kazan.enabled", havingValue = "true")
@@ -48,9 +49,9 @@ public class HttpZKBioClient implements ZKBioClient {
     private final Object employeeIndexLock = new Object();
     private String token;
 
-    public HttpZKBioClient(ZKBioProperties properties) {
+    public HttpZKBioClient(ZKBioProperties properties, OutboundRestClients outboundRestClients) {
         this.properties = properties;
-        this.restClient = RestClient.builder()
+        this.restClient = outboundRestClients.builder("zkbio")
             .baseUrl(trimTrailingSlash(properties.baseUrl()))
             .requestFactory(buildRequestFactory(properties.trustSelfSigned()))
             .build();

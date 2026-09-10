@@ -13,6 +13,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
 
 @Component
 public class EsportsBridgeClient {
@@ -24,11 +25,12 @@ public class EsportsBridgeClient {
     public EsportsBridgeClient(
         @Value("${app.esports.api-base-url}") String apiBaseUrl,
         @Value("${app.esports.exchange-secret}") String exchangeSecret,
-        @Value("${app.esports.frontend-url}") String frontendUrl
+        @Value("${app.esports.frontend-url}") String frontendUrl,
+        OutboundRestClients outboundRestClients
     ) {
         this.exchangeSecret = exchangeSecret;
         this.frontendUrl = trimSlash(frontendUrl);
-        this.restClient = RestClient.builder()
+        this.restClient = outboundRestClients.builder("esports")
             .baseUrl(trimSlash(apiBaseUrl))
             .build();
     }

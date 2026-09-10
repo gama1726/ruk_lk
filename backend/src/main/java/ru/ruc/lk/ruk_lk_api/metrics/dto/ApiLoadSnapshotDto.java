@@ -8,5 +8,9 @@ public record ApiLoadSnapshotDto(
     int totalInFlight,
     double totalRequestsPerMinute,
     long processStartedAtMs,
-    List<ApiLoadEndpointDto> endpoints
+    List<ApiLoadEndpointDto> endpoints,
+    int outboundInFlight,
+    double outboundRequestsPerMinute,
+    List<ApiLoadEndpointDto> outbound,
+    List<OutboundErrorDto> recentOutboundErrors
 ) {}

@@ -14,6 +14,8 @@ import org.springframework.web.client.RestClient;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.MeResponse;
 import ru.ruc.lk.ruk_lk_api.api.auth.OneCAuthResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
+
  //http клиент для 1С
  
 
@@ -25,8 +27,10 @@ public class HttpOneCClient implements OneCClient {
     public HttpOneCClient(
         @Value("${app.onec.base-url}") String baseUrl,
         @Value("${app.onec.publication-user}") String publicationUser,
-        @Value("${app.onec.publication-password}") String publicationPassword) {
-        this.restClient = RestClient.builder()
+        @Value("${app.onec.publication-password}") String publicationPassword,
+        OutboundRestClients outboundRestClients
+    ) {
+        this.restClient = outboundRestClients.builder("onec")
             .baseUrl(baseUrl)// http://localhost/universitet_masterkova1
             .defaultHeaders(headers ->
                 headers.setBasicAuth(publicationUser, publicationPassword))

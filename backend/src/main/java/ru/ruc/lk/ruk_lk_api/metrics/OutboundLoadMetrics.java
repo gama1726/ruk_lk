@@ -1,8 +1,10 @@
 package ru.ruc.lk.ruk_lk_api.metrics;
 
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -21,44 +23,47 @@ import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
 import ru.ruc.lk.ruk_lk_api.metrics.dto.ApiLoadEndpointDto;
-import ru.ruc.lk.ruk_lk_api.metrics.dto.ApiLoadSnapshotDto;
+import ru.ruc.lk.ruk_lk_api.metrics.dto.OutboundErrorDto;
+import ru.ruc.lk.ruk_lk_api.metrics.dto.OutboundLoadSnapshotDto;
 
 /**
- * Live in-flight/RPM + накопительные min/avg/max за всё время (Postgres/H2).
+ * Нагрузка исходящих HTTP-вызовов к внешним сервисам (1С, Unisender, расписание, …).
  */
 @Component
-public class ApiLoadMetrics {
+public class OutboundLoadMetrics {
 
-    private static final Logger log = LoggerFactory.getLogger(ApiLoadMetrics.class);
+    private static final Logger log = LoggerFactory.getLogger(OutboundLoadMetrics.class);
     private static final long WINDOW_MS = 60_000L;
     private static final int MAX_KEYS = 400;
+    private static final int MAX_RECENT_ERRORS = 40;
 
-    private final ApiEndpointLoadStatsRepository repository;
+    private final OutboundServiceLoadStatsRepository repository;
     private final ConcurrentHashMap<String, EndpointStats> byKey = new ConcurrentHashMap<>();
     private final AtomicInteger totalInFlight = new AtomicInteger();
-    private final AtomicLong startedAtMs = new AtomicLong(System.currentTimeMillis());
     private final AtomicBoolean dirty = new AtomicBoolean(false);
+    private final Deque<OutboundErrorDto> recentErrors = new ArrayDeque<>();
 
-    public ApiLoadMetrics(ApiEndpointLoadStatsRepository repository) {
+    public OutboundLoadMetrics(OutboundServiceLoadStatsRepository repository) {
         this.repository = repository;
     }
 
     @PostConstruct
     void loadPersisted() {
         try {
-            for (ApiEndpointLoadStats row : repository.findAll()) {
+            for (OutboundServiceLoadStats row : repository.findAll()) {
                 byKey.put(row.getId(), EndpointStats.fromPersisted(row));
             }
-            log.info("Загружено {} endpoint-метрик нагрузки из БД", byKey.size());
+            log.info("Загружено {} outbound-метрик из БД", byKey.size());
         } catch (RuntimeException e) {
-            log.warn("Не удалось загрузить метрики нагрузки: {}", e.getMessage());
+            log.warn("Не удалось загрузить outbound-метрики: {}", e.getMessage());
         }
     }
 
-    public void begin(String method, String path) {
-        String normalized = normalize(path);
-        String key = key(method, normalized);
-        EndpointStats stats = byKey.computeIfAbsent(key, k -> new EndpointStats(method, normalized));
+    public void begin(String service, String operation) {
+        String svc = normalizeService(service);
+        String op = normalizeOperation(operation);
+        String key = key(svc, op);
+        EndpointStats stats = byKey.computeIfAbsent(key, k -> new EndpointStats(svc, op));
         if (byKey.size() > MAX_KEYS) {
             pruneIdle();
         }
@@ -69,8 +74,14 @@ public class ApiLoadMetrics {
         dirty.set(true);
     }
 
-    public void end(String method, String path, int status, long durationMs) {
-        String key = key(method, normalize(path));
+    public void end(String service, String operation, int status, long durationMs) {
+        end(service, operation, status, durationMs, null);
+    }
+
+    public void end(String service, String operation, int status, long durationMs, String detail) {
+        String svc = normalizeService(service);
+        String op = normalizeOperation(operation);
+        String key = key(svc, op);
         EndpointStats stats = byKey.get(key);
         if (stats == null) {
             return;
@@ -78,10 +89,43 @@ public class ApiLoadMetrics {
         stats.inFlight.updateAndGet(v -> Math.max(0, v - 1));
         totalInFlight.updateAndGet(v -> Math.max(0, v - 1));
         stats.recordCompletion(Math.max(0, durationMs), status);
+        if (status >= 400) {
+            pushError(svc, op, status, detail);
+        }
         dirty.set(true);
     }
 
-    public ApiLoadSnapshotDto snapshot() {
+    /**
+     * HTTP 2xx, но логическая ошибка (например UniSender status != success).
+     * Уже учтённый successful completion переводим в 5xx.
+     */
+    public void recordApplicationError(String service, String operation, int status, String detail) {
+        String svc = normalizeService(service);
+        String op = normalizeOperation(operation);
+        String key = key(svc, op);
+        EndpointStats stats = byKey.computeIfAbsent(key, k -> new EndpointStats(svc, op));
+        stats.markApplicationError(status >= 400 ? status : 502);
+        pushError(svc, op, status >= 400 ? status : 502, detail);
+        dirty.set(true);
+    }
+
+    private void pushError(String service, String operation, int status, String detail) {
+        OutboundErrorDto row = new OutboundErrorDto(
+            System.currentTimeMillis(),
+            service,
+            operation,
+            status,
+            detail == null || detail.isBlank() ? "" : (detail.length() > 200 ? detail.substring(0, 200) : detail)
+        );
+        synchronized (recentErrors) {
+            recentErrors.addFirst(row);
+            while (recentErrors.size() > MAX_RECENT_ERRORS) {
+                recentErrors.removeLast();
+            }
+        }
+    }
+
+    public OutboundLoadSnapshotDto snapshot() {
         long now = System.currentTimeMillis();
         sampleRpmAll(now);
         List<ApiLoadEndpointDto> rows = new ArrayList<>();
@@ -106,18 +150,18 @@ public class ApiLoadMetrics {
             .thenComparingInt(ApiLoadEndpointDto::maxInFlightAllTime).reversed()
             .thenComparingDouble(ApiLoadEndpointDto::requestsPerMinute).reversed());
 
-        return new ApiLoadSnapshotDto(
-            now,
-            WINDOW_MS / 1000,
+        return new OutboundLoadSnapshotDto(
             Math.max(totalInFlight.get(), inFlightSum),
             round1(rpmSum),
-            startedAtMs.get(),
             rows,
-            0,
-            0,
-            List.of(),
-            List.of()
+            recentErrorsSnapshot()
         );
+    }
+
+    private List<OutboundErrorDto> recentErrorsSnapshot() {
+        synchronized (recentErrors) {
+            return List.copyOf(recentErrors);
+        }
     }
 
     @Scheduled(fixedDelayString = "10000")
@@ -131,7 +175,7 @@ public class ApiLoadMetrics {
             persistAll();
         } catch (RuntimeException e) {
             dirty.set(true);
-            log.warn("Не удалось сохранить метрики нагрузки: {}", e.getMessage());
+            log.warn("Не удалось сохранить outbound-метрики: {}", e.getMessage());
         }
     }
 
@@ -146,7 +190,7 @@ public class ApiLoadMetrics {
     }
 
     private void persistAll() {
-        List<ApiEndpointLoadStats> rows = new ArrayList<>();
+        List<OutboundServiceLoadStats> rows = new ArrayList<>();
         for (EndpointStats stats : byKey.values()) {
             rows.add(stats.toEntity());
         }
@@ -167,7 +211,6 @@ public class ApiLoadMetrics {
                 byKey.remove(e.getKey(), s);
             }
         }
-        // не выкидываем накопленные lifetime-метрики
         Set<String> keep = new HashSet<>();
         byKey.entrySet().stream()
             .sorted((a, b) -> Integer.compare(
@@ -178,25 +221,30 @@ public class ApiLoadMetrics {
         byKey.keySet().removeIf(k -> !keep.contains(k));
     }
 
-    static String normalize(String path) {
-        if (path == null || path.isBlank()) {
-            return "/";
+    private static String normalizeService(String service) {
+        if (service == null || service.isBlank()) {
+            return "unknown";
         }
-        String p = path;
-        int q = p.indexOf('?');
-        if (q >= 0) {
-            p = p.substring(0, q);
-        }
-        p = p.replaceAll("/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", "/{id}");
-        p = p.replaceAll("/\\d+", "/{id}");
-        if (p.length() > 1 && p.endsWith("/")) {
-            p = p.substring(0, p.length() - 1);
-        }
-        return p.isEmpty() ? "/" : p;
+        String s = service.trim().toLowerCase();
+        return s.length() > 32 ? s.substring(0, 32) : s;
     }
 
-    private static String key(String method, String path) {
-        return method + " " + path;
+    /** Операции вроде send-login-code не режем как URL. */
+    private static String normalizeOperation(String operation) {
+        if (operation == null || operation.isBlank()) {
+            return "unknown";
+        }
+        String s = operation.trim().replace('_', '-');
+        if (s.startsWith("GET ") || s.startsWith("POST ") || s.startsWith("PUT ")
+            || s.startsWith("PATCH ") || s.startsWith("DELETE ")) {
+            int sp = s.indexOf(' ');
+            return s.substring(0, sp + 1) + ApiLoadMetrics.normalize(s.substring(sp + 1));
+        }
+        return s.length() > 120 ? s.substring(0, 120) : s;
+    }
+
+    private static String key(String service, String operation) {
+        return service + " " + operation;
     }
 
     private static double round1(double value) {
@@ -204,8 +252,8 @@ public class ApiLoadMetrics {
     }
 
     private static final class EndpointStats {
-        private final String method;
-        private final String path;
+        private final String service;
+        private final String operation;
         private final AtomicInteger inFlight = new AtomicInteger();
         private final LongAdder completed = new LongAdder();
         private final LongAdder totalDurationMs = new LongAdder();
@@ -215,23 +263,21 @@ public class ApiLoadMetrics {
         private final LongAdder errors5xx = new LongAdder();
         private final AtomicLong windowStartMs = new AtomicLong(System.currentTimeMillis());
         private final LongAdder windowCount = new LongAdder();
-
         private final AtomicInteger maxInFlight = new AtomicInteger();
         private final AtomicInteger minInFlight = new AtomicInteger(Integer.MAX_VALUE);
         private final LongAdder sumInFlightSamples = new LongAdder();
         private final LongAdder inFlightSampleCount = new LongAdder();
-
         private final AtomicLong maxRpmX10 = new AtomicLong();
         private final AtomicLong minRpmX10 = new AtomicLong(Long.MAX_VALUE);
         private final DoubleAdder sumRpmSamples = new DoubleAdder();
         private final LongAdder rpmSampleCount = new LongAdder();
 
-        private EndpointStats(String method, String path) {
-            this.method = method;
-            this.path = path;
+        private EndpointStats(String service, String operation) {
+            this.service = service;
+            this.operation = operation;
         }
 
-        private static EndpointStats fromPersisted(ApiEndpointLoadStats row) {
+        private static EndpointStats fromPersisted(OutboundServiceLoadStats row) {
             EndpointStats s = new EndpointStats(row.getMethod(), row.getPath());
             s.completed.add(row.getCompletedTotal());
             s.totalDurationMs.add(row.getSumDurationMs());
@@ -293,6 +339,14 @@ public class ApiLoadMetrics {
             }
         }
 
+        private void markApplicationError(int status) {
+            if (status >= 500) {
+                errors5xx.increment();
+            } else if (status >= 400) {
+                errors4xx.increment();
+            }
+        }
+
         private void rotateIfNeeded(long now) {
             long start = windowStartMs.get();
             if (now - start < WINDOW_MS) {
@@ -328,8 +382,8 @@ public class ApiLoadMetrics {
             double minRpm = minRpmX10.get() == Long.MAX_VALUE ? 0 : minRpmX10.get() / 10.0;
             double maxRpm = maxRpmX10.get() / 10.0;
             return new ApiLoadEndpointDto(
-                method,
-                path,
+                service,
+                operation,
                 inFlight,
                 round1(rpm),
                 done,
@@ -347,8 +401,9 @@ public class ApiLoadMetrics {
             );
         }
 
-        private ApiEndpointLoadStats toEntity() {
-            ApiEndpointLoadStats row = new ApiEndpointLoadStats(key(method, path), method, path);
+        private OutboundServiceLoadStats toEntity() {
+            OutboundServiceLoadStats row =
+                new OutboundServiceLoadStats(key(service, operation), service, operation);
             row.setCompletedTotal(completed.sum());
             row.setErrors4xx(errors4xx.sum());
             row.setErrors5xx(errors5xx.sum());

@@ -12,6 +12,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundLoadMetrics;
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundOperationContext;
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
+
 @Component
 @ConditionalOnProperty(name = "app.unisender.enabled", havingValue = "true")
 public class UnisenderEmailSender implements VerificationEmailSender {
@@ -21,14 +25,18 @@ public class UnisenderEmailSender implements VerificationEmailSender {
 
     private final RestClient restClient;
     private final String fromEmail;
+    private final OutboundLoadMetrics outboundLoadMetrics;
 
     public UnisenderEmailSender(
         @Value("${app.unisender.base-url}") String baseUrl,
         @Value("${app.unisender.api-key}") String apiKey,
-        @Value("${app.unisender.from-email}") String fromEmail
+        @Value("${app.unisender.from-email}") String fromEmail,
+        OutboundRestClients outboundRestClients,
+        OutboundLoadMetrics outboundLoadMetrics
     ) {
         this.fromEmail = fromEmail;
-        this.restClient = RestClient.builder()
+        this.outboundLoadMetrics = outboundLoadMetrics;
+        this.restClient = outboundRestClients.builder("unisender")
             .baseUrl(baseUrl)
             .defaultHeader("X-API-KEY", apiKey)
             .build();
@@ -36,26 +44,26 @@ public class UnisenderEmailSender implements VerificationEmailSender {
 
     @Override
     public void sendLoginCode(String toEmail, String recipientName, String code) {
-        sendCode(
+        OutboundOperationContext.call("send-login-code", () -> sendCode(
             toEmail,
             recipientName,
             code,
             "Код для входа в личный кабинет РУК",
             "Код для входа в личный кабинет РУК",
             "login_code"
-        );
+        ));
     }
 
     @Override
     public void sendEmailChangeCode(String toEmail, String recipientName, String code) {
-        sendCode(
+        OutboundOperationContext.call("send-email-change-code", () -> sendCode(
             toEmail,
             recipientName,
             code,
             "Код для смены почты в личном кабинете РУК",
             "Код для подтверждения смены почты в личном кабинете РУК",
             "email_change_code"
-        );
+        ));
     }
 
     private void sendCode(
@@ -107,6 +115,13 @@ public class UnisenderEmailSender implements VerificationEmailSender {
                 .body(UnisenderSendResponse.class);
 
             if (response == null || !"success".equals(response.status())) {
+                String op = OutboundOperationContext.peekOr("send");
+                outboundLoadMetrics.recordApplicationError(
+                    "unisender",
+                    op,
+                    502,
+                    "status=" + (response == null ? "null" : response.status())
+                );
                 throw new EmailSendException("UniSender вернул не success");
             }
             log.info("Код ({}) отправлен на {}, job_id={}", tag, maskEmail(toEmail), response.job_id());

@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
+
 @Component
 public class HttpScheduleClient implements ScheduleClient {
 
@@ -22,9 +24,10 @@ public class HttpScheduleClient implements ScheduleClient {
 
     public HttpScheduleClient(
         @Value("${app.schedule.base-url}") String baseUrl,
-        @Value("${app.schedule.week-cache-ttl-seconds:600}") long weekCacheTtlSeconds
+        @Value("${app.schedule.week-cache-ttl-seconds:600}") long weekCacheTtlSeconds,
+        OutboundRestClients outboundRestClients
     ) {
-        this.restClient = RestClient.builder()
+        this.restClient = outboundRestClients.builder("schedule")
             .baseUrl(baseUrl)
             .build();
         this.weekCacheTtlMs = Math.max(0, weekCacheTtlSeconds) * 1000L;

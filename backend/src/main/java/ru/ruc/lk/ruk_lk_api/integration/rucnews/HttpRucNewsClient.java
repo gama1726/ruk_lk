@@ -20,6 +20,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundLoadMetrics;
+
 /**
  * Лента new.ruc.su/blog через {@code curl}: старый nginx отдаёт только TLS_RSA_*,
  * а ослабление {@code jdk.tls.disabledAlgorithms} ломает HTTPS к MAX и другим API.
@@ -34,12 +36,14 @@ public class HttpRucNewsClient implements RucNewsClient {
         "Mozilla/5.0 (compatible; ruk-lk-api/1.0; +https://my.ruc.su)";
 
     private final RucNewsProperties properties;
+    private final OutboundLoadMetrics outboundLoadMetrics;
     private final AtomicReference<CacheEntry> cache = new AtomicReference<>();
     private final AtomicBoolean lastOk = new AtomicBoolean(false);
     private final boolean curlAvailable;
 
-    public HttpRucNewsClient(RucNewsProperties properties) {
+    public HttpRucNewsClient(RucNewsProperties properties, OutboundLoadMetrics outboundLoadMetrics) {
         this.properties = properties;
+        this.outboundLoadMetrics = outboundLoadMetrics;
         this.curlAvailable = isCurlOnPath();
         log.info("Ruc news: curl={}", curlAvailable ? "yes" : "MISSING — news fetch disabled");
     }
@@ -175,36 +179,54 @@ public class HttpRucNewsClient implements RucNewsClient {
     }
 
     private String fetchViaCurl(String url) throws Exception {
-        ProcessBuilder pb = new ProcessBuilder(
-            "curl", "-sS", "-L",
-            "--connect-timeout", "8",
-            "--max-time", "20",
-            "-A", USER_AGENT,
-            "-H", "Accept: text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-            "-H", "Accept-Language: ru-RU,ru;q=0.9",
-            url
-        );
-        pb.redirectErrorStream(true);
-        Process process = pb.start();
-        String body;
-        try (BufferedReader reader = new BufferedReader(
-            new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8)
-        )) {
-            body = reader.lines().collect(Collectors.joining("\n"));
-        }
-        boolean finished = process.waitFor(25, TimeUnit.SECONDS);
-        if (!finished) {
-            process.destroyForcibly();
-            throw new IllegalStateException("curl timed out for " + url);
-        }
-        int code = process.exitValue();
-        if (code != 0) {
-            throw new IllegalStateException(
-                "curl exit " + code + " for " + url + ": "
-                    + body.substring(0, Math.min(200, body.length()))
+        String operation = "GET /blog";
+        outboundLoadMetrics.begin("rucnews", operation);
+        long started = System.nanoTime();
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                "curl", "-sS", "-L",
+                "--connect-timeout", "8",
+                "--max-time", "20",
+                "-A", USER_AGENT,
+                "-H", "Accept: text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+                "-H", "Accept-Language: ru-RU,ru;q=0.9",
+                url
             );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            String body;
+            try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8)
+            )) {
+                body = reader.lines().collect(Collectors.joining("\n"));
+            }
+            boolean finished = process.waitFor(25, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                outboundLoadMetrics.end("rucnews", operation, 504, elapsedMs(started));
+                throw new IllegalStateException("curl timed out for " + url);
+            }
+            int code = process.exitValue();
+            if (code != 0) {
+                outboundLoadMetrics.end("rucnews", operation, 502, elapsedMs(started));
+                throw new IllegalStateException(
+                    "curl exit " + code + " for " + url + ": "
+                        + body.substring(0, Math.min(200, body.length()))
+                );
+            }
+            outboundLoadMetrics.end("rucnews", operation, 200, elapsedMs(started));
+            return body;
+        } catch (Exception e) {
+            // уже учли timeout/exit выше; прочие сбои
+            if (!(e instanceof IllegalStateException)) {
+                outboundLoadMetrics.end("rucnews", operation, 599, elapsedMs(started));
+            }
+            throw e;
         }
-        return body;
+    }
+
+    private static long elapsedMs(long startedNanos) {
+        return Math.max(0L, (System.nanoTime() - startedNanos) / 1_000_000L);
     }
 
     private static boolean isCurlOnPath() {

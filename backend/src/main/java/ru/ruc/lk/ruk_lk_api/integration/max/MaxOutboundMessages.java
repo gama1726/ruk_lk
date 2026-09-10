@@ -10,6 +10,9 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundOperationContext;
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
+
 @Component
 @ConditionalOnProperty(name = "app.max.enabled", havingValue = "true")
 public class MaxOutboundMessages {
@@ -17,9 +20,9 @@ public class MaxOutboundMessages {
     private final RestClient restClient;
     private final String botToken;
 
-    public MaxOutboundMessages(MaxProperties properties) {
+    public MaxOutboundMessages(MaxProperties properties, OutboundRestClients outboundRestClients) {
         this.botToken = properties.getBotToken() == null ? "" : properties.getBotToken().trim();
-        this.restClient = RestClient.builder()
+        this.restClient = outboundRestClients.builder("max")
             .baseUrl(properties.getApiUrl())
             .defaultHeader("Authorization", this.botToken)
             .build();
@@ -30,7 +33,7 @@ public class MaxOutboundMessages {
     }
 
     void sendText(long maxUserId, String text) {
-        postMessage(maxUserId, Map.of("text", text));
+        OutboundOperationContext.call("bind-notify", () -> postMessage(maxUserId, Map.of("text", text)));
     }
 
     void sendPhoneVerificationRequest(long maxUserId, String maskedPhone) {
@@ -56,7 +59,7 @@ public class MaxOutboundMessages {
                 )
             )
         );
-        postMessage(maxUserId, body);
+        OutboundOperationContext.call("bind-request-phone", () -> postMessage(maxUserId, body));
     }
 
     void sendBindRejectedWrongPhone(long maxUserId, String maskedPhone) {

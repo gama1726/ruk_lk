@@ -100,6 +100,14 @@ export type ApiLoadEndpoint = {
   maxRpmAllTime: number
 }
 
+export type OutboundError = {
+  atMs: number
+  service: string
+  operation: string
+  status: number
+  detail: string
+}
+
 export type ApiLoadSnapshot = {
   collectedAtMs: number
   windowSeconds: number
@@ -107,6 +115,10 @@ export type ApiLoadSnapshot = {
   totalRequestsPerMinute: number
   processStartedAtMs: number
   endpoints: ApiLoadEndpoint[]
+  outboundInFlight: number
+  outboundRequestsPerMinute: number
+  outbound: ApiLoadEndpoint[]
+  recentOutboundErrors: OutboundError[]
 }
 
 export async function fetchEventsAdminLoad(): Promise<ApiLoadSnapshot> {

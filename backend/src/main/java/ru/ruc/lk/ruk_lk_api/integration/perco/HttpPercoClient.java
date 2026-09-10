@@ -34,6 +34,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import ru.ruc.lk.ruk_lk_api.imaging.ExifOrientedImages;
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
 
 @Component
 @ConditionalOnProperty(name = "app.perco.enabled", havingValue = "true")
@@ -45,9 +46,9 @@ public class HttpPercoClient implements PercoClient {
     private final PercoProperties properties;
     private String token;
 
-    public HttpPercoClient(PercoProperties properties) {
+    public HttpPercoClient(PercoProperties properties, OutboundRestClients outboundRestClients) {
         this.properties = properties;
-        this.restClient = RestClient.builder()
+        this.restClient = outboundRestClients.builder("perco")
             .baseUrl(trimTrailingSlash(properties.baseUrl()))
             .requestFactory(buildRequestFactory(properties.trustSelfSigned()))
             .build();

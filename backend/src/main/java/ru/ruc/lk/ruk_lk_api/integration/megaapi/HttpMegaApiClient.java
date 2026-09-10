@@ -13,6 +13,8 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
+
 /**
  * HTTP-клиент МегаAPI (ilibrary): GetReader / GetHandBooks / GetDebtBooks / GetOrderBooks.
  * {@code rdr_id} — номер зачётки (читательского билета).
@@ -26,7 +28,7 @@ public class HttpMegaApiClient implements MegaApiClient {
     private final RestClient restClient;
     private final int dbidx;
 
-    public HttpMegaApiClient(MegaApiProperties properties) {
+    public HttpMegaApiClient(MegaApiProperties properties, OutboundRestClients outboundRestClients) {
         String token = properties.tokenGet();
         if (token == null || token.isBlank()) {
             throw new IllegalStateException(
@@ -34,7 +36,7 @@ public class HttpMegaApiClient implements MegaApiClient {
             );
         }
         this.dbidx = properties.dbidx();
-        this.restClient = RestClient.builder()
+        this.restClient = outboundRestClients.builder("megaapi")
             .baseUrl(properties.baseUrl())
             .defaultHeader("x-auth-token", token)
             .defaultHeader("Accept", "application/json")
