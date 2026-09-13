@@ -138,9 +138,12 @@ final class AttendanceMapper {
                 ));
             }
 
-            boolean onCampus = !presence.intervals().isEmpty()
-                || presence.danglingEntry() != null
-                || hasUnknownPresence(dayEvents);
+            boolean hasIn = dayEvents.stream().anyMatch(e -> e.direction() == Direction.IN);
+            boolean hasOut = dayEvents.stream().anyMatch(e -> e.direction() == Direction.OUT);
+            boolean unknownOnly = !dayEvents.isEmpty() && !hasIn && !hasOut;
+            boolean onCampus = hasIn || hasOut || unknownOnly
+                || !presence.intervals().isEmpty()
+                || presence.danglingEntry() != null;
             String dayStatus;
             String checkIn = "";
             String checkOut = "";
@@ -149,25 +152,45 @@ final class AttendanceMapper {
             if (onCampus) {
                 dayStatus = STATUS_PRESENT;
                 presentDays++;
-                LocalTime firstIn = firstArrival(presence, dayEvents);
-                LocalTime lastOut = lastDeparture(presence);
-                if (firstIn != null) {
+                LocalTime firstIn = minTime(dayEvents, Direction.IN);
+                LocalTime lastOut = maxTime(dayEvents, Direction.OUT);
+                if (hasIn && hasOut) {
                     checkIn = firstIn.format(TIME_OUT);
-                    if (earliest == null || checkIn.compareTo(earliest) < 0) {
-                        earliest = checkIn;
+                    LocalTime outAfterIn = maxTimeOnOrAfter(dayEvents, Direction.OUT, firstIn);
+                    if (outAfterIn != null) {
+                        checkOut = outAfterIn.format(TIME_OUT);
+                        gate = firstGate(dayEvents);
+                    } else {
+                        gate = appendNote(firstGate(dayEvents), "выход не зафиксирован");
                     }
-                }
-                if (presence.danglingEntry() != null) {
-                    checkOut = "";
+                } else if (hasIn) {
+                    checkIn = firstIn.format(TIME_OUT);
                     gate = appendNote(firstGate(dayEvents), "выход не зафиксирован");
-                } else if (lastOut != null) {
+                } else if (hasOut) {
                     checkOut = lastOut.format(TIME_OUT);
-                    if (latest == null || checkOut.compareTo(latest) > 0) {
-                        latest = checkOut;
+                    gate = appendNote("Был только выход", outGate(dayEvents));
+                } else {
+                    LocalTime firstPunch = dayEvents.stream()
+                        .map(ParsedEvent::time)
+                        .min(LocalTime::compareTo)
+                        .orElse(null);
+                    LocalTime lastPunch = dayEvents.stream()
+                        .map(ParsedEvent::time)
+                        .max(LocalTime::compareTo)
+                        .orElse(null);
+                    if (firstPunch != null) {
+                        checkIn = firstPunch.format(TIME_OUT);
+                    }
+                    if (lastPunch != null && firstPunch != null && lastPunch.isAfter(firstPunch)) {
+                        checkOut = lastPunch.format(TIME_OUT);
                     }
                     gate = firstGate(dayEvents);
-                } else {
-                    gate = firstGate(dayEvents);
+                }
+                if (!checkIn.isEmpty() && (earliest == null || checkIn.compareTo(earliest) < 0)) {
+                    earliest = checkIn;
+                }
+                if (!checkOut.isEmpty() && (latest == null || checkOut.compareTo(latest) > 0)) {
+                    latest = checkOut;
                 }
                 if (dayLate > 0) {
                     gate = appendNote(gate, "опозданий на пары: " + dayLate);
@@ -390,35 +413,30 @@ final class AttendanceMapper {
         return new LessonOutcome(STATUS_LATE, firstPunch, Math.max(1, minutes));
     }
 
-    private static boolean hasUnknownPresence(List<ParsedEvent> dayEvents) {
-        boolean hasDirected = dayEvents.stream().anyMatch(e -> e.direction() != Direction.UNKNOWN);
-        if (hasDirected) {
-            return false;
-        }
-        return !dayEvents.isEmpty();
-    }
-
-    private static LocalTime firstArrival(PresenceModel presence, List<ParsedEvent> dayEvents) {
-        LocalTime fromIntervals = presence.intervals().stream()
-            .map(PresenceInterval::start)
+    private static LocalTime minTime(List<ParsedEvent> dayEvents, Direction direction) {
+        return dayEvents.stream()
+            .filter(e -> e.direction() == direction)
+            .map(ParsedEvent::time)
             .min(LocalTime::compareTo)
             .orElse(null);
-        LocalTime dangling = presence.danglingEntry();
-        if (fromIntervals == null) {
-            return dangling != null
-                ? dangling
-                : dayEvents.stream().map(ParsedEvent::time).min(LocalTime::compareTo).orElse(null);
-        }
-        if (dangling != null && dangling.isBefore(fromIntervals)) {
-            return dangling;
-        }
-        return fromIntervals;
     }
 
-    private static LocalTime lastDeparture(PresenceModel presence) {
-        return presence.intervals().stream()
-            .map(PresenceInterval::end)
-            .filter(end -> end.isAfter(LocalTime.MIN))
+    private static LocalTime maxTime(List<ParsedEvent> dayEvents, Direction direction) {
+        return dayEvents.stream()
+            .filter(e -> e.direction() == direction)
+            .map(ParsedEvent::time)
+            .max(LocalTime::compareTo)
+            .orElse(null);
+    }
+
+    private static LocalTime maxTimeOnOrAfter(
+        List<ParsedEvent> dayEvents,
+        Direction direction,
+        LocalTime from
+    ) {
+        return dayEvents.stream()
+            .filter(e -> e.direction() == direction && !e.time().isBefore(from))
+            .map(ParsedEvent::time)
             .max(LocalTime::compareTo)
             .orElse(null);
     }
@@ -435,6 +453,16 @@ final class AttendanceMapper {
             }
         }
         return "";
+    }
+
+    private static String outGate(List<ParsedEvent> dayEvents) {
+        ParsedEvent lastOut = null;
+        for (ParsedEvent event : dayEvents) {
+            if (event.direction() == Direction.OUT && event.gate() != null && !event.gate().isBlank()) {
+                lastOut = event;
+            }
+        }
+        return lastOut == null ? "" : lastOut.gate();
     }
 
     private static String appendNote(String gate, String note) {
