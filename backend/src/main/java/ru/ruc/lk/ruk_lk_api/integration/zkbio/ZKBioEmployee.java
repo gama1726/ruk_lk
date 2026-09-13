@@ -7,6 +7,5 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record ZKBioEmployee(
     @JsonProperty("emp_code") String empCode,
     @JsonProperty("ssn") String ssn,
-    /** «Нац. имя» в UI — часто номер зачётки. */
     @JsonProperty("national") String national
 ) {}

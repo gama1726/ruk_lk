@@ -6,12 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.net.ssl.SSLContext;
-
-import jakarta.annotation.PostConstruct;
 
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -43,10 +40,8 @@ public class HttpZKBioClient implements ZKBioClient {
 
     private final RestClient restClient;
     private final ZKBioProperties properties;
-    /** studentId (зачётка) → emp_code для transactions. */
+    /** зачётка → emp_code, если карточка уже подтверждалась. */
     private final ConcurrentHashMap<String, String> empCodeByStudentId = new ConcurrentHashMap<>();
-    private volatile ZKBioEmployeeIndex employeeIndex;
-    private final Object employeeIndexLock = new Object();
     private String token;
 
     public HttpZKBioClient(ZKBioProperties properties, OutboundRestClients outboundRestClients) {
@@ -55,18 +50,6 @@ public class HttpZKBioClient implements ZKBioClient {
             .baseUrl(trimTrailingSlash(properties.baseUrl()))
             .requestFactory(buildRequestFactory(properties.trustSelfSigned()))
             .build();
-    }
-
-    /** Прогрев индекса при старте — первый студент не ждёт полной загрузки справочника. */
-    @PostConstruct
-    void warmEmployeeIndexAsync() {
-        CompletableFuture.runAsync(() -> {
-            try {
-                ensureEmployeeIndex();
-            } catch (ZKBioException e) {
-                log.warn("ZKBio: не удалось прогреть индекс employees: {}", e.getMessage());
-            }
-        });
     }
 
     @Override
@@ -88,118 +71,31 @@ public class HttpZKBioClient implements ZKBioClient {
         String gradebook = studentId.trim();
 
         authenticate();
-
-        String cachedCode = empCodeByStudentId.get(gradebook);
-        if (cachedCode != null && !cachedCode.equals(gradebook)) {
-            List<SkudAccessEvent> cachedEvents = fetchAllTransactions(cachedCode, begin, end);
-            log.info(
-                "ZKBio проходы: emp_code={} (зачётка {}, кэш), {}..{}, событий={}",
-                cachedCode,
-                gradebook,
-                begin,
-                end,
-                cachedEvents.size()
-            );
-            return cachedEvents;
-        }
-
-        List<SkudAccessEvent> events = fetchAllTransactions(gradebook, begin, end);
-        if (!events.isEmpty()) {
-            empCodeByStudentId.putIfAbsent(gradebook, gradebook);
-            log.info("ZKBio проходы: emp_code={}, {}..{}, событий={}", gradebook, begin, end, events.size());
-            return events;
-        }
-
-        String resolvedCode = empCodeByStudentId.computeIfAbsent(gradebook, id -> {
-            try {
-                return resolveEmpCode(id).orElse(id);
-            } catch (ZKBioException e) {
-                log.warn("ZKBio lookup emp_code для {}: {}", id, e.getMessage());
-                return id;
-            }
-        });
-
-        if (!resolvedCode.equals(gradebook)) {
-            events = fetchAllTransactions(resolvedCode, begin, end);
-            log.info(
-                "ZKBio проходы: emp_code={} (зачётка {}), {}..{}, событий={}",
-                resolvedCode,
-                gradebook,
-                begin,
-                end,
-                events.size()
-            );
-            return events;
-        }
-
-        log.info("ZKBio проходы: emp_code={}, {}..{}, событий=0", gradebook, begin, end);
-        return List.of();
+        String empCode = requireEmpCode(gradebook);
+        List<SkudAccessEvent> events = fetchAllTransactions(empCode, begin, end);
+        log.info("ZKBio проходы: emp_code={}, {}..{}, событий={}", empCode, begin, end, events.size());
+        return events;
     }
 
-    private Optional<String> resolveEmpCode(String studentId) throws ZKBioException {
-        Optional<String> direct = lookupEmployeeByEmpCodeFilter(studentId);
-        if (direct.isPresent()) {
-            log.info("ZKBio: зачётка {} → emp_code {} (фильтр emp_code)", studentId, direct.get());
-            return direct;
+    /** Только точное совпадение {@code emp_code} с зачёткой. */
+    private String requireEmpCode(String zachetka) throws ZKBioException {
+        String cached = empCodeByStudentId.get(zachetka);
+        if (cached != null) {
+            return cached;
         }
-        ZKBioEmployeeIndex index = ensureEmployeeIndex();
-        Optional<String> fromIndex = index.findEmpCode(studentId);
-        if (fromIndex.isPresent()) {
-            log.info("ZKBio: зачётка {} → emp_code {} (индекс employees)", studentId, fromIndex.get());
-        }
-        return fromIndex;
-    }
-
-    private Optional<String> lookupEmployeeByEmpCodeFilter(String studentId) throws ZKBioException {
-        ZKBioEmployeesResponse response = fetchEmployeesPage(1, 10, studentId);
+        ZKBioEmployeesResponse response = fetchEmployeesPage(1, 10, zachetka);
         List<ZKBioEmployee> batch = response == null || response.data() == null
             ? List.of()
             : response.data();
         for (ZKBioEmployee employee : batch) {
-            Optional<String> code = ZKBioEmpCodeResolver.resolveTransactionCode(studentId, employee);
+            Optional<String> code = ZKBioEmpCodeResolver.resolveTransactionCode(zachetka, employee);
             if (code.isPresent()) {
-                return code;
+                String empCode = code.get();
+                empCodeByStudentId.put(zachetka, empCode);
+                return empCode;
             }
         }
-        return Optional.empty();
-    }
-
-    private ZKBioEmployeeIndex ensureEmployeeIndex() throws ZKBioException {
-        ZKBioEmployeeIndex cached = employeeIndex;
-        if (cached != null && cached.size() > 0) {
-            return cached;
-        }
-        synchronized (employeeIndexLock) {
-            cached = employeeIndex;
-            if (cached != null && cached.size() > 0) {
-                return cached;
-            }
-            List<ZKBioEmployee> all = loadAllEmployees();
-            cached = ZKBioEmployeeIndex.build(all);
-            employeeIndex = cached;
-            log.info("ZKBio: индекс employees загружен, записей={}", all.size());
-            return cached;
-        }
-    }
-
-    private List<ZKBioEmployee> loadAllEmployees() throws ZKBioException {
-        List<ZKBioEmployee> all = new ArrayList<>();
-        int page = 1;
-        int pageSize = 500;
-        int guard = 0;
-        while (guard++ < 200) {
-            ZKBioEmployeesResponse response = fetchEmployeesPage(page, pageSize, null);
-            List<ZKBioEmployee> batch = response == null || response.data() == null
-                ? List.of()
-                : response.data();
-            all.addAll(batch);
-            int total = response != null && response.count() != null ? response.count() : batch.size();
-            if (batch.isEmpty() || page * pageSize >= total) {
-                break;
-            }
-            page++;
-        }
-        return all;
+        throw ZKBioException.notEnrolled();
     }
 
     private List<SkudAccessEvent> fetchAllTransactions(String empCode, LocalDate begin, LocalDate end)

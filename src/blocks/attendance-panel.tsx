@@ -2,7 +2,7 @@
  * @file UI посещаемости (студент и родитель).
  */
 
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ApiError } from '@/apiClient'
 import {
   buildAttendancePeriodPresets,
@@ -46,6 +46,8 @@ type Props = {
   extraFilters?: ReactNode
   /** Вернуть текст ошибки, чтобы не запускать загрузку. */
   onBeforeApply?: () => string | null
+  /** Доп. ключ запроса (например зачётка в админке) — одинаковый период не бьёт API повторно. */
+  requestKey?: () => string
 }
 
 function displayGate(gate: string | undefined): string {
@@ -133,6 +135,7 @@ export function AttendancePanel({
   title = 'Посещаемость',
   extraFilters,
   onBeforeApply,
+  requestKey,
 }: Props) {
   const apiEnabled = isAttendanceApiEnabled()
 
@@ -148,38 +151,54 @@ export function AttendancePanel({
   // Пусто до нажатия «Показать» — без автозапроса в Perco при открытии раздела.
   const [appliedFrom, setAppliedFrom] = useState('')
   const [appliedTo, setAppliedTo] = useState('')
+  const [appliedIdentity, setAppliedIdentity] = useState('')
+  /** Повтор после ошибки с тем же ключом. */
+  const [reloadToken, setReloadToken] = useState(0)
 
   const [apiData, setApiData] = useState<StudentAttendanceDto | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const inFlightKeyRef = useRef('')
+  const completedKeyRef = useRef('')
 
   const hasAppliedPeriod = Boolean(appliedFrom && appliedTo)
 
+  const searchKeyOf = (identity: string, rangeFrom: string, rangeTo: string) =>
+    `${identity}|${rangeFrom}|${rangeTo}`
+
   useEffect(() => {
     setExpandedId(null)
-  }, [appliedFrom, appliedTo])
+  }, [appliedFrom, appliedTo, appliedIdentity, reloadToken])
 
   useEffect(() => {
     if (!enabled || !apiEnabled) {
       setLoading(false)
       return
     }
-    if (!hasAppliedPeriod) {
+    if (!hasAppliedPeriod || reloadToken === 0) {
       setApiData(null)
       setLoading(false)
       return
     }
 
+    const searchKey = searchKeyOf(appliedIdentity, appliedFrom, appliedTo)
     let cancelled = false
+    inFlightKeyRef.current = searchKey
     setLoading(true)
     setError(null)
     void (async () => {
       try {
         const result = await fetchAttendance(appliedFrom, appliedTo)
-        if (!cancelled) setApiData(result)
+        if (!cancelled) {
+          completedKeyRef.current = searchKey
+          inFlightKeyRef.current = ''
+          setApiData(result)
+        }
       } catch (e) {
         if (!cancelled) {
+          completedKeyRef.current = ''
+          inFlightKeyRef.current = ''
           setApiData(null)
           setError(e instanceof ApiError ? e.message : e instanceof Error ? e.message : 'Не удалось загрузить проходы')
         }
@@ -190,8 +209,11 @@ export function AttendancePanel({
 
     return () => {
       cancelled = true
+      if (inFlightKeyRef.current === searchKey) {
+        inFlightKeyRef.current = ''
+      }
     }
-  }, [enabled, apiEnabled, hasAppliedPeriod, appliedFrom, appliedTo, fetchAttendance])
+  }, [enabled, apiEnabled, hasAppliedPeriod, appliedFrom, appliedTo, appliedIdentity, reloadToken, fetchAttendance])
 
   const rows = useMemo(() => {
     if (!hasAppliedPeriod) return []
@@ -243,6 +265,19 @@ export function AttendancePanel({
   }
 
   const applyFilters = () => {
+    if (!from || !to) {
+      setError('Укажите даты периода')
+      return
+    }
+    if (isAttendanceRangeTooLong(from, to)) {
+      setError(`Период не больше ${ATTENDANCE_MAX_RANGE_DAYS} дней`)
+      return
+    }
+    const identity = requestKey?.() ?? ''
+    const nextKey = searchKeyOf(identity, from, to)
+    if (inFlightKeyRef.current === nextKey || completedKeyRef.current === nextKey) {
+      return
+    }
     if (onBeforeApply) {
       const blocked = onBeforeApply()
       if (blocked) {
@@ -250,17 +285,11 @@ export function AttendancePanel({
         return
       }
     }
-    if (from && to && isAttendanceRangeTooLong(from, to)) {
-      setError(`Период не больше ${ATTENDANCE_MAX_RANGE_DAYS} дней`)
-      return
-    }
-    if (!from || !to) {
-      setError('Укажите даты периода')
-      return
-    }
     setError(null)
+    setAppliedIdentity(identity)
     setAppliedFrom(from)
     setAppliedTo(to)
+    setReloadToken((n) => n + 1)
   }
 
   const resetFilters = () => {
@@ -269,6 +298,10 @@ export function AttendancePanel({
     setTo(defaultPreset.to)
     setAppliedFrom('')
     setAppliedTo('')
+    setAppliedIdentity('')
+    setReloadToken(0)
+    inFlightKeyRef.current = ''
+    completedKeyRef.current = ''
     setApiData(null)
     setError(null)
   }
@@ -309,10 +342,10 @@ export function AttendancePanel({
           }}
         />
         <div className={styles.filterActions}>
-          <Button type="button" onClick={applyFilters} disabled={loading}>
+          <Button type="button" onClick={applyFilters}>
             Показать
           </Button>
-          <Button type="button" variant="ghost" onClick={resetFilters} disabled={loading}>
+          <Button type="button" variant="ghost" onClick={resetFilters}>
             Сбросить
           </Button>
         </div>

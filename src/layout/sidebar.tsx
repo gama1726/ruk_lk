@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import logo from '@/assets/ruk-logo.png'
-import { isAttendanceNavVisible, isEventsNavVisible } from '@/campus'
+import { isAttendanceNavVisible, isEventsNavVisible, isPassPhotoNavVisible } from '@/campus'
 import { useAppFeatures } from '@/features'
 import { SocialIcon } from '@/icons/social'
 import { socialLinks } from '@/mocks/public-nav'
@@ -31,6 +31,7 @@ export function Sidebar() {
   const navOptions = {
     attendance: isAttendanceNavVisible(profile, attendanceEnabled),
     events: isEventsNavVisible(profile),
+    passPhoto: isPassPhotoNavVisible(profile),
   }
   const topItems = getSidebarTop(navOptions)
   const groups = getSidebarGroups(navOptions)

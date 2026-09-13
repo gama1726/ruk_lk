@@ -1,9 +1,12 @@
+import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { isPassPhotoNavVisible } from '@/campus'
 import { paths } from '@/paths'
+import { useStudentProfile } from '@/student-profile-store'
 import { ScreenHeader, Card } from '@/ui'
 import styles from './services.module.css'
 
-const items = [
+const allItems = [
   { to: paths.requests, title: 'Заявления и справки', note: 'Справки, обращения в деканат' },
   { to: paths.payments, title: 'Оплата обучения', note: 'Договор и график платежей' },
   { to: paths.psychologist, title: 'Психолог', note: 'Консультации, кабинет 307' },
@@ -17,6 +20,19 @@ const items = [
  * Хаб сервисов — ссылки на разделы без дублирования меню.
  */
 export function Services() {
+  const profile = useStudentProfile((s) => s.profile)
+  const status = useStudentProfile((s) => s.status)
+  const load = useStudentProfile((s) => s.load)
+
+  useEffect(() => {
+    if (status === 'idle') void load()
+  }, [status, load])
+
+  const items = useMemo(() => {
+    if (isPassPhotoNavVisible(profile)) return allItems
+    return allItems.filter((item) => item.to !== paths.passPhoto)
+  }, [profile])
+
   return (
     <>
       <ScreenHeader title="Сервисы" subtitle="Заявления, оплата и другие услуги" />

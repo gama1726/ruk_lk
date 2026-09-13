@@ -10,22 +10,36 @@ export function isBranchCampus(...parts: Array<string | null | undefined>): bool
   })
 }
 
+type CampusProfile = {
+  faculty?: string
+  department?: string
+  branch?: string
+}
+
+function isHeadCampus(profile: CampusProfile | null): boolean {
+  if (!profile) return true
+  return !isBranchCampus(profile.faculty, profile.department, profile.branch)
+}
+
 /**
  * Раздел «Посещаемость» в навигации.
  * Глобальный флаг — {@code app.attendance.enabled} через {@link useAppFeatures}.
  * Пока только головной кампус (филиалы скрыты).
  */
 export function isAttendanceNavVisible(
-  profile: {
-    faculty?: string
-    department?: string
-    branch?: string
-  } | null,
+  profile: CampusProfile | null,
   featureEnabled: boolean,
 ): boolean {
   if (!featureEnabled) return false
-  if (!profile) return true
-  return !isBranchCampus(profile.faculty, profile.department, profile.branch)
+  return isHeadCampus(profile)
+}
+
+/**
+ * «Фото для пропуска»: только головной кампус (загрузка в Perco).
+ * Пока профиль не загружен — не скрываем пункт.
+ */
+export function isPassPhotoNavVisible(profile: CampusProfile | null): boolean {
+  return isHeadCampus(profile)
 }
 
 /** Кампусы календаря мероприятий (админка и кабинеты). */

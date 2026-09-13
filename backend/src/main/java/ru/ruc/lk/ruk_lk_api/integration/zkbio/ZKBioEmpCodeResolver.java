@@ -2,7 +2,7 @@ package ru.ruc.lk.ruk_lk_api.integration.zkbio;
 
 import java.util.Optional;
 
-/** Сопоставление номера зачётки с {@code emp_code} в ZKBio (SSN / national / emp_code). */
+/** Сопоставление зачётки с {@code emp_code} в ZKBio. */
 final class ZKBioEmpCodeResolver {
 
     private ZKBioEmpCodeResolver() {}
@@ -11,9 +11,7 @@ final class ZKBioEmpCodeResolver {
         if (employee == null || isBlank(employee.empCode())) {
             return Optional.empty();
         }
-        if (matchesStudentId(studentId, employee.ssn())
-            || matchesStudentId(studentId, employee.national())
-            || matchesStudentId(studentId, employee.empCode())) {
+        if (matchesStudentId(studentId, employee.empCode())) {
             return Optional.of(employee.empCode().trim());
         }
         return Optional.empty();

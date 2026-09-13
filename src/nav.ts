@@ -73,6 +73,7 @@ export const sidebarGroups: NavGroup[] = [
 export type SidebarNavOptions = {
   attendance?: boolean
   events?: boolean
+  passPhoto?: boolean
 }
 
 /** Верхние пункты; {@code events: false} — скрыть календарь (другие филиалы). */
@@ -101,16 +102,18 @@ export const mobileTabs: NavItem[] = [
   { to: paths.services, label: 'Сервисы', icon: 'services' },
 ]
 
-/** Группы сайдбара; {@code attendance: false} — скрыть посещаемость (филиалы). */
+/** Группы сайдбара; {@code attendance/passPhoto: false} — скрыть пункты филиалам. */
 export function getSidebarGroups(options?: SidebarNavOptions): NavGroup[] {
   const showAttendance = options?.attendance !== false
+  const showPassPhoto = options?.passPhoto !== false
   return sidebarGroups.map((group) => {
-    if (group.id !== 'study') return group
-    return {
-      ...group,
-      items: showAttendance
-        ? group.items
-        : group.items.filter((item) => item.to !== paths.attendance),
+    let items = group.items
+    if (group.id === 'study' && !showAttendance) {
+      items = items.filter((item) => item.to !== paths.attendance)
     }
+    if (group.id === 'services' && !showPassPhoto) {
+      items = items.filter((item) => item.to !== paths.passPhoto)
+    }
+    return items === group.items ? group : { ...group, items }
   })
 }

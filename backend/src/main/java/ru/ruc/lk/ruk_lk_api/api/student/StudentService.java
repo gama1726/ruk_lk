@@ -527,33 +527,15 @@ public class StudentService {
         }
 
         String source = branch ? "zkbio" : "perco";
-        Optional<StudentAttendanceResponse> cached = attendanceCache.get(
-            studentId,
-            begin,
-            end,
-            source
-        );
-        if (cached.isPresent()) {
-            return new AttendanceLoad(cached.get());
-        }
-
         Optional<String> groupName = profileGroup(profile);
         try {
-            CompletableFuture<List<SkudAccessEvent>> eventsFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return fetchSkudEvents(studentId, begin, end, branch);
-                } catch (PercoException | ZKBioException e) {
-                    throw new CompletionException(e);
-                }
-            });
-            CompletableFuture<List<CampusLesson>> campusLessonsFuture = CompletableFuture.supplyAsync(
-                () -> campusLessons(session, studentId, begin, end, groupName)
+            StudentAttendanceResponse response = attendanceCache.getOrLoad(
+                studentId,
+                begin,
+                end,
+                source,
+                () -> fetchAttendanceUncached(session, studentId, begin, end, branch, source, groupName)
             );
-
-            List<SkudAccessEvent> events = eventsFuture.join();
-            List<CampusLesson> campusLessons = campusLessonsFuture.join();
-            StudentAttendanceResponse response = AttendanceMapper.toResponse(source, events, campusLessons);
-            attendanceCache.put(studentId, begin, end, source, response);
             return new AttendanceLoad(response);
         } catch (CompletionException ex) {
             Throwable cause = ex.getCause();
@@ -568,6 +550,9 @@ public class StudentService {
                 );
             }
             if (cause instanceof ZKBioException zkbioEx) {
+                if (zkbioEx.isNotEnrolled()) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, zkbioEx.getMessage());
+                }
                 log.warn("Посещаемость ZKBio недоступна: {}", zkbioEx.getMessage());
                 String detail = zkbioEx.getMessage();
                 throw new ResponseStatusException(
@@ -582,6 +567,30 @@ public class StudentService {
             }
             throw ex;
         }
+    }
+
+    private StudentAttendanceResponse fetchAttendanceUncached(
+        HttpSession session,
+        String studentId,
+        LocalDate begin,
+        LocalDate end,
+        boolean branch,
+        String source,
+        Optional<String> groupName
+    ) {
+        CompletableFuture<List<SkudAccessEvent>> eventsFuture = CompletableFuture.supplyAsync(() -> {
+            try {
+                return fetchSkudEvents(studentId, begin, end, branch);
+            } catch (PercoException | ZKBioException e) {
+                throw new CompletionException(e);
+            }
+        });
+        CompletableFuture<List<CampusLesson>> campusLessonsFuture = CompletableFuture.supplyAsync(
+            () -> campusLessons(session, studentId, begin, end, groupName)
+        );
+        List<SkudAccessEvent> events = eventsFuture.join();
+        List<CampusLesson> campusLessons = campusLessonsFuture.join();
+        return AttendanceMapper.toResponse(source, events, campusLessons);
     }
 
     private List<SkudAccessEvent> fetchSkudEvents(

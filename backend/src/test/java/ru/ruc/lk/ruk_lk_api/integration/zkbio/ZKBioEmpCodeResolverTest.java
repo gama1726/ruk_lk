@@ -10,28 +10,18 @@ import org.junit.jupiter.api.Test;
 class ZKBioEmpCodeResolverTest {
 
     @Test
-    void resolvesByNationalField() {
-        ZKBioEmployee employee = new ZKBioEmployee("0000241", "", "258736");
+    void resolvesByEmpCode() {
+        ZKBioEmployee employee = new ZKBioEmployee("111717", "", "");
 
-        Optional<String> code = ZKBioEmpCodeResolver.resolveTransactionCode("258736", employee);
+        Optional<String> code = ZKBioEmpCodeResolver.resolveTransactionCode("111717", employee);
 
         assertTrue(code.isPresent());
-        assertEquals("0000241", code.get());
+        assertEquals("111717", code.get());
     }
 
     @Test
-    void resolvesBySsnField() {
-        ZKBioEmployee employee = new ZKBioEmployee("965572", "965572", "");
-
-        Optional<String> code = ZKBioEmpCodeResolver.resolveTransactionCode("965572", employee);
-
-        assertTrue(code.isPresent());
-        assertEquals("965572", code.get());
-    }
-
-    @Test
-    void ignoresWhenNoIdMatch() {
-        ZKBioEmployee employee = new ZKBioEmployee("0000241", "", "999999");
+    void ignoresSsnAndNational() {
+        ZKBioEmployee employee = new ZKBioEmployee("0000241", "258736", "258736");
 
         assertTrue(ZKBioEmpCodeResolver.resolveTransactionCode("258736", employee).isEmpty());
     }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { ApiError } from '@/apiClient'
+import { isPassPhotoNavVisible } from '@/campus'
 import { paths } from '@/paths'
 import {
   fetchPassPhotoSubmission,
@@ -22,6 +23,7 @@ import {
   type ClientValidationIssue,
 } from '@/pass-photo-validation'
 import { Button, Card, ScreenHeader } from '@/ui'
+import { useStudentProfile } from '@/student-profile-store'
 import styles from './pass-photo.module.css'
 
 const tips = [
@@ -33,6 +35,9 @@ const tips = [
 ]
 
 export function PassPhoto() {
+  const profile = useStudentProfile((s) => s.profile)
+  const profileStatus = useStudentProfile((s) => s.status)
+  const loadProfile = useStudentProfile((s) => s.load)
   const [submission, setSubmission] = useState<PassPhotoSubmission | null>(null)
   const [loading, setLoading] = useState(true)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -52,8 +57,10 @@ export function PassPhoto() {
   const inputRef = useRef<HTMLInputElement>(null)
   const idCardInputRef = useRef<HTMLInputElement>(null)
 
+  const passPhotoAllowed = isPassPhotoNavVisible(profile)
+
   const load = useCallback(async () => {
-    if (!isPassPhotoApiEnabled()) {
+    if (!isPassPhotoApiEnabled() || !passPhotoAllowed) {
       setLoading(false)
       return
     }
@@ -65,11 +72,16 @@ export function PassPhoto() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [passPhotoAllowed])
 
   useEffect(() => {
+    if (profileStatus === 'idle') void loadProfile()
+  }, [profileStatus, loadProfile])
+
+  useEffect(() => {
+    if (profileStatus !== 'ready') return
     void load()
-  }, [load])
+  }, [load, profileStatus])
 
   const onPickFile = async (picked: File | null) => {
     setError(null)
@@ -208,6 +220,10 @@ export function PassPhoto() {
           minute: '2-digit',
         })
       : null
+
+  if (profileStatus === 'ready' && !passPhotoAllowed) {
+    return <Navigate to={paths.services} replace />
+  }
 
   if (!isPassPhotoApiEnabled()) {
     return (

@@ -7,6 +7,7 @@ import { useStudentProfile } from '@/student-profile-store'
 import { academicDebtsFromRows } from '@/debts'
 import { useRecordBook } from '@/record-book-store'
 import { useCurrentProgram } from '@/study'
+import { isPassPhotoNavVisible } from '@/campus'
 import { paths } from '@/paths'
 import { isApiConfigured } from '@/apiClient'
 import { fetchStudentNews, isNewsApiEnabled, type StudentNewsItemDto } from '@/news'
@@ -98,6 +99,11 @@ export function Profile() {
 
   useEffect(() => {
     if (!isPassPhotoApiEnabled()) return
+    if (profileStatus !== 'ready' || !isPassPhotoNavVisible(profile)) {
+      setPassPhotoSrc(null)
+      setPassPhotoStatus(null)
+      return
+    }
     void (async () => {
       try {
         const sub = await fetchPassPhotoSubmission()
@@ -112,7 +118,7 @@ export function Profile() {
         setPassPhotoStatus(null)
       }
     })()
-  }, [profileStatus])
+  }, [profile, profileStatus])
 
   const loading = isApiConfigured() && (profileStatus === 'loading' || profileStatus === 'idle')
   const displayProfile = profile ?? (isApiConfigured() ? null : mockStudentProfile())
@@ -178,7 +184,7 @@ export function Profile() {
               <Field label="Контактный номер" value={maskPhone(displayProfile.phone)} />
             </dl>
 
-            {isPassPhotoApiEnabled() && (
+            {isPassPhotoApiEnabled() && isPassPhotoNavVisible(displayProfile) && (
               <p className={styles.passPhotoLink}>
                 <Link to={paths.passPhoto}>Фото для пропуска</Link>
               </p>

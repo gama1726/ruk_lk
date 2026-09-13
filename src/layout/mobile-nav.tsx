@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth'
-import { isAttendanceNavVisible, isEventsNavVisible } from '@/campus'
+import { isAttendanceNavVisible, isEventsNavVisible, isPassPhotoNavVisible } from '@/campus'
 import { useAppFeatures } from '@/features'
 import { NavIcon } from '@/icons/nav'
 import { paths } from '@/paths'
@@ -33,6 +33,7 @@ export function MobileNav() {
   const menu = buildMenu({
     attendance: isAttendanceNavVisible(profile, attendanceEnabled),
     events: isEventsNavVisible(profile),
+    passPhoto: isPassPhotoNavVisible(profile),
   })
 
   const handleExit = () => {

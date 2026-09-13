@@ -62,6 +62,7 @@ export function AdminEventsAttendancePage() {
           setMeta(null)
           return null
         }}
+        requestKey={() => draftStudentId.trim()}
       />
     </section>
   )

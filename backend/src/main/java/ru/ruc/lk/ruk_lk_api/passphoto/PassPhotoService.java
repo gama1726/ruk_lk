@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
+import ru.ruc.lk.ruk_lk_api.api.student.CampusSupport;
 import ru.ruc.lk.ruk_lk_api.integration.perco.PercoClient;
 import ru.ruc.lk.ruk_lk_api.integration.perco.PercoException;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
@@ -71,14 +72,14 @@ public class PassPhotoService {
     }
 
     public PassPhotoSubmissionDto getCurrent(HttpSession session) {
-        StudentSession student = requireStudent(session);
+        StudentSession student = requireHeadCampusStudent(session);
         return repository.findFirstByStudentIdOrderBySubmittedAtDesc(student.studentId())
             .map(entity -> toStudentDto(entity, student.studentId()))
             .orElseGet(() -> emptyDto(isUseAsAvatar(student.studentId())));
     }
 
     public PassPhotoSubmissionDto setUseAsAvatar(HttpSession session, boolean useAsAvatar) {
-        StudentSession student = requireStudent(session);
+        StudentSession student = requireHeadCampusStudent(session);
         StudentPassPhotoPrefs prefs = prefsRepository.findById(student.studentId())
             .orElseGet(() -> new StudentPassPhotoPrefs(student.studentId(), false));
         prefs.setUseAsAvatar(useAsAvatar);
@@ -89,7 +90,7 @@ public class PassPhotoService {
     }
 
     public PassPhotoValidationResultDto validatePreview(HttpSession session, MultipartFile file) throws IOException {
-        StudentSession student = requireStudent(session);
+        StudentSession student = requireHeadCampusStudent(session);
         byte[] bytes = file.getBytes();
         PassPhotoValidationResult result = validationService.validate(bytes, file.getContentType());
         validationCache.put(
@@ -106,7 +107,7 @@ public class PassPhotoService {
         MultipartFile file,
         MultipartFile idCardFile
     ) throws IOException {
-        StudentSession student = requireStudent(session);
+        StudentSession student = requireHeadCampusStudent(session);
 
         if (idCardFile == null || idCardFile.isEmpty()) {
             throw new ResponseStatusException(
@@ -207,7 +208,7 @@ public class PassPhotoService {
     }
 
     public byte[] readImageForStudent(HttpSession session, UUID id) throws IOException {
-        StudentSession student = requireStudent(session);
+        StudentSession student = requireHeadCampusStudent(session);
         PassPhotoSubmission submission = requireSubmission(id);
         if (!submission.getStudentId().equals(student.studentId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет доступа к этому фото");
@@ -216,7 +217,7 @@ public class PassPhotoService {
     }
 
     public byte[] readIdCardForStudent(HttpSession session, UUID id) throws IOException {
-        StudentSession student = requireStudent(session);
+        StudentSession student = requireHeadCampusStudent(session);
         PassPhotoSubmission submission = requireSubmission(id);
         if (!submission.getStudentId().equals(student.studentId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет доступа к этому фото");
@@ -526,6 +527,19 @@ public class PassPhotoService {
         if (!(raw instanceof StudentSession student)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Сначала войдите в систему");
         }
+        return student;
+    }
+
+    private StudentSession requireHeadCampusStudent(HttpSession session) {
+        StudentSession student = requireStudent(session);
+        oneCClient.fetchProfile(student.studentId()).ifPresent((profile) -> {
+            if (CampusSupport.isBranchCampus(profile.faculty(), profile.department(), profile.branch())) {
+                throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Фото для пропуска доступно только для головного вуза"
+                );
+            }
+        });
         return student;
     }
 
