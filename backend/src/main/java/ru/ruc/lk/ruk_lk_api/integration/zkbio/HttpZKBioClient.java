@@ -268,7 +268,11 @@ public class HttpZKBioClient implements ZKBioClient {
         if (gate == null || gate.isBlank()) {
             gate = row.areaAlias();
         }
-        return new SkudAccessEvent(row.punchTime().trim(), gate != null ? gate.trim() : null);
+        return new SkudAccessEvent(
+            row.punchTime().trim(),
+            gate != null ? gate.trim() : null,
+            ZKBioDirectionResolver.fromGate(row.terminalAlias(), row.areaAlias())
+        );
     }
 
     private ZKBioTransactionsResponse fetchTransactionsPage(
