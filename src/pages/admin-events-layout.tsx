@@ -15,6 +15,7 @@ const navItems = [
   { to: paths.adminEvents, label: 'Мероприятия', end: true, title: 'Мероприятия' },
   { to: paths.adminEventsLoad, label: 'Нагрузка API', end: false, title: 'Нагрузка API' },
   { to: paths.adminEventsUsers, label: 'Пользователи ЛК', end: false, title: 'Пользователи ЛК' },
+  { to: paths.adminEventsAttendance, label: 'Посещаемость', end: false, title: 'Посещаемость' },
 ] as const
 
 export function AdminEventsLayout() {

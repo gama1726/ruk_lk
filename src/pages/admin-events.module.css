@@ -362,6 +362,13 @@
   line-height: 1.4;
 }
 
+.attendanceMeta {
+  margin: 0 0 0.75rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
 .statsRange {
   display: flex;
   flex-wrap: wrap;

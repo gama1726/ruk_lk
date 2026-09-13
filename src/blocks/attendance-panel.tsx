@@ -2,7 +2,7 @@
  * @file UI посещаемости (студент и родитель).
  */
 
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ApiError } from '@/apiClient'
 import {
   buildAttendancePeriodPresets,
@@ -42,6 +42,10 @@ type Props = {
   subtitle: string
   fetchAttendance: FetchAttendance
   enabled?: boolean
+  title?: string
+  extraFilters?: ReactNode
+  /** Вернуть текст ошибки, чтобы не запускать загрузку. */
+  onBeforeApply?: () => string | null
 }
 
 function displayGate(gate: string | undefined): string {
@@ -122,7 +126,14 @@ function LessonDetails({ lessons }: { lessons: AttendanceLesson[] }) {
   )
 }
 
-export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: Props) {
+export function AttendancePanel({
+  subtitle,
+  fetchAttendance,
+  enabled = true,
+  title = 'Посещаемость',
+  extraFilters,
+  onBeforeApply,
+}: Props) {
   const apiEnabled = isAttendanceApiEnabled()
 
   const presets = useMemo(
@@ -232,6 +243,13 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
   }
 
   const applyFilters = () => {
+    if (onBeforeApply) {
+      const blocked = onBeforeApply()
+      if (blocked) {
+        setError(blocked)
+        return
+      }
+    }
     if (from && to && isAttendanceRangeTooLong(from, to)) {
       setError(`Период не больше ${ATTENDANCE_MAX_RANGE_DAYS} дней`)
       return
@@ -262,9 +280,10 @@ export function AttendancePanel({ subtitle, fetchAttendance, enabled = true }: P
 
   return (
     <>
-      <ScreenHeader title="Посещаемость" subtitle={subtitle} />
+      <ScreenHeader title={title} subtitle={subtitle} />
 
       <div className={styles.filters}>
+        {extraFilters ? <div className={styles.extraFilters}>{extraFilters}</div> : null}
         <Select
           label="Период"
           options={presetOptions}

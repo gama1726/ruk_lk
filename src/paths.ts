@@ -57,6 +57,7 @@ export const paths = {
   adminEventsLogin: '/admin/events/login',
   adminEventsLoad: '/admin/events/load',
   adminEventsUsers: '/admin/events/users',
+  adminEventsAttendance: '/admin/events/attendance',
   parentHome: '/parent',
   parentSurvey: '/parent/survey',
   parentContacts: '/parent/contacts',

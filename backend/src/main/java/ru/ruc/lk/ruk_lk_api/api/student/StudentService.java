@@ -35,6 +35,9 @@ import ru.ruc.lk.ruk_lk_api.integration.perco.PercoAccessEvent;
 import ru.ruc.lk.ruk_lk_api.integration.perco.PercoClient;
 import ru.ruc.lk.ruk_lk_api.integration.perco.PercoException;
 import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent;
+import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioClient;
+import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioException;
+import ru.ruc.lk.ruk_lk_api.events.dto.AdminAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.integration.rucnews.RucNewsClient;
 import ru.ruc.lk.ruk_lk_api.integration.rucnews.RucNewsItem;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
@@ -85,6 +88,7 @@ public class StudentService {
     private final RucNewsClient rucNewsClient;
     private final VerificationEmailSender emailSender;
     private final PercoClient percoClient;
+    private final ZKBioClient zkbioClient;
     private final AttendanceCache attendanceCache;
     private final boolean attendanceEnabled;
     private final String percoUncontrolledZone;
@@ -101,6 +105,7 @@ public class StudentService {
         RucNewsClient rucNewsClient,
         VerificationEmailSender emailSender,
         PercoClient percoClient,
+        ZKBioClient zkbioClient,
         AttendanceCache attendanceCache,
         @Value("${app.attendance.enabled:false}") boolean attendanceEnabled,
         @Value("${app.perco.uncontrolled-zone:Неконтролируемая территория}") String percoUncontrolledZone,
@@ -116,6 +121,7 @@ public class StudentService {
         this.rucNewsClient = rucNewsClient;
         this.emailSender = emailSender;
         this.percoClient = percoClient;
+        this.zkbioClient = zkbioClient;
         this.attendanceCache = attendanceCache;
         this.attendanceEnabled = attendanceEnabled;
         this.percoUncontrolledZone = percoUncontrolledZone;
@@ -450,6 +456,52 @@ public class StudentService {
         LocalDate from,
         LocalDate to
     ) {
+        return loadAttendance(session, studentId, from, to, true).attendance();
+    }
+
+    /** Посещаемость по зачётке для админки ЛК: голова (Perco) и филиал (ZKBio). */
+    public AdminAttendanceResponse getAttendanceForAdmin(
+        HttpSession session,
+        String studentId,
+        LocalDate from,
+        LocalDate to
+    ) {
+        String id = studentId == null ? "" : studentId.trim();
+        if (id.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите номер зачётки");
+        }
+        OneCProfileResponse profile = onecClient
+            .fetchProfile(id)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Студент с таким номером зачётки не найден"
+            ));
+        AttendanceLoad loaded = loadAttendance(session, id, from, to, false);
+        boolean branch = CampusSupport.isBranchCampus(
+            profile.faculty(), profile.department(), profile.branch()
+        );
+        return new AdminAttendanceResponse(
+            blankToEmpty(profile.studentId()).isEmpty() ? id : profile.studentId().trim(),
+            blankToEmpty(profile.fullName()),
+            blankToEmpty(profile.group()),
+            blankToEmpty(profile.faculty()),
+            blankToEmpty(profile.branch()),
+            branch,
+            loaded.attendance().source(),
+            loaded.attendance().days(),
+            loaded.attendance().summary()
+        );
+    }
+
+    private record AttendanceLoad(StudentAttendanceResponse attendance) {}
+
+    private AttendanceLoad loadAttendance(
+        HttpSession session,
+        String studentId,
+        LocalDate from,
+        LocalDate to,
+        boolean headCampusOnly
+    ) {
         requireAttendanceEnabled();
         OneCProfileResponse profile = onecClient
             .fetchProfile(studentId)
@@ -464,32 +516,33 @@ public class StudentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Период не больше 14 дней");
         }
 
-        if (profile != null && CampusSupport.isBranchCampus(
-            profile.faculty(), profile.department(), profile.branch())) {
+        boolean branch = profile != null && CampusSupport.isBranchCampus(
+            profile.faculty(), profile.department(), profile.branch()
+        );
+        if (headCampusOnly && branch) {
             throw new ResponseStatusException(
                 HttpStatus.FORBIDDEN,
                 "Посещаемость пока доступна только для головного вуза"
             );
         }
 
+        String source = branch ? "zkbio" : "perco";
         Optional<StudentAttendanceResponse> cached = attendanceCache.get(
             studentId,
             begin,
             end,
-            "perco"
+            source
         );
         if (cached.isPresent()) {
-            return cached.get();
+            return new AttendanceLoad(cached.get());
         }
 
         Optional<String> groupName = profileGroup(profile);
         try {
             CompletableFuture<List<SkudAccessEvent>> eventsFuture = CompletableFuture.supplyAsync(() -> {
                 try {
-                    return mapPercoEvents(
-                        percoClient.fetchAccessEvents(studentId, begin, end)
-                    );
-                } catch (PercoException e) {
+                    return fetchSkudEvents(studentId, begin, end, branch);
+                } catch (PercoException | ZKBioException e) {
                     throw new CompletionException(e);
                 }
             });
@@ -499,9 +552,9 @@ public class StudentService {
 
             List<SkudAccessEvent> events = eventsFuture.join();
             List<CampusLesson> campusLessons = campusLessonsFuture.join();
-            StudentAttendanceResponse response = AttendanceMapper.toResponse("perco", events, campusLessons);
-            attendanceCache.put(studentId, begin, end, "perco", response);
-            return response;
+            StudentAttendanceResponse response = AttendanceMapper.toResponse(source, events, campusLessons);
+            attendanceCache.put(studentId, begin, end, source, response);
+            return new AttendanceLoad(response);
         } catch (CompletionException ex) {
             Throwable cause = ex.getCause();
             if (cause instanceof PercoException percoEx) {
@@ -514,8 +567,39 @@ public class StudentService {
                         : "Не удалось подключиться к сервису посещений"
                 );
             }
+            if (cause instanceof ZKBioException zkbioEx) {
+                log.warn("Посещаемость ZKBio недоступна: {}", zkbioEx.getMessage());
+                String detail = zkbioEx.getMessage();
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    detail != null && !detail.isBlank()
+                        ? detail
+                        : "Не удалось подключиться к сервису посещений филиала"
+                );
+            }
+            if (cause instanceof ResponseStatusException statusEx) {
+                throw statusEx;
+            }
             throw ex;
         }
+    }
+
+    private List<SkudAccessEvent> fetchSkudEvents(
+        String studentId,
+        LocalDate begin,
+        LocalDate end,
+        boolean branch
+    ) throws PercoException, ZKBioException {
+        if (!branch) {
+            return mapPercoEvents(percoClient.fetchAccessEvents(studentId, begin, end));
+        }
+        if (!zkbioClient.isEnabled()) {
+            throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Посещаемость филиала пока недоступна"
+            );
+        }
+        return zkbioClient.fetchAccessEvents(studentId, begin, end);
     }
 
     private static Optional<String> profileGroup(OneCProfileResponse profile) {

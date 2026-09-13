@@ -9,10 +9,20 @@
   box-shadow: var(--shadow-sm);
 }
 
+.extraFilters {
+  display: grid;
+  gap: 1rem;
+}
+
 @media (min-width: 720px) {
   .filters {
     grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr)) auto;
     align-items: end;
+  }
+
+  .extraFilters {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(12rem, 20rem);
   }
 }
 

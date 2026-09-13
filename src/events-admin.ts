@@ -3,6 +3,7 @@
  */
 
 import { apiDelete, apiGet, apiPost, apiPut } from '@/apiClient'
+import type { StudentAttendanceDto } from '@/attendance'
 import type { CampusEventDto } from '@/events'
 
 export type EventsAdminMe = {
@@ -129,3 +130,22 @@ export async function fetchEventsAdminLoad(): Promise<ApiLoadSnapshot> {
 export async function resetEventsAdminLoad(): Promise<ApiLoadSnapshot> {
   return apiPost<ApiLoadSnapshot>('/api/admin/events/load/reset', {})
 }
+
+export type AdminAttendanceDto = StudentAttendanceDto & {
+  studentId: string
+  fullName: string
+  group: string
+  faculty: string
+  branch: string
+  branchCampus: boolean
+}
+
+export async function fetchAdminAttendance(
+  studentId: string,
+  from: string,
+  to: string,
+): Promise<AdminAttendanceDto> {
+  const params = new URLSearchParams({ studentId, from, to })
+  return apiGet<AdminAttendanceDto>(`/api/admin/events/attendance?${params}`)
+}
+
