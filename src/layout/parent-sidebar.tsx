@@ -35,6 +35,7 @@ export function ParentSidebar() {
     faculty?: string
     department?: string
     branch?: string
+    group?: string
   } | null>(null)
 
   useEffect(() => {

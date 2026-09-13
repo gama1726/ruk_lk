@@ -14,24 +14,26 @@ type CampusProfile = {
   faculty?: string
   department?: string
   branch?: string
-}
-
-function isHeadCampus(profile: CampusProfile | null): boolean {
-  if (!profile) return true
-  return !isBranchCampus(profile.faculty, profile.department, profile.branch)
+  group?: string
 }
 
 /**
  * Раздел «Посещаемость» в навигации.
  * Глобальный флаг — {@code app.attendance.enabled} через {@link useAppFeatures}.
- * Пока только головной кампус (филиалы скрыты).
+ * Технически СКУД есть только у головы и Казани.
  */
 export function isAttendanceNavVisible(
   profile: CampusProfile | null,
   featureEnabled: boolean,
 ): boolean {
   if (!featureEnabled) return false
-  return isHeadCampus(profile)
+  if (!profile) return true
+  return resolveEventCampus(profile) !== null
+}
+
+function isHeadCampus(profile: CampusProfile | null): boolean {
+  if (!profile) return true
+  return !isBranchCampus(profile.faculty, profile.department, profile.branch)
 }
 
 /**

@@ -440,7 +440,7 @@ public class StudentService {
     }
 
     /**
-     * Проходы на территорию через Perco (пока только головной вуз).
+     * Проходы на территорию: голова — Perco, Казань — ZKBio.
      * Дни без прохода, но с очными парами по расписанию — отсутствие.
      * Включается флагом {@code app.attendance.enabled}.
      */
@@ -456,10 +456,10 @@ public class StudentService {
         LocalDate from,
         LocalDate to
     ) {
-        return loadAttendance(session, studentId, from, to, true).attendance();
+        return loadAttendance(session, studentId, from, to).attendance();
     }
 
-    /** Посещаемость по зачётке для админки ЛК: голова (Perco) и филиал (ZKBio). */
+    /** Посещаемость по зачётке для админки ЛК: голова (Perco) и Казань (ZKBio). */
     public AdminAttendanceResponse getAttendanceForAdmin(
         HttpSession session,
         String studentId,
@@ -476,7 +476,7 @@ public class StudentService {
                 HttpStatus.NOT_FOUND,
                 "Студент с таким номером зачётки не найден"
             ));
-        AttendanceLoad loaded = loadAttendance(session, id, from, to, false);
+        AttendanceLoad loaded = loadAttendance(session, id, from, to);
         boolean branch = CampusSupport.isBranchCampus(
             profile.faculty(), profile.department(), profile.branch()
         );
@@ -499,8 +499,7 @@ public class StudentService {
         HttpSession session,
         String studentId,
         LocalDate from,
-        LocalDate to,
-        boolean headCampusOnly
+        LocalDate to
     ) {
         requireAttendanceEnabled();
         OneCProfileResponse profile = onecClient
@@ -516,17 +515,15 @@ public class StudentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Период не больше 14 дней");
         }
 
-        boolean branch = profile != null && CampusSupport.isBranchCampus(
-            profile.faculty(), profile.department(), profile.branch()
-        );
-        if (headCampusOnly && branch) {
+        Optional<CampusSupport.AttendanceCampus> campus = CampusSupport.resolveAttendanceCampus(profile);
+        if (campus.isEmpty()) {
             throw new ResponseStatusException(
                 HttpStatus.FORBIDDEN,
-                "Посещаемость пока доступна только для головного вуза"
+                "Посещаемость доступна только для головного вуза и Казани"
             );
         }
-
-        String source = branch ? "zkbio" : "perco";
+        boolean kazan = campus.get() == CampusSupport.AttendanceCampus.KAZAN;
+        String source = kazan ? "zkbio" : "perco";
         Optional<String> groupName = profileGroup(profile);
         try {
             StudentAttendanceResponse response = attendanceCache.getOrLoad(
@@ -534,7 +531,7 @@ public class StudentService {
                 begin,
                 end,
                 source,
-                () -> fetchAttendanceUncached(session, studentId, begin, end, branch, source, groupName)
+                () -> fetchAttendanceUncached(session, studentId, begin, end, kazan, source, groupName)
             );
             return new AttendanceLoad(response);
         } catch (CompletionException ex) {
@@ -574,13 +571,13 @@ public class StudentService {
         String studentId,
         LocalDate begin,
         LocalDate end,
-        boolean branch,
+        boolean kazan,
         String source,
         Optional<String> groupName
     ) {
         CompletableFuture<List<SkudAccessEvent>> eventsFuture = CompletableFuture.supplyAsync(() -> {
             try {
-                return fetchSkudEvents(studentId, begin, end, branch);
+                return fetchSkudEvents(studentId, begin, end, kazan);
             } catch (PercoException | ZKBioException e) {
                 throw new CompletionException(e);
             }
@@ -597,15 +594,15 @@ public class StudentService {
         String studentId,
         LocalDate begin,
         LocalDate end,
-        boolean branch
+        boolean kazan
     ) throws PercoException, ZKBioException {
-        if (!branch) {
+        if (!kazan) {
             return mapPercoEvents(percoClient.fetchAccessEvents(studentId, begin, end));
         }
         if (!zkbioClient.isEnabled()) {
             throw new ResponseStatusException(
                 HttpStatus.FORBIDDEN,
-                "Посещаемость филиала пока недоступна"
+                "Посещаемость Казани пока недоступна"
             );
         }
         return zkbioClient.fetchAccessEvents(studentId, begin, end);

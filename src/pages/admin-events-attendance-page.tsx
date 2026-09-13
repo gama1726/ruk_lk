@@ -9,7 +9,7 @@ import { Input } from '@/ui'
 import styles from './admin-events.module.css'
 
 function sourceLabel(source: string, branchCampus: boolean): string {
-  if (source === 'zkbio') return 'ZKBio (филиал)'
+  if (source === 'zkbio') return 'ZKBio (Казань)'
   if (source === 'perco') return 'Perco (голова)'
   return branchCampus ? 'филиал' : 'голова'
 }
