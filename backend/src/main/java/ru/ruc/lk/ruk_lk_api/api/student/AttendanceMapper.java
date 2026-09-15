@@ -23,13 +23,13 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAtt
 import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent;
 import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent.Direction;
 
-final class AttendanceMapper {
+public final class AttendanceMapper {
 
-    static final String STATUS_PRESENT = "present";
-    static final String STATUS_LATE = "late";
-    static final String STATUS_ABSENT = "absent";
+    public static final String STATUS_PRESENT = "present";
+    public static final String STATUS_LATE = "late";
+    public static final String STATUS_ABSENT = "absent";
     /** Вход был, выход не зафиксирован — присутствие на паре не подтверждено. */
-    static final String STATUS_UNCONFIRMED = "unconfirmed";
+    public static final String STATUS_UNCONFIRMED = "unconfirmed";
 
     private static final DateTimeFormatter TIME_OUT = DateTimeFormatter.ofPattern("HH:mm");
     private static final List<DateTimeFormatter> DATE_TIME_FORMATS = List.of(
@@ -51,7 +51,7 @@ final class AttendanceMapper {
 
     private AttendanceMapper() {}
 
-    static StudentAttendanceResponse toResponse(
+    public static StudentAttendanceResponse toResponse(
         String source,
         List<SkudAccessEvent> events,
         List<CampusLesson> campusLessons
@@ -232,7 +232,7 @@ final class AttendanceMapper {
     }
 
     /** Аудитория похожа на очное занятие в корпусе (не онлайн / не пустая). */
-    static boolean isOnCampusClassroom(String classroom) {
+    public static boolean isOnCampusClassroom(String classroom) {
         if (classroom == null || classroom.isBlank()) {
             return false;
         }
@@ -250,7 +250,7 @@ final class AttendanceMapper {
         return true;
     }
 
-    static LocalTime parseLessonTime(String raw) {
+    public static LocalTime parseLessonTime(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }

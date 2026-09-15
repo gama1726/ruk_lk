@@ -19,11 +19,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.api.student.StudentService;
 import ru.ruc.lk.ruk_lk_api.events.dto.AdminAttendanceResponse;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRequest;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportResponse;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterDto;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterSaveRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.LkAdminCreateRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.LkAdminLoginRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.LkAdminMeResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.LkAdminUpdateRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.LkAdminUserDto;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.ParentNoticeRequest;
 
 @RestController
 @RequestMapping("/api/admin/lk")
@@ -32,15 +37,18 @@ public class LkAdminController {
     private final LkAdminAuthService authService;
     private final LkAdminUserService userService;
     private final StudentService studentService;
+    private final LkAbsenceReportService absenceReportService;
 
     public LkAdminController(
         LkAdminAuthService authService,
         LkAdminUserService userService,
-        StudentService studentService
+        StudentService studentService,
+        LkAbsenceReportService absenceReportService
     ) {
         this.authService = authService;
         this.userService = userService;
         this.studentService = studentService;
+        this.absenceReportService = absenceReportService;
     }
 
     @PostMapping("/auth/login")
@@ -87,5 +95,30 @@ public class LkAdminController {
     ) {
         LkAdminAuthService.requireSection(session, LkAdminSection.ATTENDANCE);
         return studentService.getAttendanceForAdmin(session, studentId, from, to);
+    }
+
+    @PostMapping("/absence-report")
+    public AbsenceReportResponse absenceReport(HttpSession session, @RequestBody AbsenceReportRequest body) {
+        return absenceReportService.build(session, body);
+    }
+
+    @GetMapping("/group-rosters")
+    public List<GroupRosterDto> listGroupRosters(HttpSession session) {
+        return absenceReportService.listRosters(session);
+    }
+
+    @GetMapping("/group-rosters/one")
+    public GroupRosterDto getGroupRoster(HttpSession session, @RequestParam String group) {
+        return absenceReportService.getRoster(session, group);
+    }
+
+    @PutMapping("/group-rosters")
+    public GroupRosterDto saveGroupRoster(HttpSession session, @RequestBody GroupRosterSaveRequest body) {
+        return absenceReportService.saveRoster(session, body);
+    }
+
+    @PutMapping("/absence-report/parent-notice")
+    public Map<String, Object> parentNotice(HttpSession session, @RequestBody ParentNoticeRequest body) {
+        return absenceReportService.setParentNotice(session, body);
     }
 }

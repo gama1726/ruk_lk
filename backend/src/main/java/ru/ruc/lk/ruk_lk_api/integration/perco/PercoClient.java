@@ -22,4 +22,17 @@ public interface PercoClient {
      */
     List<PercoAccessEvent> fetchAccessEvents(String zachetka, LocalDate from, LocalDate to)
         throws PercoException;
+
+    /**
+     * Массовые события проходов за период ({@code /api/accessReports/events}).
+     * Ключ карты — табельный номер (зачётка), если удалось извлечь из строки отчёта.
+     * Пустая карта — endpoint недоступен / нет табельных в ответе (тогда вызывающий код
+     * должен ходить поштучно через {@link #fetchAccessEvents}).
+     */
+    default java.util.Map<String, List<PercoAccessEvent>> fetchAccessEventsByTabel(
+        LocalDate from,
+        LocalDate to
+    ) throws PercoException {
+        return java.util.Map.of();
+    }
 }

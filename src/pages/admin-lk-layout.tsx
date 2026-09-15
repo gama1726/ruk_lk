@@ -34,6 +34,12 @@ const allNavItems: NavItem[] = [
     section: 'ATTENDANCE',
   },
   {
+    to: paths.adminLkAbsenceReport,
+    label: 'Отчёт отсутствующих',
+    title: 'Отчёт отсутствующих',
+    section: 'ABSENCE_REPORT',
+  },
+  {
     to: paths.adminLkAdmins,
     label: 'Учётки',
     title: 'Учётки админки',
@@ -85,8 +91,11 @@ export function AdminLkLayout() {
   useEffect(() => {
     if (!me) return
     const onAttendance = location.pathname.startsWith(paths.adminLkAttendance)
+    const onAbsence = location.pathname.startsWith(paths.adminLkAbsenceReport)
     const onAdmins = location.pathname.startsWith(paths.adminLkAdmins)
     if (onAttendance && !hasLkSection(me, 'ATTENDANCE')) {
+      navigate(firstAllowedLkPath(me), { replace: true })
+    } else if (onAbsence && !hasLkSection(me, 'ABSENCE_REPORT')) {
       navigate(firstAllowedLkPath(me), { replace: true })
     } else if (onAdmins && !hasLkSection(me, 'ADMINS')) {
       navigate(firstAllowedLkPath(me), { replace: true })

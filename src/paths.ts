@@ -62,6 +62,7 @@ export const paths = {
   adminLk: '/admin/lk',
   adminLkLogin: '/admin/lk/login',
   adminLkAttendance: '/admin/lk/attendance',
+  adminLkAbsenceReport: '/admin/lk/absence-report',
   adminLkAdmins: '/admin/lk/admins',
   parentHome: '/parent',
   parentSurvey: '/parent/survey',

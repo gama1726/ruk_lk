@@ -119,6 +119,153 @@ public class HttpPercoClient implements PercoClient {
         return all;
     }
 
+    @Override
+    public Map<String, List<PercoAccessEvent>> fetchAccessEventsByTabel(LocalDate from, LocalDate to)
+        throws PercoException {
+        if (from == null || to == null) {
+            throw new PercoException("Укажите период проходов");
+        }
+        LocalDate begin = from.isBefore(to) ? from : to;
+        LocalDate end = from.isBefore(to) ? to : from;
+        authenticate();
+
+        Map<String, List<PercoAccessEvent>> byTabel = new java.util.LinkedHashMap<>();
+        int page = 1;
+        int pageSize = 500;
+        int guard = 0;
+        while (guard++ < 40) {
+            JsonNode body;
+            try {
+                body = requestAccessReportPage(begin, end, page, pageSize);
+            } catch (RestClientResponseException e) {
+                if (e.getStatusCode().value() == 401) {
+                    token = null;
+                    authenticate();
+                    body = requestAccessReportPage(begin, end, page, pageSize);
+                } else if (e.getStatusCode().value() == 403 || e.getStatusCode().value() == 404) {
+                    log.warn(
+                        "Perco accessReports/events недоступен (HTTP {}): массовый отчёт пойдёт поштучно",
+                        e.getStatusCode().value()
+                    );
+                    return Map.of();
+                } else {
+                    log.error("Perco accessReports/events HTTP {}: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
+                    return Map.of();
+                }
+            } catch (ResourceAccessException e) {
+                log.warn("Perco accessReports/events I/O: {}", e.getMessage());
+                return Map.of();
+            }
+
+            JsonNode rows = body == null ? null : body.get("rows");
+            if (rows == null || !rows.isArray() || rows.isEmpty()) {
+                break;
+            }
+            for (JsonNode row : rows) {
+                String tabel = extractTabel(row);
+                PercoAccessEvent event = mapAccessReportRow(row);
+                if (tabel == null || event == null || event.resolvedTimeLabel() == null) {
+                    continue;
+                }
+                byTabel.computeIfAbsent(tabel, ignored -> new ArrayList<>()).add(event);
+            }
+            int totalPages = intOrZero(body.get("total"));
+            if (totalPages <= 0) {
+                int records = intOrZero(body.get("records"));
+                totalPages = records <= 0 ? page : (int) Math.ceil(records / (double) pageSize);
+            }
+            if (page >= totalPages || rows.size() < pageSize) {
+                break;
+            }
+            page++;
+        }
+        log.info(
+            "Perco accessReports/events: {}..{}, сотрудников с проходами={}",
+            begin,
+            end,
+            byTabel.size()
+        );
+        return byTabel;
+    }
+
+    private JsonNode requestAccessReportPage(LocalDate begin, LocalDate end, int page, int rows) {
+        return restClient.get()
+            .uri(uriBuilder -> uriBuilder
+                .path("/api/accessReports/events")
+                .queryParam("token", token)
+                .queryParam("dateBegin", begin.toString())
+                .queryParam("dateEnd", end.toString())
+                .queryParam("group", "staff")
+                .queryParam("page", page)
+                .queryParam("rows", rows)
+                .queryParam("sord", "ASC")
+                .build())
+            .header("Authorization", "Bearer " + token)
+            .retrieve()
+            .body(JsonNode.class);
+    }
+
+    private static String extractTabel(JsonNode row) {
+        if (row == null || !row.isObject()) {
+            return null;
+        }
+        for (String field : List.of(
+            "tabel_number",
+            "tabelNumber",
+            "tab_number",
+            "tabNumber",
+            "tabel",
+            "personnel_number",
+            "user_tabel"
+        )) {
+            String value = text(row, field);
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        JsonNode user = row.get("user");
+        if (user != null && user.isObject()) {
+            String nested = extractTabel(user);
+            if (nested != null) {
+                return nested;
+            }
+        }
+        return null;
+    }
+
+    private static PercoAccessEvent mapAccessReportRow(JsonNode row) {
+        if (row == null || !row.isObject()) {
+            return null;
+        }
+        String time = firstText(row, "time_label", "datetime", "date_time", "event_time", "time", "event_date");
+        String zoneExit = firstText(row, "event_exit", "out_name", "zone_exit", "out");
+        String zoneEnter = firstText(row, "event_enter", "in_name", "zone_enter", "in");
+        if ((zoneExit == null || zoneExit.isBlank()) && row.get("out") != null && row.get("out").isNumber()) {
+            zoneExit = row.get("out").asText();
+        }
+        if ((zoneEnter == null || zoneEnter.isBlank()) && row.get("in") != null && row.get("in").isNumber()) {
+            zoneEnter = row.get("in").asText();
+        }
+        return new PercoAccessEvent(numberOrText(row, "id"), time, zoneExit, zoneEnter);
+    }
+
+    private static String firstText(JsonNode row, String... fields) {
+        for (String field : fields) {
+            String value = text(row, field);
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static int intOrZero(JsonNode node) {
+        if (node == null || node.isNull() || !node.isNumber()) {
+            return 0;
+        }
+        return node.asInt();
+    }
+
     /**
      * {@code GET /api/taReports/eventsTable} — лицензия УРВ, фильтр по ID пользователя и дате.
      * type=false: все события, не только учитываемые в расчёте УРВ.

@@ -106,6 +106,15 @@ public class ScheduleContextService {
         return resolve(session, trimmedId, groupName);
     }
 
+    /** Контекст расписания по имени группы (админ-отчёты). */
+    public ScheduleSessionContext resolveForGroup(HttpSession session, String groupName) {
+        if (groupName == null || groupName.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите номер группы");
+        }
+        String trimmed = groupName.trim();
+        return resolve(session, "lk-admin:" + trimmed.toLowerCase(java.util.Locale.ROOT), trimmed);
+    }
+
     public String resolveGroupName(
         HttpSession session,
         StudentSession student,

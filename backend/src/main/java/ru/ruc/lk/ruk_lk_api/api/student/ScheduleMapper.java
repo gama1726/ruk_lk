@@ -16,7 +16,7 @@ import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleApiLesson;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleDateMeta;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleWeekApiResponse;
 
-final class ScheduleMapper {
+public final class ScheduleMapper {
 
     private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final DateTimeFormatter API_DAY = DateTimeFormatter.ofPattern("dd.MM.yyyy");
@@ -77,7 +77,7 @@ final class ScheduleMapper {
     }
 
     /** Понедельники недель, пересекающих диапазон дат. */
-    static List<LocalDate> weekAnchorsForRange(LocalDate begin, LocalDate end) {
+    public static List<LocalDate> weekAnchorsForRange(LocalDate begin, LocalDate end) {
         LocalDate from = begin.isBefore(end) ? begin : end;
         LocalDate to = begin.isBefore(end) ? end : begin;
         LocalDate monday = from.minusDays((from.getDayOfWeek().getValue() + 6) % 7);
@@ -91,7 +91,7 @@ final class ScheduleMapper {
     }
 
     /** Дата занятия из поля API {@code dd.MM.yyyy}. */
-    static LocalDate parseApiDay(String apiDate) {
+    public static LocalDate parseApiDay(String apiDate) {
         if (apiDate == null || apiDate.isBlank()) {
             return null;
         }

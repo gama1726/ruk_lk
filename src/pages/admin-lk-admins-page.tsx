@@ -15,7 +15,7 @@ import {
 import { Button, Loader, LoadError } from '@/ui'
 import styles from './admin-events.module.css'
 
-const ALL_SECTIONS: LkAdminSection[] = ['ATTENDANCE', 'ADMINS']
+const ALL_SECTIONS: LkAdminSection[] = ['ATTENDANCE', 'ABSENCE_REPORT', 'ADMINS']
 
 function formatCreatedAt(value: string): string {
   if (!value) return '—'
