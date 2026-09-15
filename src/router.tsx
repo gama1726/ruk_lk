@@ -60,6 +60,10 @@ import { AdminEventsPage } from '@/pages/admin-events'
 import { AdminEventsLoadPage } from '@/pages/admin-events-load-page'
 import { AdminEventsUsersPage } from '@/pages/admin-events-users-page'
 import { AdminEventsAttendancePage } from '@/pages/admin-events-attendance-page'
+import { AdminLkLogin } from '@/pages/admin-lk-login'
+import { AdminLkLayout } from '@/pages/admin-lk-layout'
+import { AdminLkAttendancePage } from '@/pages/admin-lk-attendance-page'
+import { AdminLkAdminsPage } from '@/pages/admin-lk-admins-page'
 import { EventsPage } from '@/pages/events'
 import { ParentEvents } from '@/pages/parent-events'
 
@@ -171,6 +175,15 @@ export const router = createBrowserRouter([
       { path: paths.adminEventsLoad, element: <AdminEventsLoadPage /> },
       { path: paths.adminEventsUsers, element: <AdminEventsUsersPage /> },
       { path: paths.adminEventsAttendance, element: <AdminEventsAttendancePage /> },
+    ],
+  },
+  { path: paths.adminLkLogin, element: <AdminLkLogin /> },
+  {
+    element: <AdminLkLayout />,
+    children: [
+      { path: paths.adminLk, element: null },
+      { path: paths.adminLkAttendance, element: <AdminLkAttendancePage /> },
+      { path: paths.adminLkAdmins, element: <AdminLkAdminsPage /> },
     ],
   },
   { path: '*', element: <Navigate to={paths.login} replace /> },

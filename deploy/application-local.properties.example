@@ -49,6 +49,11 @@ app.admin.spo.password=CHANGE_ME_SPO
 app.admin.he.username=admin-vo
 app.admin.he.password=CHANGE_ME_HE
 
+# Админ-панель ЛК (/admin/lk): супер-админ с доступом ко всем разделам.
+app.lk-admin.username=lk-admin
+app.lk-admin.password=CHANGE_ME_LK_ADMIN
+app.lk-admin.full-name=Супер-администратор ЛК
+
 # CORS — только если фронт и API на разных origin (обычно не нужно за nginx)
 # app.cors.allowed-origins=https://lk.example.com
 

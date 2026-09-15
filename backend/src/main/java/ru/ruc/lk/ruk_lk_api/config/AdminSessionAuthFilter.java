@@ -14,12 +14,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.admin.AdminAuthService;
 import ru.ruc.lk.ruk_lk_api.events.EventsAdminAuthService;
+import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminAuthService;
 import ru.ruc.lk.ruk_lk_api.passphoto.EducationTrack;
 
 /**
  * /api/admin/pass-photos/** — сессия админа роли ({@code X-Admin-Role}).
  * /api/admin/events/** — сессия редактора календаря ({@code EVENTS_ADMIN}).
- * /api/admin/auth/** и /api/admin/events/auth/** — открыты.
+ * /api/admin/lk/** — сессия админ-панели ЛК ({@code LK_ADMIN}).
+ * /api/admin/auth/**, /api/admin/events/auth/**, /api/admin/lk/auth/** — открыты.
  */
 @Component
 public class AdminSessionAuthFilter extends OncePerRequestFilter {
@@ -31,7 +33,8 @@ public class AdminSessionAuthFilter extends OncePerRequestFilter {
             return true;
         }
         return path.startsWith("/api/admin/auth")
-            || path.startsWith("/api/admin/events/auth");
+            || path.startsWith("/api/admin/events/auth")
+            || path.startsWith("/api/admin/lk/auth");
     }
 
     @Override
@@ -42,6 +45,17 @@ public class AdminSessionAuthFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         String path = request.getRequestURI();
         HttpSession session = request.getSession(false);
+
+        if (path != null && path.startsWith("/api/admin/lk")) {
+            if (!LkAdminAuthService.isLoggedIn(session)) {
+                response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"message\":\"Войдите в админ-панель ЛК\"}");
+                return;
+            }
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         if (path != null && path.startsWith("/api/admin/events")) {
             if (!EventsAdminAuthService.isLoggedIn(session)) {
