@@ -28,6 +28,7 @@ import {
   NotebookPen,
   PackageX,
   PenLine,
+  Rocket,
   Settings,
   UserCircle,
   Wrench,
@@ -51,6 +52,7 @@ export type NavIconId =
   | 'portfolio'
   | 'settings'
   | 'passPhoto'
+  | 'start'
   | 'esports'
   | 'attendance'
   | 'eJournal'
@@ -79,6 +81,7 @@ const icons: Record<NavIconId, LucideIcon> = {
   portfolio: LayoutGrid,
   settings: Settings,
   passPhoto: Camera,
+  start: Rocket,
   esports: Gamepad2,
   attendance: CalendarCheck,
   eJournal: NotebookPen,

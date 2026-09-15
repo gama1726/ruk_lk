@@ -8,6 +8,7 @@ import { useAuth } from '@/auth'
 import { paths } from '@/paths'
 import { AuthCard } from '@/blocks/auth-card'
 import card from '@/blocks/auth-card.module.css'
+import { goAfterLogin } from '@/login-return'
 import { remainingCooldownSec, sendCodeCooldownSec } from '@/send-code-cooldown'
 import { Input, Button } from '@/ui'
 import styles from './auth-form.module.css'
@@ -64,7 +65,7 @@ export function Verify() {
       return
     }
 
-    navigate(paths.profile)
+    goAfterLogin(navigate, paths.profile)
   }
 
   const handleResend = async () => {

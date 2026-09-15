@@ -44,6 +44,7 @@ export const paths = {
   library: '/library',
   settings: '/settings',
   esports: '/esports',
+  start: '/start',
   passPhoto: '/services/pass-photo',
   adminPassPhotos: '/admin/pass-photos',
   adminPassPhotosLogin: '/admin/pass-photos/login',

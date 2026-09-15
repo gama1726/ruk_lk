@@ -51,6 +51,7 @@ import { Library } from '@/pages/library'
 import { Settings } from '@/pages/settings'
 import { PassPhoto } from '@/pages/pass-photo'
 import { EsportsRedirect } from '@/pages/esports-redirect'
+import { StartRedirect } from '@/pages/start-redirect'
 import { AdminPassPhotosHe, AdminPassPhotosSpo } from '@/pages/admin-pass-photos'
 import { AdminPassPhotoLogin } from '@/pages/admin-pass-photo-login'
 import { AdminEventsLogin } from '@/pages/admin-events-login'
@@ -130,6 +131,7 @@ export const router = createBrowserRouter([
           { path: paths.library, element: <Library /> },
           { path: paths.settings, element: <Settings /> },
           { path: paths.passPhoto, element: <PassPhoto /> },
+          { path: paths.start, element: <StartRedirect /> },
           { path: paths.esports, element: <EsportsRedirect /> },
         ],
       },

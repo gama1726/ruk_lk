@@ -2,8 +2,10 @@
  * @file Страница входа студента — кнопка SSO, как на lk.mirea.ru/auth.php.
  */
 
-import { useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { paths } from '@/paths'
+import { rememberLoginReturn } from '@/login-return'
 import { redirectToSso } from '@/sso'
 import { AuthCard } from '@/blocks/auth-card'
 import card from '@/blocks/auth-card.module.css'
@@ -15,6 +17,11 @@ import { Button } from '@/ui'
  */
 export function Login() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+
+  useEffect(() => {
+    rememberLoginReturn(params.get('next'))
+  }, [params])
 
   const handleSso = () => {
     if (redirectToSso()) return

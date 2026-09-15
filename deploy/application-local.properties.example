@@ -57,3 +57,10 @@ app.admin.he.password=CHANGE_ME_HE
 # app.esports.frontend-url=https://REPLACE_ESPORTS_SITE
 # app.esports.exchange-secret=CHANGE_ME
 # app.frontend.login-url=https://my.ruc.su/login
+
+# start.ruc.su — тот же секрет, что LK_EXCHANGE_SECRET на стороне Start
+# app.start.api-base-url=https://start.ruc.su
+# app.start.frontend-url=https://start.ruc.su
+# app.start.exchange-secret=CHANGE_ME
+# app.start.exchange-path=/api/internal/lk/exchange
+# app.start.callback-path=/account/lk/callback

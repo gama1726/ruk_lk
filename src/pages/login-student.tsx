@@ -2,9 +2,10 @@
  * @file Вход по зачётке — шаг 1: только номер зачётки.
  */
 
-import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/auth'
+import { rememberLoginReturn } from '@/login-return'
 import { paths } from '@/paths'
 import { AuthCard } from '@/blocks/auth-card'
 import card from '@/blocks/auth-card.module.css'
@@ -16,9 +17,14 @@ import form from './auth-form.module.css'
  */
 export function StudentLogin() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const identifyStudent = useAuth((s) => s.identifyStudent)
   const [studentIdError, setStudentIdError] = useState<string>()
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    rememberLoginReturn(params.get('next'))
+  }, [params])
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()

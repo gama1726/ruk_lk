@@ -65,6 +65,7 @@ export const sidebarGroups: NavGroup[] = [
       { to: paths.portfolio, label: 'Портфолио', icon: 'portfolio' },
       { to: paths.settings, label: 'Настройки', icon: 'settings' },
       { to: paths.passPhoto, label: 'Фото для пропуска', icon: 'passPhoto' },
+      { to: paths.start, label: 'Start', icon: 'start' },
       { to: paths.esports, label: 'Киберспорт', icon: 'esports' },
     ],
   },

@@ -45,6 +45,12 @@ nano backend/application-local.properties
 
 **Не задавайте `app.auth.fixed-code` в prod** — приложение с профилем `prod` не стартует.
 
+### Мост start.ruc.su
+
+См. [`START_LK_BRIDGE.md`](./START_LK_BRIDGE.md). В `application-local.properties` задайте
+`app.start.api-base-url`, `app.start.frontend-url`, `app.start.exchange-secret`
+(тот же секрет, что на Start).
+
 ### Админ-панель фото для пропуска
 
 Две отдельные очереди по треку студента (СПО / ВО). Вход по логину и паролю из `application-local.properties`

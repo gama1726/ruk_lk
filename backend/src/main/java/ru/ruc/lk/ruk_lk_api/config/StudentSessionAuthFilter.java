@@ -27,8 +27,9 @@ public class StudentSessionAuthFilter extends OncePerRequestFilter {
         if (path == null || !path.startsWith("/api/student")) {
             return true;
         }
-        // Редирект сам проверяет сессию и уводит незалогиненных на /login.
-        return path.equals("/api/student/esports/redirect");
+        // Редиректы сами проверяют сессию и уводят незалогиненных на /login.
+        return path.equals("/api/student/esports/redirect")
+            || path.equals("/api/student/start/redirect");
     }
 
     @Override
