@@ -64,8 +64,9 @@ export function AdminLkAbsenceReportPage() {
         <h1 className={styles.pageTitle}>Отчёт отсутствующих</h1>
       </div>
       <p className={styles.statsHint}>
-        Казань (ZKBio): состав берётся из справочника СКУД, ФИО/группа/телефон — из 1С по зачётке,
-        отсутствие — по очным парам расписания и проходам за выбранную дату.
+        Казань (ZKBio): полный справочник СКУД → emp_code длины 6 → профиль/группа из 1С →
+        очные пары расписания и проходы за дату (логика как в разделе «Посещаемость»). Построение
+        может занять несколько минут.
       </p>
 
       <form className={styles.card} style={{ marginBottom: '1.25rem' }} onSubmit={onBuild}>

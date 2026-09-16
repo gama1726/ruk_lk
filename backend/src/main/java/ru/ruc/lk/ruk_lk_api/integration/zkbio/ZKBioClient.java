@@ -16,9 +16,15 @@ public interface ZKBioClient {
         throws ZKBioException;
 
     /**
-     * Справочник сотрудников отдела (студенты Казани), с пагинацией на стороне клиента.
+     * Проходы по уже известному {@code emp_code} (без повторного поиска карточки).
      */
-    List<ZKBioEmployee> fetchDepartmentEmployees() throws ZKBioException;
+    List<SkudAccessEvent> fetchAccessEventsByEmpCode(String empCode, LocalDate from, LocalDate to)
+        throws ZKBioException;
+
+    /**
+     * Полный справочник сотрудников ZKBio (с пагинацией на стороне клиента).
+     */
+    List<ZKBioEmployee> fetchEmployees() throws ZKBioException;
 
     boolean isEnabled();
 }

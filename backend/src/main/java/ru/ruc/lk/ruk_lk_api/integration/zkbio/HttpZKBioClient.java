@@ -78,18 +78,32 @@ public class HttpZKBioClient implements ZKBioClient {
     }
 
     @Override
-    public List<ZKBioEmployee> fetchDepartmentEmployees() throws ZKBioException {
-        Integer departmentId = properties.departmentId();
-        if (departmentId == null || departmentId <= 0) {
-            throw new ZKBioException("Не задан app.zkbio.kazan.department-id");
+    public List<SkudAccessEvent> fetchAccessEventsByEmpCode(String empCode, LocalDate from, LocalDate to)
+        throws ZKBioException {
+        if (empCode == null || empCode.isBlank()) {
+            throw new ZKBioException("Не указан emp_code для ZKBio");
         }
+        if (from == null || to == null) {
+            throw new ZKBioException("Укажите период проходов");
+        }
+        LocalDate begin = from.isBefore(to) ? from : to;
+        LocalDate end = from.isBefore(to) ? to : from;
+        String code = empCode.trim();
+        authenticate();
+        List<SkudAccessEvent> events = fetchAllTransactions(code, begin, end);
+        log.info("ZKBio проходы: emp_code={}, {}..{}, событий={}", code, begin, end, events.size());
+        return events;
+    }
+
+    @Override
+    public List<ZKBioEmployee> fetchEmployees() throws ZKBioException {
         authenticate();
         List<ZKBioEmployee> all = new ArrayList<>();
         int page = 1;
         int pageSize = 500;
         int guard = 0;
-        while (guard++ < 200) {
-            ZKBioEmployeesResponse response = fetchEmployeesPage(page, pageSize, null, departmentId);
+        while (guard++ < 500) {
+            ZKBioEmployeesResponse response = fetchEmployeesPage(page, pageSize, null, null);
             List<ZKBioEmployee> batch = response == null || response.data() == null
                 ? List.of()
                 : response.data();
@@ -100,7 +114,7 @@ public class HttpZKBioClient implements ZKBioClient {
             }
             page++;
         }
-        log.info("ZKBio справочник: department={}, сотрудников={}", departmentId, all.size());
+        log.info("ZKBio справочник: сотрудников={}", all.size());
         return all;
     }
 

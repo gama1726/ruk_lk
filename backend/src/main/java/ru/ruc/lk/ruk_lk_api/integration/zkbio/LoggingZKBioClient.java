@@ -23,7 +23,12 @@ public class LoggingZKBioClient implements ZKBioClient {
     }
 
     @Override
-    public List<ZKBioEmployee> fetchDepartmentEmployees() {
+    public List<SkudAccessEvent> fetchAccessEventsByEmpCode(String empCode, LocalDate from, LocalDate to) {
+        return List.of();
+    }
+
+    @Override
+    public List<ZKBioEmployee> fetchEmployees() {
         return List.of();
     }
 }
