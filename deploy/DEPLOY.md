@@ -48,8 +48,9 @@ nano backend/application-local.properties
 ### Мост start.ruc.su
 
 См. [`START_LK_BRIDGE.md`](./START_LK_BRIDGE.md). В `application-local.properties` задайте
-`app.start.api-base-url`, `app.start.frontend-url`, `app.start.exchange-secret`
-(тот же секрет, что на Start).
+`app.start.enabled=true`, `app.start.api-base-url`, `app.start.frontend-url`,
+`app.start.exchange-secret` (тот же секрет, что на Start). Без `enabled=true` раздел Start
+в ЛК остаётся заглушкой, API-мост не работает.
 
 ### Админ-панель фото для пропуска
 

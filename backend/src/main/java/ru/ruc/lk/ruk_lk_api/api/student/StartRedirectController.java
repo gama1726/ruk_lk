@@ -37,9 +37,14 @@ public class StartRedirectController {
     /**
      * Вход на start.ruc.su через сессию ЛК.
      * Без сессии — на логин с {@code next=/start}, после кода студент вернётся сюда.
+     * При {@code app.start.enabled=false} — на SPA-заглушку {@code /start}.
      */
     @GetMapping("/start/redirect")
     public void redirect(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        if (!startBridgeClient.isEnabled()) {
+            response.sendRedirect(RETURN_PATH);
+            return;
+        }
         HttpSession session = request.getSession(false);
         Object raw = session == null ? null : session.getAttribute(SESSION_KEY);
         if (!(raw instanceof StudentSession student)) {

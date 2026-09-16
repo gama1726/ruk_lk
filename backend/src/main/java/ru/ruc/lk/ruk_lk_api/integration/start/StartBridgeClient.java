@@ -35,9 +35,11 @@ public class StartBridgeClient {
     private final String frontendUrl;
     private final String exchangePath;
     private final String callbackPath;
+    private final boolean enabled;
     private final boolean configured;
 
     public StartBridgeClient(
+        @Value("${app.start.enabled:false}") boolean enabled,
         @Value("${app.start.api-base-url:}") String apiBaseUrl,
         @Value("${app.start.frontend-url:}") String frontendUrl,
         @Value("${app.start.exchange-secret:}") String exchangeSecret,
@@ -47,6 +49,7 @@ public class StartBridgeClient {
         OutboundRestClients outboundRestClients
     ) {
         this.studentService = studentService;
+        this.enabled = enabled;
         this.exchangeSecret = exchangeSecret == null ? "" : exchangeSecret.trim();
         this.frontendUrl = trimSlash(frontendUrl);
         this.exchangePath = exchangePath == null || exchangePath.isBlank()
@@ -62,11 +65,21 @@ public class StartBridgeClient {
             .build();
     }
 
+    public boolean isEnabled() {
+        return enabled;
+    }
+
     public boolean isConfigured() {
         return configured;
     }
 
     public String callbackUrl(StudentSession student) {
+        if (!enabled) {
+            throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Вход на start.ruc.su временно отключён"
+            );
+        }
         if (!configured) {
             throw new ResponseStatusException(
                 HttpStatus.SERVICE_UNAVAILABLE,

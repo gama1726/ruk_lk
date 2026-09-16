@@ -64,6 +64,7 @@ app.lk-admin.full-name=Супер-администратор ЛК
 # app.frontend.login-url=https://my.ruc.su/login
 
 # start.ruc.su — тот же секрет, что LK_EXCHANGE_SECRET на стороне Start
+# app.start.enabled=true
 # app.start.api-base-url=https://start.ruc.su
 # app.start.frontend-url=https://start.ruc.su
 # app.start.exchange-secret=CHANGE_ME

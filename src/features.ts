@@ -7,6 +7,7 @@ import { apiGet, isApiConfigured } from '@/apiClient'
 
 export type AppFeatures = {
   attendanceEnabled: boolean
+  startEnabled: boolean
 }
 
 type FeaturesState = {
@@ -17,6 +18,7 @@ type FeaturesState = {
 
 const offlineDefaults: AppFeatures = {
   attendanceEnabled: true,
+  startEnabled: false,
 }
 
 let loadPromise: Promise<void> | null = null
@@ -36,11 +38,17 @@ export const useAppFeatures = create<FeaturesState>((set, get) => ({
     set({ status: 'loading' })
     loadPromise = (async () => {
       try {
-        const features = await apiGet<AppFeatures>('/api/features')
-        set({ features, status: 'ready' })
+        const raw = await apiGet<Partial<AppFeatures>>('/api/features')
+        set({
+          features: {
+            attendanceEnabled: raw.attendanceEnabled === true,
+            startEnabled: raw.startEnabled === true,
+          },
+          status: 'ready',
+        })
       } catch {
-        // Старый backend без /api/features — не прячем раздел молча навсегда.
-        set({ features: { attendanceEnabled: true }, status: 'ready' })
+        // Старый backend без /api/features — посещаемость не прячем, Start выкл.
+        set({ features: { attendanceEnabled: true, startEnabled: false }, status: 'ready' })
       } finally {
         loadPromise = null
       }
@@ -53,4 +61,9 @@ export const useAppFeatures = create<FeaturesState>((set, get) => ({
 /** Текущее значение флага посещаемости (false, пока не загружено). */
 export function isAttendanceFeatureEnabled(): boolean {
   return useAppFeatures.getState().features?.attendanceEnabled === true
+}
+
+/** Мост Start включён на backend. */
+export function isStartFeatureEnabled(): boolean {
+  return useAppFeatures.getState().features?.startEnabled === true
 }

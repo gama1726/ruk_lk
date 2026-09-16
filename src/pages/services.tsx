@@ -1,21 +1,11 @@
 import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { isPassPhotoNavVisible } from '@/campus'
+import { useAppFeatures } from '@/features'
 import { paths } from '@/paths'
 import { useStudentProfile } from '@/student-profile-store'
 import { ScreenHeader, Card } from '@/ui'
 import styles from './services.module.css'
-
-const allItems = [
-  { to: paths.requests, title: 'Заявления и справки', note: 'Справки, обращения в деканат' },
-  { to: paths.payments, title: 'Оплата обучения', note: 'Договор и график платежей' },
-  { to: paths.psychologist, title: 'Психолог', note: 'Консультации, кабинет 307' },
-  { to: paths.portfolio, title: 'Портфолио', note: 'Достижения и награды' },
-  { to: paths.passPhoto, title: 'Фото для пропуска', note: 'Загрузка фото для пропуска' },
-  { to: paths.start, title: 'Start', note: 'Скоро — вход на start.ruc.su' },
-  { to: paths.esports, title: 'Киберспорт', note: 'Кабинет капитана и заявки на турниры' },
-  { to: paths.library, title: 'Библиотека', note: 'Читательский билет, книги' },
-] as const
 
 /**
  * Хаб сервисов — ссылки на разделы без дублирования меню.
@@ -24,15 +14,36 @@ export function Services() {
   const profile = useStudentProfile((s) => s.profile)
   const status = useStudentProfile((s) => s.status)
   const load = useStudentProfile((s) => s.load)
+  const startEnabled = useAppFeatures((s) => s.features?.startEnabled === true)
+  const featuresStatus = useAppFeatures((s) => s.status)
+  const loadFeatures = useAppFeatures((s) => s.load)
 
   useEffect(() => {
     if (status === 'idle') void load()
   }, [status, load])
 
+  useEffect(() => {
+    if (featuresStatus === 'idle') void loadFeatures()
+  }, [featuresStatus, loadFeatures])
+
   const items = useMemo(() => {
-    if (isPassPhotoNavVisible(profile)) return allItems
+    const allItems = [
+      { to: paths.requests, title: 'Заявления и справки', note: 'Справки, обращения в деканат' },
+      { to: paths.payments, title: 'Оплата обучения', note: 'Договор и график платежей' },
+      { to: paths.psychologist, title: 'Психолог', note: 'Консультации, кабинет 307' },
+      { to: paths.portfolio, title: 'Портфолио', note: 'Достижения и награды' },
+      { to: paths.passPhoto, title: 'Фото для пропуска', note: 'Загрузка фото для пропуска' },
+      {
+        to: paths.start,
+        title: 'Start',
+        note: startEnabled ? 'Вход на start.ruc.su' : 'Скоро — вход на start.ruc.su',
+      },
+      { to: paths.esports, title: 'Киберспорт', note: 'Кабинет капитана и заявки на турниры' },
+      { to: paths.library, title: 'Библиотека', note: 'Читательский билет, книги' },
+    ] as const
+    if (isPassPhotoNavVisible(profile)) return [...allItems]
     return allItems.filter((item) => item.to !== paths.passPhoto)
-  }, [profile])
+  }, [profile, startEnabled])
 
   return (
     <>
