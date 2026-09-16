@@ -71,12 +71,6 @@ export type AbsenceReport = {
   warnings: string[]
 }
 
-export type GroupRoster = {
-  groupName: string
-  studentIds: string[]
-  updatedAt: string
-}
-
 export const LK_ADMIN_SECTION_LABELS: Record<LkAdminSection, string> = {
   ATTENDANCE: 'Посещаемость',
   ABSENCE_REPORT: 'Отчёт отсутствующих',
@@ -116,26 +110,8 @@ export async function fetchLkAdminAttendance(
   return apiGet<AdminAttendanceDto>(`/api/admin/lk/attendance?${params}`)
 }
 
-export async function fetchAbsenceReport(body: {
-  date: string
-  group: string
-  studentIds: string[]
-  saveRoster?: boolean
-}): Promise<AbsenceReport> {
+export async function fetchAbsenceReport(body: { date: string }): Promise<AbsenceReport> {
   return apiPost<AbsenceReport>('/api/admin/lk/absence-report', body)
-}
-
-export async function listGroupRosters(): Promise<GroupRoster[]> {
-  return apiGet<GroupRoster[]>('/api/admin/lk/group-rosters')
-}
-
-export async function loadGroupRoster(groupName: string): Promise<GroupRoster> {
-  const params = new URLSearchParams({ group: groupName })
-  return apiGet<GroupRoster>(`/api/admin/lk/group-rosters/one?${params}`)
-}
-
-export async function saveGroupRoster(groupName: string, studentIds: string[]): Promise<GroupRoster> {
-  return apiPut<GroupRoster>('/api/admin/lk/group-rosters', { groupName, studentIds })
 }
 
 export async function setAbsenceParentNotice(

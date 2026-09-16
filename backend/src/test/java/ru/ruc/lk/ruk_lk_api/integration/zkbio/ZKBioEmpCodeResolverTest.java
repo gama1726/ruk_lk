@@ -11,7 +11,7 @@ class ZKBioEmpCodeResolverTest {
 
     @Test
     void resolvesByEmpCode() {
-        ZKBioEmployee employee = new ZKBioEmployee("111717", "", "");
+        ZKBioEmployee employee = new ZKBioEmployee("111717", "", "", null, null);
 
         Optional<String> code = ZKBioEmpCodeResolver.resolveTransactionCode("111717", employee);
 
@@ -21,7 +21,7 @@ class ZKBioEmpCodeResolverTest {
 
     @Test
     void ignoresSsnAndNational() {
-        ZKBioEmployee employee = new ZKBioEmployee("0000241", "258736", "258736");
+        ZKBioEmployee employee = new ZKBioEmployee("0000241", "258736", "258736", null, null);
 
         assertTrue(ZKBioEmpCodeResolver.resolveTransactionCode("258736", employee).isEmpty());
     }

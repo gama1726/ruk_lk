@@ -15,5 +15,10 @@ public interface ZKBioClient {
     List<SkudAccessEvent> fetchAccessEvents(String studentId, LocalDate from, LocalDate to)
         throws ZKBioException;
 
+    /**
+     * Справочник сотрудников отдела (студенты Казани), с пагинацией на стороне клиента.
+     */
+    List<ZKBioEmployee> fetchDepartmentEmployees() throws ZKBioException;
+
     boolean isEnabled();
 }

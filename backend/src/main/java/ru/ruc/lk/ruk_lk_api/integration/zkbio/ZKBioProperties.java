@@ -9,5 +9,7 @@ public record ZKBioProperties(
     String baseUrl,
     String login,
     String password,
-    boolean trustSelfSigned
+    boolean trustSelfSigned,
+    /** Отдел в ZKBio со студентами (как в боте Казани). */
+    Integer departmentId
 ) {}

@@ -5,10 +5,14 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -28,11 +32,11 @@ import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAttendanceLessonResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
-import ru.ruc.lk.ruk_lk_api.integration.perco.PercoAccessEvent;
-import ru.ruc.lk.ruk_lk_api.integration.perco.PercoClient;
-import ru.ruc.lk.ruk_lk_api.integration.perco.PercoException;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleWeekApiResponse;
 import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent;
+import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioClient;
+import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioEmployee;
+import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioException;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRowDto;
@@ -40,41 +44,44 @@ import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterDto;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterSaveRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.ParentNoticeRequest;
 
+/**
+ * Отчёт отсутствующих для Казани: состав из ZKBio (department),
+ * ФИО/группа/телефон из 1С, пары из расписания, проходы из ZKBio.
+ */
 @Service
 public class LkAbsenceReportService {
 
     private static final Logger log = LoggerFactory.getLogger(LkAbsenceReportService.class);
     private static final DateTimeFormatter DATE_RU = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter TIME_DOT = DateTimeFormatter.ofPattern("HH.mm");
-    private static final int MAX_ROSTER = 120;
+    private static final String SOURCE = "zkbio";
+    private static final String CAMPUS_LABEL = "Казань (ZKBio)";
+    private static final int MAX_PARALLEL = 8;
 
     private final ScheduleContextService scheduleContextService;
     private final ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient scheduleClient;
     private final OneCClient onecClient;
-    private final PercoClient percoClient;
+    private final ZKBioClient zkbioClient;
     private final LkGroupRosterRepository rosterRepository;
     private final LkAbsenceParentNoticeRepository noticeRepository;
     private final boolean attendanceEnabled;
-    private final String percoUncontrolledZone;
 
     public LkAbsenceReportService(
         ScheduleContextService scheduleContextService,
         ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient scheduleClient,
         OneCClient onecClient,
-        PercoClient percoClient,
+        ZKBioClient zkbioClient,
         LkGroupRosterRepository rosterRepository,
         LkAbsenceParentNoticeRepository noticeRepository,
-        @Value("${app.attendance.enabled:false}") boolean attendanceEnabled,
-        @Value("${app.perco.uncontrolled-zone:Неконтролируемая территория}") String percoUncontrolledZone
+        @Value("${app.attendance.enabled:false}") boolean attendanceEnabled
     ) {
         this.scheduleContextService = scheduleContextService;
         this.scheduleClient = scheduleClient;
         this.onecClient = onecClient;
-        this.percoClient = percoClient;
+        this.zkbioClient = zkbioClient;
         this.rosterRepository = rosterRepository;
         this.noticeRepository = noticeRepository;
         this.attendanceEnabled = attendanceEnabled;
-        this.percoUncontrolledZone = percoUncontrolledZone;
     }
 
     public AbsenceReportResponse build(HttpSession session, AbsenceReportRequest body) {
@@ -82,62 +89,67 @@ public class LkAbsenceReportService {
         if (!attendanceEnabled) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Посещаемость отключена");
         }
+        if (!zkbioClient.isEnabled()) {
+            throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "ZKBio Казань отключён (app.zkbio.kazan.enabled)"
+            );
+        }
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
         }
         LocalDate date = parseDate(body.date());
-        String group = requireText(body.group(), "Укажите номер группы");
-        List<String> studentIds = resolveStudentIds(group, body.studentIds());
-        if (studentIds.isEmpty()) {
+
+        List<ZKBioEmployee> employees;
+        try {
+            employees = zkbioClient.fetchDepartmentEmployees();
+        } catch (ZKBioException e) {
             throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Укажите зачётки состава группы или сохраните состав заранее"
+                HttpStatus.BAD_GATEWAY,
+                "Не удалось получить список студентов из ZKBio: " + shortMessage(e)
             );
         }
-        if (studentIds.size() > MAX_ROSTER) {
+
+        List<ZKBioEmployee> roster = uniqueByEmpCode(employees);
+        if (roster.isEmpty()) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Не больше " + MAX_ROSTER + " зачёток за один отчёт"
+                "В отделе ZKBio нет сотрудников с emp_code"
             );
-        }
-        if (Boolean.TRUE.equals(body.saveRoster())) {
-            saveRosterInternal(group, studentIds);
         }
 
         List<String> warnings = new ArrayList<>();
-        List<CampusLesson> dayLessons = loadCampusLessons(session, group, date);
-        if (dayLessons.isEmpty()) {
-            warnings.add("На выбранную дату нет очных пар в расписании группы");
-        }
-        String scheduleRange = formatScheduleRange(dayLessons);
+        Map<String, EnrichedStudent> enriched = enrichStudents(roster, warnings);
+        Map<String, List<CampusLesson>> lessonsByGroup = loadLessonsByGroup(session, enriched, date, warnings);
 
         List<AbsenceReportRowDto> rows = new ArrayList<>();
-        for (String studentId : studentIds) {
-            try {
-                AbsenceReportRowDto row = buildRow(
-                    date,
-                    group,
-                    scheduleRange,
-                    dayLessons,
-                    studentId
-                );
+        try (ExecutorService pool = Executors.newFixedThreadPool(Math.min(MAX_PARALLEL, Math.max(1, enriched.size())))) {
+            List<CompletableFuture<AbsenceReportRowDto>> futures = new ArrayList<>();
+            for (EnrichedStudent student : enriched.values()) {
+                futures.add(CompletableFuture.supplyAsync(
+                    () -> buildRowSafe(date, student, lessonsByGroup, warnings),
+                    pool
+                ));
+            }
+            for (CompletableFuture<AbsenceReportRowDto> future : futures) {
+                AbsenceReportRowDto row = future.join();
                 if (row != null) {
                     rows.add(row);
                 }
-            } catch (Exception e) {
-                warnings.add(studentId + ": " + shortMessage(e));
-                log.info("absence report student {}: {}", studentId, e.getMessage());
             }
         }
-        rows.sort(Comparator.comparing(AbsenceReportRowDto::fullName, String.CASE_INSENSITIVE_ORDER));
+
+        rows.sort(Comparator
+            .comparing(AbsenceReportRowDto::group, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(AbsenceReportRowDto::fullName, String.CASE_INSENSITIVE_ORDER));
 
         return new AbsenceReportResponse(
             date.toString(),
-            group,
-            scheduleRange,
-            studentIds.size(),
+            CAMPUS_LABEL,
+            "",
+            roster.size(),
             rows.size(),
-            "perco",
+            SOURCE,
             rows,
             warnings
         );
@@ -186,23 +198,102 @@ public class LkAbsenceReportService {
         return Map.of("ok", true, "date", date.toString(), "studentId", studentId, "notified", body.notified());
     }
 
-    private AbsenceReportRowDto buildRow(
-        LocalDate date,
-        String group,
-        String scheduleRange,
-        List<CampusLesson> dayLessons,
-        String studentId
-    ) throws PercoException {
-        OneCProfileResponse profile = onecClient.fetchProfile(studentId).orElse(null);
+    private Map<String, EnrichedStudent> enrichStudents(List<ZKBioEmployee> roster, List<String> warnings) {
+        Map<String, EnrichedStudent> result = new LinkedHashMap<>();
+        try (ExecutorService pool = Executors.newFixedThreadPool(Math.min(MAX_PARALLEL, Math.max(1, roster.size())))) {
+            List<CompletableFuture<EnrichedStudent>> futures = new ArrayList<>();
+            for (ZKBioEmployee employee : roster) {
+                futures.add(CompletableFuture.supplyAsync(() -> enrichOne(employee), pool));
+            }
+            for (CompletableFuture<EnrichedStudent> future : futures) {
+                EnrichedStudent student = future.join();
+                if (student == null) {
+                    continue;
+                }
+                if (student.group().isBlank()) {
+                    warnings.add(student.studentId() + ": нет группы в 1С — пропуск");
+                    continue;
+                }
+                result.put(student.studentId(), student);
+            }
+        }
+        return result;
+    }
+
+    private EnrichedStudent enrichOne(ZKBioEmployee employee) {
+        String empCode = employee.empCode() == null ? "" : employee.empCode().trim();
+        if (empCode.isEmpty()) {
+            return null;
+        }
+        OneCProfileResponse profile = onecClient.fetchProfile(empCode).orElse(null);
         String fullName = profile != null && profile.fullName() != null && !profile.fullName().isBlank()
             ? profile.fullName().trim()
-            : studentId;
+            : employee.displayName();
+        if (fullName == null || fullName.isBlank()) {
+            fullName = empCode;
+        }
         String phone = profile != null && profile.phone() != null ? profile.phone().trim() : "";
-        String profileGroup = profile != null && profile.group() != null ? profile.group().trim() : group;
+        String group = profile != null && profile.group() != null ? profile.group().trim() : "";
+        return new EnrichedStudent(empCode, fullName, phone, group);
+    }
 
-        List<PercoAccessEvent> rawEvents = percoClient.fetchAccessEvents(studentId, date, date);
-        List<SkudAccessEvent> events = mapPercoEvents(rawEvents);
-        StudentAttendanceResponse attendance = AttendanceMapper.toResponse("perco", events, dayLessons);
+    private Map<String, List<CampusLesson>> loadLessonsByGroup(
+        HttpSession session,
+        Map<String, EnrichedStudent> enriched,
+        LocalDate date,
+        List<String> warnings
+    ) {
+        Set<String> groups = enriched.values().stream()
+            .map(EnrichedStudent::group)
+            .filter(g -> g != null && !g.isBlank())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        Map<String, List<CampusLesson>> lessonsByGroup = new LinkedHashMap<>();
+        for (String group : groups) {
+            try {
+                List<CampusLesson> lessons = loadCampusLessons(session, group, date);
+                lessonsByGroup.put(group, lessons);
+                if (lessons.isEmpty()) {
+                    warnings.add(group + ": нет очных пар на дату");
+                }
+            } catch (Exception e) {
+                lessonsByGroup.put(group, List.of());
+                warnings.add(group + ": " + shortMessage(e));
+                log.info("absence report schedule {}: {}", group, e.getMessage());
+            }
+        }
+        return lessonsByGroup;
+    }
+
+    private AbsenceReportRowDto buildRowSafe(
+        LocalDate date,
+        EnrichedStudent student,
+        Map<String, List<CampusLesson>> lessonsByGroup,
+        List<String> warnings
+    ) {
+        try {
+            return buildRow(date, student, lessonsByGroup);
+        } catch (Exception e) {
+            synchronized (warnings) {
+                warnings.add(student.studentId() + ": " + shortMessage(e));
+            }
+            log.info("absence report student {}: {}", student.studentId(), e.getMessage());
+            return null;
+        }
+    }
+
+    private AbsenceReportRowDto buildRow(
+        LocalDate date,
+        EnrichedStudent student,
+        Map<String, List<CampusLesson>> lessonsByGroup
+    ) throws ZKBioException {
+        List<CampusLesson> dayLessons = lessonsByGroup.getOrDefault(student.group(), List.of());
+        if (dayLessons.isEmpty()) {
+            return null;
+        }
+
+        List<SkudAccessEvent> events = zkbioClient.fetchAccessEvents(student.studentId(), date, date);
+        StudentAttendanceResponse attendance = AttendanceMapper.toResponse(SOURCE, events, dayLessons);
         List<StudentAttendanceLessonResponse> lessons = attendance.days().stream()
             .filter(d -> date.toString().equals(d.date()))
             .findFirst()
@@ -217,20 +308,21 @@ public class LkAbsenceReportService {
             return null;
         }
 
+        String scheduleRange = formatScheduleRange(dayLessons);
         String absenceRange = mergeAbsenceRanges(absent);
-        boolean fullDay = !dayLessons.isEmpty() && absent.size() >= dayLessons.size();
+        boolean fullDay = absent.size() >= dayLessons.size();
         String kind = fullDay ? "full" : "partial";
         boolean notified = noticeRepository
-            .findByReportDateAndStudentId(date, studentId)
+            .findByReportDateAndStudentId(date, student.studentId())
             .map(LkAbsenceParentNotice::isNotified)
             .orElse(false);
 
         return new AbsenceReportRowDto(
             date.format(DATE_RU),
-            blank(profileGroup).isEmpty() ? group : profileGroup,
-            studentId,
-            fullName,
-            phone,
+            student.group(),
+            student.studentId(),
+            student.fullName(),
+            student.phone(),
             scheduleRange,
             absenceRange,
             notified,
@@ -271,33 +363,15 @@ public class LkAbsenceReportService {
         return lessons;
     }
 
-    private List<SkudAccessEvent> mapPercoEvents(List<PercoAccessEvent> events) {
-        if (events == null || events.isEmpty()) {
-            return List.of();
-        }
-        List<SkudAccessEvent> mapped = new ArrayList<>(events.size());
-        for (PercoAccessEvent event : events) {
-            if (event == null) {
+    private static List<ZKBioEmployee> uniqueByEmpCode(List<ZKBioEmployee> employees) {
+        Map<String, ZKBioEmployee> unique = new LinkedHashMap<>();
+        for (ZKBioEmployee employee : employees) {
+            if (employee == null || employee.empCode() == null || employee.empCode().isBlank()) {
                 continue;
             }
-            var direction = event.resolveDirection(percoUncontrolledZone);
-            mapped.add(new SkudAccessEvent(
-                event.resolvedTimeLabel(),
-                event.resolvedDisplayGate(direction),
-                direction
-            ));
+            unique.putIfAbsent(employee.empCode().trim(), employee);
         }
-        return mapped;
-    }
-
-    private List<String> resolveStudentIds(String group, List<String> requested) {
-        List<String> fromRequest = normalizeIds(requested);
-        if (!fromRequest.isEmpty()) {
-            return fromRequest;
-        }
-        return rosterRepository.findById(group)
-            .map(r -> normalizeIds(r.getStudentIds()))
-            .orElse(List.of());
+        return List.copyOf(unique.values());
     }
 
     private LkGroupRoster saveRosterInternal(String group, List<String> studentIds) {
@@ -352,7 +426,6 @@ public class LkAbsenceReportService {
     }
 
     private static boolean isImmediateNext(String endDot, String startDot) {
-        // соседние пары часто 09.40 и 09.50 — считаем продолжением блока отсутствия
         return endDot != null && startDot != null && endDot.compareTo(startDot) <= 0;
     }
 
@@ -400,10 +473,6 @@ public class LkAbsenceReportService {
         return value.trim();
     }
 
-    private static String blank(String value) {
-        return value == null ? "" : value.trim();
-    }
-
     private static String shortMessage(Exception e) {
         if (e instanceof ResponseStatusException rse && rse.getReason() != null) {
             return rse.getReason();
@@ -414,4 +483,6 @@ public class LkAbsenceReportService {
         String msg = e.getMessage().trim();
         return msg.length() > 160 ? msg.substring(0, 157) + "…" : msg;
     }
+
+    private record EnrichedStudent(String studentId, String fullName, String phone, String group) {}
 }
