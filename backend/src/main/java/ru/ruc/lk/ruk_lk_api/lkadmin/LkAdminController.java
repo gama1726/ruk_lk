@@ -21,6 +21,7 @@ import ru.ruc.lk.ruk_lk_api.api.student.StudentService;
 import ru.ruc.lk.ruk_lk_api.events.dto.AdminAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportResponse;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportSummaryDto;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterDto;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterSaveRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.LkAdminCreateRequest;
@@ -99,7 +100,17 @@ public class LkAdminController {
 
     @PostMapping("/absence-report")
     public AbsenceReportResponse absenceReport(HttpSession session, @RequestBody AbsenceReportRequest body) {
-        return absenceReportService.build(session, body);
+        return absenceReportService.start(session, body);
+    }
+
+    @GetMapping("/absence-report/{id}")
+    public AbsenceReportResponse getAbsenceReport(HttpSession session, @PathVariable UUID id) {
+        return absenceReportService.get(session, id);
+    }
+
+    @GetMapping("/absence-reports")
+    public List<AbsenceReportSummaryDto> listAbsenceReports(HttpSession session) {
+        return absenceReportService.list(session);
     }
 
     @GetMapping("/group-rosters")

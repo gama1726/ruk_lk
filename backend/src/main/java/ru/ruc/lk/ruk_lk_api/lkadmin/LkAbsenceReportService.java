@@ -1,5 +1,7 @@
 package ru.ruc.lk.ruk_lk_api.lkadmin;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -9,10 +11,13 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -20,18 +25,23 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import jakarta.annotation.PreDestroy;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.api.student.AttendanceMapper;
 import ru.ruc.lk.ruk_lk_api.api.student.CampusLesson;
-import ru.ruc.lk.ruk_lk_api.api.student.ScheduleContextService;
 import ru.ruc.lk.ruk_lk_api.api.student.ScheduleMapper;
-import ru.ruc.lk.ruk_lk_api.api.student.ScheduleSessionContext;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAttendanceLessonResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
+import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient;
+import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupLookupResponse;
+import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupNameNormalizer;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleWeekApiResponse;
 import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent;
 import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioClient;
@@ -40,14 +50,14 @@ import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioException;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRowDto;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportSummaryDto;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterDto;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterSaveRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.ParentNoticeRequest;
 
 /**
- * Отчёт отсутствующих для Казани: полный справочник ZKBio,
- * кандидаты с emp_code длины 6, профиль/группа из 1С, пары из расписания,
- * проходы ZKBio — та же логика, что раздел посещаемости.
+ * Отчёт отсутствующих (Казань): массовые transactions за день + кэш employees,
+ * асинхронное построение с сохранением в БД.
  */
 @Service
 public class LkAbsenceReportService {
@@ -58,138 +68,87 @@ public class LkAbsenceReportService {
     private static final String SOURCE = "zkbio";
     private static final String CAMPUS_LABEL = "Казань (ZKBio)";
     private static final int EMP_CODE_LENGTH = 6;
-    private static final int MAX_PARALLEL = 12;
+    private static final int MAX_PARALLEL = 16;
+    private static final Duration EMPLOYEES_CACHE_TTL = Duration.ofHours(6);
 
-    private final ScheduleContextService scheduleContextService;
-    private final ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient scheduleClient;
+    private final ScheduleClient scheduleClient;
     private final OneCClient onecClient;
     private final ZKBioClient zkbioClient;
     private final LkGroupRosterRepository rosterRepository;
     private final LkAbsenceParentNoticeRepository noticeRepository;
+    private final LkAbsenceReportRepository reportRepository;
     private final boolean attendanceEnabled;
+    private final ExecutorService reportExecutor = Executors.newFixedThreadPool(2);
+    private final AtomicReference<EmployeesCache> employeesCache = new AtomicReference<>();
+    private final TransactionTemplate transactionTemplate;
 
     public LkAbsenceReportService(
-        ScheduleContextService scheduleContextService,
-        ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient scheduleClient,
+        ScheduleClient scheduleClient,
         OneCClient onecClient,
         ZKBioClient zkbioClient,
         LkGroupRosterRepository rosterRepository,
         LkAbsenceParentNoticeRepository noticeRepository,
+        LkAbsenceReportRepository reportRepository,
+        PlatformTransactionManager transactionManager,
         @Value("${app.attendance.enabled:false}") boolean attendanceEnabled
     ) {
-        this.scheduleContextService = scheduleContextService;
         this.scheduleClient = scheduleClient;
         this.onecClient = onecClient;
         this.zkbioClient = zkbioClient;
         this.rosterRepository = rosterRepository;
         this.noticeRepository = noticeRepository;
+        this.reportRepository = reportRepository;
         this.attendanceEnabled = attendanceEnabled;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
-    public AbsenceReportResponse build(HttpSession session, AbsenceReportRequest body) {
+    @PreDestroy
+    void shutdown() {
+        reportExecutor.shutdownNow();
+    }
+
+    /** Старт асинхронного построения; сразу возвращает RUNNING. */
+    @Transactional
+    public AbsenceReportResponse start(HttpSession session, AbsenceReportRequest body) {
         LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
-        if (!attendanceEnabled) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Посещаемость отключена");
-        }
-        if (!zkbioClient.isEnabled()) {
-            throw new ResponseStatusException(
-                HttpStatus.SERVICE_UNAVAILABLE,
-                "ZKBio Казань отключён (app.zkbio.kazan.enabled)"
-            );
-        }
+        requireEnabled();
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
         }
         LocalDate date = parseDate(body.date());
+        UUID id = UUID.randomUUID();
+        LkAbsenceReportEntity entity = new LkAbsenceReportEntity(id, date);
+        reportRepository.save(entity);
+        reportExecutor.execute(() -> runBuild(id, date));
+        return toResponse(entity, List.of(), List.of("Отчёт строится…"));
+    }
 
-        List<ZKBioEmployee> employees;
-        try {
-            employees = zkbioClient.fetchEmployees();
-        } catch (ZKBioException e) {
-            throw new ResponseStatusException(
-                HttpStatus.BAD_GATEWAY,
-                "Не удалось получить список студентов из ZKBio: " + shortMessage(e)
-            );
-        }
+    @Transactional(readOnly = true)
+    public AbsenceReportResponse get(HttpSession session, UUID id) {
+        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAbsenceReportEntity entity = reportRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден"));
+        List<AbsenceReportRowDto> rows = entity.getStatus() == LkAbsenceReportStatus.DONE
+            ? mapRows(entity)
+            : List.of();
+        return toResponse(entity, rows, splitWarnings(entity.getWarningsText()));
+    }
 
-        List<ZKBioEmployee> allUnique = uniqueByEmpCode(employees);
-        List<ZKBioEmployee> roster = allUnique.stream()
-            .filter(e -> e.empCode() != null && e.empCode().trim().length() == EMP_CODE_LENGTH)
+    @Transactional(readOnly = true)
+    public List<AbsenceReportSummaryDto> list(HttpSession session) {
+        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        return reportRepository.findAllByOrderByCreatedAtDesc().stream()
+            .map(e -> new AbsenceReportSummaryDto(
+                e.getId().toString(),
+                e.getReportDate().toString(),
+                e.getStatus().name(),
+                e.getCheckedCount(),
+                e.getAbsentCount(),
+                e.getCreatedAt() == null ? "" : e.getCreatedAt().toString(),
+                e.getFinishedAt() == null ? "" : e.getFinishedAt().toString(),
+                blank(e.getErrorMessage())
+            ))
             .toList();
-        int skippedByLength = allUnique.size() - roster.size();
-        if (roster.isEmpty()) {
-            throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "В ZKBio нет сотрудников с emp_code длины " + EMP_CODE_LENGTH
-            );
-        }
-
-        List<String> warnings = new ArrayList<>();
-        if (skippedByLength > 0) {
-            warnings.add(
-                "Пропущено по длине emp_code ≠ " + EMP_CODE_LENGTH + ": " + skippedByLength
-                    + " из " + allUnique.size()
-            );
-        }
-
-        EnrichStats enrichStats = new EnrichStats();
-        Map<String, EnrichedStudent> enriched = enrichStudents(roster, enrichStats);
-        if (enrichStats.noProfile > 0) {
-            warnings.add("Нет профиля в 1С — пропуск: " + enrichStats.noProfile);
-        }
-        if (enrichStats.noGroup > 0) {
-            warnings.add("Нет группы в 1С — пропуск: " + enrichStats.noGroup);
-        }
-        if (enriched.isEmpty()) {
-            warnings.add("После фильтрации не осталось студентов с профилем и группой в 1С");
-            return new AbsenceReportResponse(
-                date.toString(),
-                CAMPUS_LABEL,
-                "",
-                roster.size(),
-                0,
-                SOURCE,
-                List.of(),
-                warnings
-            );
-        }
-
-        Map<String, List<CampusLesson>> lessonsByGroup = loadLessonsByGroup(session, enriched, date, warnings);
-
-        List<AbsenceReportRowDto> rows = new ArrayList<>();
-        try (ExecutorService pool = Executors.newFixedThreadPool(Math.min(MAX_PARALLEL, Math.max(1, enriched.size())))) {
-            List<CompletableFuture<AbsenceReportRowDto>> futures = new ArrayList<>();
-            for (EnrichedStudent student : enriched.values()) {
-                futures.add(CompletableFuture.supplyAsync(
-                    () -> buildRowSafe(date, student, lessonsByGroup, warnings),
-                    pool
-                ));
-            }
-            for (CompletableFuture<AbsenceReportRowDto> future : futures) {
-                AbsenceReportRowDto row = future.join();
-                if (row != null) {
-                    rows.add(row);
-                }
-            }
-        }
-
-        rows.sort(Comparator
-            .comparing(AbsenceReportRowDto::group, String.CASE_INSENSITIVE_ORDER)
-            .thenComparing(AbsenceReportRowDto::fullName, String.CASE_INSENSITIVE_ORDER));
-
-        warnings.add(0, "Проверено студентов: " + enriched.size() + " (кандидаты emp_code длины "
-            + EMP_CODE_LENGTH + ": " + roster.size() + ")");
-
-        return new AbsenceReportResponse(
-            date.toString(),
-            CAMPUS_LABEL,
-            "",
-            enriched.size(),
-            rows.size(),
-            SOURCE,
-            rows,
-            warnings
-        );
     }
 
     public List<GroupRosterDto> listRosters(HttpSession session) {
@@ -233,6 +192,145 @@ public class LkAbsenceReportService {
         row.setNotified(body.notified());
         noticeRepository.save(row);
         return Map.of("ok", true, "date", date.toString(), "studentId", studentId, "notified", body.notified());
+    }
+
+    private void runBuild(UUID reportId, LocalDate date) {
+        try {
+            BuildResult result = buildInternal(date);
+            transactionTemplate.executeWithoutResult(status -> {
+                LkAbsenceReportEntity entity = reportRepository.findById(reportId)
+                    .orElseThrow(() -> new IllegalStateException("Отчёт исчез: " + reportId));
+                entity.setStatus(LkAbsenceReportStatus.DONE);
+                entity.setZkbioTotal(result.zkbioTotal());
+                entity.setCandidateCount(result.candidateCount());
+                entity.setCheckedCount(result.checkedCount());
+                entity.setAbsentCount(result.rows().size());
+                entity.setWarningsText(String.join("\n", result.warnings()));
+                entity.setErrorMessage(null);
+                entity.setFinishedAt(Instant.now());
+                List<LkAbsenceReportRowEntity> rowEntities = new ArrayList<>();
+                for (AbsenceReportRowDto row : result.rows()) {
+                    rowEntities.add(new LkAbsenceReportRowEntity(
+                        UUID.randomUUID(),
+                        row.date(),
+                        row.group(),
+                        row.studentId(),
+                        row.fullName(),
+                        row.phone(),
+                        row.scheduleRange(),
+                        row.absenceRange(),
+                        row.kind()
+                    ));
+                }
+                entity.replaceRows(rowEntities);
+                reportRepository.save(entity);
+            });
+            log.info(
+                "Absence report {}: DONE checked={} absent={} punchesEmp={}",
+                reportId,
+                result.checkedCount(),
+                result.rows().size(),
+                result.punchEmpCodes()
+            );
+        } catch (Exception e) {
+            log.warn("Absence report {} FAILED: {}", reportId, e.toString());
+            transactionTemplate.executeWithoutResult(status ->
+                reportRepository.findById(reportId).ifPresent(entity -> {
+                    entity.setStatus(LkAbsenceReportStatus.FAILED);
+                    entity.setErrorMessage(shortMessage(e));
+                    entity.setFinishedAt(Instant.now());
+                    reportRepository.save(entity);
+                })
+            );
+        }
+    }
+
+    private BuildResult buildInternal(LocalDate date) throws ZKBioException {
+        List<String> warnings = new ArrayList<>();
+
+        List<ZKBioEmployee> employees = loadEmployeesCached();
+        List<ZKBioEmployee> allUnique = uniqueByEmpCode(employees);
+        List<ZKBioEmployee> roster = allUnique.stream()
+            .filter(e -> e.empCode() != null && e.empCode().trim().length() == EMP_CODE_LENGTH)
+            .toList();
+        int skippedByLength = allUnique.size() - roster.size();
+        if (skippedByLength > 0) {
+            warnings.add("Пропущено по длине emp_code ≠ " + EMP_CODE_LENGTH + ": " + skippedByLength
+                + " из " + allUnique.size());
+        }
+        if (roster.isEmpty()) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "В ZKBio нет сотрудников с emp_code длины " + EMP_CODE_LENGTH
+            );
+        }
+
+        Map<String, List<SkudAccessEvent>> punchesByEmp;
+        try {
+            punchesByEmp = zkbioClient.fetchDayAccessEventsByEmpCode(date);
+        } catch (ZKBioException e) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Не удалось получить проходы ZKBio за день: " + shortMessage(e)
+            );
+        }
+        warnings.add("Проходов ZKBio за день: emp_code=" + punchesByEmp.size());
+
+        EnrichStats enrichStats = new EnrichStats();
+        Map<String, EnrichedStudent> enriched = enrichStudents(roster, enrichStats);
+        if (enrichStats.noProfile > 0) {
+            warnings.add("Нет профиля в 1С — пропуск: " + enrichStats.noProfile);
+        }
+        if (enrichStats.noGroup > 0) {
+            warnings.add("Нет группы в 1С — пропуск: " + enrichStats.noGroup);
+        }
+        if (enriched.isEmpty()) {
+            warnings.add("После фильтрации не осталось студентов с профилем и группой в 1С");
+            warnings.add(0, "Проверено студентов: 0 (кандидаты emp_code длины " + EMP_CODE_LENGTH
+                + ": " + roster.size() + ")");
+            return new BuildResult(allUnique.size(), roster.size(), 0, punchesByEmp.size(), List.of(), warnings);
+        }
+
+        Map<String, List<CampusLesson>> lessonsByGroup = loadLessonsByGroup(enriched, date, warnings);
+
+        List<AbsenceReportRowDto> rows = new ArrayList<>();
+        for (EnrichedStudent student : enriched.values()) {
+            try {
+                AbsenceReportRowDto row = buildRow(date, student, lessonsByGroup, punchesByEmp);
+                if (row != null) {
+                    rows.add(row);
+                }
+            } catch (Exception e) {
+                warnings.add(student.studentId() + ": " + shortMessage(e));
+            }
+        }
+        rows.sort(Comparator
+            .comparing(AbsenceReportRowDto::group, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(AbsenceReportRowDto::fullName, String.CASE_INSENSITIVE_ORDER));
+
+        warnings.add(0, "Проверено студентов: " + enriched.size() + " (кандидаты emp_code длины "
+            + EMP_CODE_LENGTH + ": " + roster.size() + ")");
+
+        return new BuildResult(
+            allUnique.size(),
+            roster.size(),
+            enriched.size(),
+            punchesByEmp.size(),
+            rows,
+            warnings
+        );
+    }
+
+    private List<ZKBioEmployee> loadEmployeesCached() throws ZKBioException {
+        EmployeesCache cached = employeesCache.get();
+        Instant now = Instant.now();
+        if (cached != null && cached.loadedAt().plus(EMPLOYEES_CACHE_TTL).isAfter(now)
+            && !cached.employees().isEmpty()) {
+            return cached.employees();
+        }
+        List<ZKBioEmployee> fresh = zkbioClient.fetchEmployees();
+        employeesCache.set(new EmployeesCache(List.copyOf(fresh), now));
+        return fresh;
     }
 
     private Map<String, EnrichedStudent> enrichStudents(List<ZKBioEmployee> roster, EnrichStats stats) {
@@ -285,7 +383,6 @@ public class LkAbsenceReportService {
     }
 
     private Map<String, List<CampusLesson>> loadLessonsByGroup(
-        HttpSession session,
         Map<String, EnrichedStudent> enriched,
         LocalDate date,
         List<String> warnings
@@ -298,7 +395,7 @@ public class LkAbsenceReportService {
         Map<String, List<CampusLesson>> lessonsByGroup = new LinkedHashMap<>();
         for (String group : groups) {
             try {
-                List<CampusLesson> lessons = loadCampusLessons(session, group, date);
+                List<CampusLesson> lessons = loadCampusLessons(group, date);
                 lessonsByGroup.put(group, lessons);
                 if (lessons.isEmpty()) {
                     warnings.add(group + ": нет очных пар на дату");
@@ -312,34 +409,18 @@ public class LkAbsenceReportService {
         return lessonsByGroup;
     }
 
-    private AbsenceReportRowDto buildRowSafe(
-        LocalDate date,
-        EnrichedStudent student,
-        Map<String, List<CampusLesson>> lessonsByGroup,
-        List<String> warnings
-    ) {
-        try {
-            return buildRow(date, student, lessonsByGroup);
-        } catch (Exception e) {
-            synchronized (warnings) {
-                warnings.add(student.studentId() + ": " + shortMessage(e));
-            }
-            log.info("absence report student {}: {}", student.studentId(), e.getMessage());
-            return null;
-        }
-    }
-
     private AbsenceReportRowDto buildRow(
         LocalDate date,
         EnrichedStudent student,
-        Map<String, List<CampusLesson>> lessonsByGroup
-    ) throws ZKBioException {
+        Map<String, List<CampusLesson>> lessonsByGroup,
+        Map<String, List<SkudAccessEvent>> punchesByEmp
+    ) {
         List<CampusLesson> dayLessons = lessonsByGroup.getOrDefault(student.group(), List.of());
         if (dayLessons.isEmpty()) {
             return null;
         }
 
-        List<SkudAccessEvent> events = zkbioClient.fetchAccessEventsByEmpCode(student.studentId(), date, date);
+        List<SkudAccessEvent> events = punchesByEmp.getOrDefault(student.studentId(), List.of());
         StudentAttendanceResponse attendance = AttendanceMapper.toResponse(SOURCE, events, dayLessons);
         List<StudentAttendanceLessonResponse> lessons = attendance.days().stream()
             .filter(d -> date.toString().equals(d.date()))
@@ -377,10 +458,19 @@ public class LkAbsenceReportService {
         );
     }
 
-    private List<CampusLesson> loadCampusLessons(HttpSession session, String group, LocalDate date) {
-        ScheduleSessionContext context = scheduleContextService.resolveForGroup(session, group);
+    private List<CampusLesson> loadCampusLessons(String group, LocalDate date) {
+        ScheduleGroupLookupResponse lookup = lookupGroup(group)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Группа не найдена в сервисе расписания"
+            ));
+        if (lookup.group() == null || lookup.branch() == null
+            || blank(lookup.group().guid()).isEmpty()
+            || blank(lookup.branch().guid()).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Группа не найдена в сервисе расписания");
+        }
         ScheduleWeekApiResponse week = scheduleClient
-            .fetchGroupWeek(context.branchGuid(), context.groupGuid(), date)
+            .fetchGroupWeek(lookup.branch().guid().trim(), lookup.group().guid().trim(), date)
             .orElse(null);
         if (week == null || week.schedule() == null) {
             return List.of();
@@ -408,6 +498,71 @@ public class LkAbsenceReportService {
         }
         lessons.sort(Comparator.comparing(CampusLesson::start));
         return lessons;
+    }
+
+    private Optional<ScheduleGroupLookupResponse> lookupGroup(String groupName) {
+        for (String candidate : ScheduleGroupNameNormalizer.lookupCandidates(groupName)) {
+            Optional<ScheduleGroupLookupResponse> found = scheduleClient.lookupGroup(candidate);
+            if (found.isPresent()) {
+                return found;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private List<AbsenceReportRowDto> mapRows(LkAbsenceReportEntity entity) {
+        LocalDate date = entity.getReportDate();
+        List<AbsenceReportRowDto> rows = new ArrayList<>();
+        for (LkAbsenceReportRowEntity row : entity.getRows()) {
+            boolean notified = noticeRepository
+                .findByReportDateAndStudentId(date, row.getStudentId())
+                .map(LkAbsenceParentNotice::isNotified)
+                .orElse(false);
+            rows.add(new AbsenceReportRowDto(
+                row.getDateLabel(),
+                row.getGroupName(),
+                row.getStudentId(),
+                row.getFullName(),
+                row.getPhone(),
+                row.getScheduleRange(),
+                row.getAbsenceRange(),
+                notified,
+                row.getKind()
+            ));
+        }
+        return rows;
+    }
+
+    private AbsenceReportResponse toResponse(
+        LkAbsenceReportEntity entity,
+        List<AbsenceReportRowDto> rows,
+        List<String> warnings
+    ) {
+        return new AbsenceReportResponse(
+            entity.getId().toString(),
+            entity.getStatus().name(),
+            entity.getReportDate().toString(),
+            entity.getCampusLabel(),
+            "",
+            entity.getCheckedCount() > 0 ? entity.getCheckedCount() : entity.getCandidateCount(),
+            entity.getAbsentCount(),
+            entity.getSource(),
+            rows,
+            warnings,
+            blank(entity.getErrorMessage())
+        );
+    }
+
+    private void requireEnabled() {
+        if (!attendanceEnabled) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Посещаемость отключена");
+        }
+        if (!zkbioClient.isEnabled()) {
+            throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "ZKBio Казань отключён (app.zkbio.kazan.enabled)"
+            );
+        }
     }
 
     private static List<ZKBioEmployee> uniqueByEmpCode(List<ZKBioEmployee> employees) {
@@ -502,6 +657,13 @@ public class LkAbsenceReportService {
         return List.copyOf(unique);
     }
 
+    private static List<String> splitWarnings(String text) {
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
+        return List.of(text.split("\\R"));
+    }
+
     private static LocalDate parseDate(String raw) {
         if (raw == null || raw.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите дату");
@@ -518,6 +680,10 @@ public class LkAbsenceReportService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
         }
         return value.trim();
+    }
+
+    private static String blank(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private static String shortMessage(Exception e) {
@@ -553,4 +719,15 @@ public class LkAbsenceReportService {
             return new EnrichOutcome(EnrichKind.NO_GROUP, null);
         }
     }
+
+    private record EmployeesCache(List<ZKBioEmployee> employees, Instant loadedAt) {}
+
+    private record BuildResult(
+        int zkbioTotal,
+        int candidateCount,
+        int checkedCount,
+        int punchEmpCodes,
+        List<AbsenceReportRowDto> rows,
+        List<String> warnings
+    ) {}
 }

@@ -2,13 +2,16 @@
  * @file Отчёт отсутствующих (Казань / ZKBio) в админ-панели ЛК.
  */
 
-import { useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ApiError } from '@/apiClient'
 import {
   fetchAbsenceReport,
+  getAbsenceReport,
+  listAbsenceReports,
   setAbsenceParentNotice,
   type AbsenceReport,
   type AbsenceReportRow,
+  type AbsenceReportSummary,
 } from '@/lk-admin'
 import { Button, Input, Loader } from '@/ui'
 import styles from './admin-events.module.css'
@@ -21,11 +24,49 @@ function todayIso(): string {
   return `${y}-${m}-${day}`
 }
 
+function statusLabel(status: string): string {
+  if (status === 'RUNNING') return 'строится'
+  if (status === 'DONE') return 'готов'
+  if (status === 'FAILED') return 'ошибка'
+  return status
+}
+
 export function AdminLkAbsenceReportPage() {
   const [date, setDate] = useState(todayIso)
   const [report, setReport] = useState<AbsenceReport | null>(null)
+  const [saved, setSaved] = useState<AbsenceReportSummary[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const loadSaved = useCallback(async () => {
+    try {
+      setSaved(await listAbsenceReports())
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadSaved()
+  }, [loadSaved])
+
+  useEffect(() => {
+    if (!report || report.status !== 'RUNNING' || !report.id) return
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          const next = await getAbsenceReport(report.id)
+          setReport(next)
+          if (next.status !== 'RUNNING') {
+            await loadSaved()
+          }
+        } catch (err) {
+          setError(err instanceof ApiError ? err.message : 'Не удалось обновить статус отчёта')
+        }
+      })()
+    }, 2500)
+    return () => window.clearInterval(timer)
+  }, [report?.id, report?.status, loadSaved])
 
   const onBuild = async (e: FormEvent) => {
     e.preventDefault()
@@ -33,10 +74,23 @@ export function AdminLkAbsenceReportPage() {
     setError(null)
     setReport(null)
     try {
-      const data = await fetchAbsenceReport({ date })
-      setReport(data)
+      const started = await fetchAbsenceReport({ date })
+      setReport(started)
+      await loadSaved()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось построить отчёт')
+      setError(err instanceof ApiError ? err.message : 'Не удалось запустить отчёт')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const onOpenSaved = async (id: string) => {
+    setBusy(true)
+    setError(null)
+    try {
+      setReport(await getAbsenceReport(id))
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось открыть отчёт')
     } finally {
       setBusy(false)
     }
@@ -58,15 +112,16 @@ export function AdminLkAbsenceReportPage() {
     }
   }
 
+  const building = report?.status === 'RUNNING'
+
   return (
     <section aria-label="Отчёт отсутствующих">
       <div className={styles.toolbar}>
         <h1 className={styles.pageTitle}>Отчёт отсутствующих</h1>
       </div>
       <p className={styles.statsHint}>
-        Казань (ZKBio): полный справочник СКУД → emp_code длины 6 → профиль/группа из 1С →
-        очные пары расписания и проходы за дату (логика как в разделе «Посещаемость»). Построение
-        может занять несколько минут.
+        Казань (ZKBio): массовые проходы за день + emp_code длины 6 + профиль/группа из 1С + очные
+        пары. Отчёт строится в фоне и сохраняется — можно открыть из списка ниже.
       </p>
 
       <form className={styles.card} style={{ marginBottom: '1.25rem' }} onSubmit={onBuild}>
@@ -83,20 +138,58 @@ export function AdminLkAbsenceReportPage() {
           </div>
           {error ? <p className={styles.error}>{error}</p> : null}
           <div className={styles.footerActions}>
-            <Button type="submit" disabled={busy}>
-              {busy ? 'Строим…' : 'Построить отчёт'}
+            <Button type="submit" disabled={busy || building}>
+              {building ? 'Строим…' : busy ? 'Запуск…' : 'Построить отчёт'}
             </Button>
           </div>
         </div>
       </form>
 
-      {busy && !report ? <Loader /> : null}
+      {saved.length > 0 ? (
+        <div className={styles.usersCard} style={{ marginBottom: '1.25rem' }}>
+          <h2 className={styles.chartTitle}>Сохранённые отчёты</h2>
+          <div className={styles.usersTableWrap}>
+            <table className={styles.usersTable}>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Статус</th>
+                  <th>Проверено</th>
+                  <th>Отсутствий</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {saved.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.date}</td>
+                    <td>{statusLabel(item.status)}</td>
+                    <td>{item.rosterSize}</td>
+                    <td>{item.absentCount}</td>
+                    <td>
+                      <Button type="button" disabled={busy} onClick={() => void onOpenSaved(item.id)}>
+                        Открыть
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
-      {report ? (
+      {building ? <Loader /> : null}
+
+      {report && report.status === 'FAILED' ? (
+        <p className={styles.error}>{report.error || 'Не удалось построить отчёт'}</p>
+      ) : null}
+
+      {report && report.status === 'DONE' ? (
         <div className={styles.usersCard}>
           <h2 className={styles.chartTitle}>
             {report.date} · {report.group}
-            {report.scheduleRange ? ` · пары ${report.scheduleRange}` : ''} · в составе{' '}
+            {report.scheduleRange ? ` · пары ${report.scheduleRange}` : ''} · проверено{' '}
             {report.rosterSize}, отсутствий {report.absentCount}
           </h2>
           {report.warnings.length > 0 ? (
@@ -158,6 +251,14 @@ export function AdminLkAbsenceReportPage() {
             </table>
           </div>
         </div>
+      ) : null}
+
+      {report && report.status === 'RUNNING' && report.warnings.length > 0 ? (
+        <ul className={styles.statsHint}>
+          {report.warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
       ) : null}
     </section>
   )

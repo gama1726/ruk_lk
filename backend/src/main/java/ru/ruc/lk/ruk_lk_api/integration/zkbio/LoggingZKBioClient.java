@@ -2,6 +2,7 @@ package ru.ruc.lk.ruk_lk_api.integration.zkbio;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -25,6 +26,11 @@ public class LoggingZKBioClient implements ZKBioClient {
     @Override
     public List<SkudAccessEvent> fetchAccessEventsByEmpCode(String empCode, LocalDate from, LocalDate to) {
         return List.of();
+    }
+
+    @Override
+    public Map<String, List<SkudAccessEvent>> fetchDayAccessEventsByEmpCode(LocalDate day) {
+        return Map.of();
     }
 
     @Override

@@ -2,6 +2,7 @@ package ru.ruc.lk.ruk_lk_api.integration.zkbio;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent;
 
@@ -20,6 +21,12 @@ public interface ZKBioClient {
      */
     List<SkudAccessEvent> fetchAccessEventsByEmpCode(String empCode, LocalDate from, LocalDate to)
         throws ZKBioException;
+
+    /**
+     * Все проходы за день (без фильтра emp_code), сгруппированные по emp_code.
+     * Если API не отдаёт без emp_code — пустая карта.
+     */
+    Map<String, List<SkudAccessEvent>> fetchDayAccessEventsByEmpCode(LocalDate day) throws ZKBioException;
 
     /**
      * Полный справочник сотрудников ZKBio (с пагинацией на стороне клиента).

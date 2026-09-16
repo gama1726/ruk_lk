@@ -3,6 +3,7 @@ package ru.ruc.lk.ruk_lk_api.integration.zkbio;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -96,6 +97,48 @@ public class HttpZKBioClient implements ZKBioClient {
     }
 
     @Override
+    public Map<String, List<SkudAccessEvent>> fetchDayAccessEventsByEmpCode(LocalDate day)
+        throws ZKBioException {
+        if (day == null) {
+            throw new ZKBioException("Укажите дату проходов");
+        }
+        authenticate();
+        Map<String, List<SkudAccessEvent>> byCode = new LinkedHashMap<>();
+        int page = 1;
+        int pageSize = 500;
+        int guard = 0;
+        int rawCount = 0;
+        while (guard++ < 500) {
+            ZKBioTransactionsResponse response = fetchTransactionsPage(null, day, day, page, pageSize);
+            List<ZKBioTransaction> batch = response == null || response.data() == null
+                ? List.of()
+                : response.data();
+            for (ZKBioTransaction row : batch) {
+                if (row == null || row.empCode() == null || row.empCode().isBlank()) {
+                    continue;
+                }
+                SkudAccessEvent mapped = toSkudEvent(row);
+                if (mapped == null) {
+                    continue;
+                }
+                String code = row.empCode().trim();
+                byCode.computeIfAbsent(code, key -> new ArrayList<>()).add(mapped);
+                rawCount++;
+            }
+            String next = response == null ? null : response.next();
+            if (batch.isEmpty() || next == null || next.isBlank()) {
+                int total = response != null && response.count() != null ? response.count() : batch.size();
+                if (batch.isEmpty() || page * pageSize >= total) {
+                    break;
+                }
+            }
+            page++;
+        }
+        log.info("ZKBio проходы за день {}: emp_code={}, событий={}", day, byCode.size(), rawCount);
+        return byCode;
+    }
+
+    @Override
     public List<ZKBioEmployee> fetchEmployees() throws ZKBioException {
         authenticate();
         List<ZKBioEmployee> all = new ArrayList<>();
@@ -108,9 +151,15 @@ public class HttpZKBioClient implements ZKBioClient {
                 ? List.of()
                 : response.data();
             all.addAll(batch);
-            int total = response != null && response.count() != null ? response.count() : batch.size();
-            if (batch.isEmpty() || page * pageSize >= total) {
+            String next = response == null ? null : response.next();
+            if (batch.isEmpty()) {
                 break;
+            }
+            if (next == null || next.isBlank()) {
+                int total = response != null && response.count() != null ? response.count() : batch.size();
+                if (page * pageSize >= total) {
+                    break;
+                }
             }
             page++;
         }
@@ -185,6 +234,8 @@ public class HttpZKBioClient implements ZKBioClient {
                     if (departmentId != null && departmentId > 0) {
                         builder.queryParam("department", departmentId);
                     }
+                    // В доке Employee List — limit; на практике часто работает и page_size.
+                    builder.queryParam("limit", pageSize);
                     return builder.build();
                 })
                 .header("Authorization", "Token " + token)
@@ -230,14 +281,18 @@ public class HttpZKBioClient implements ZKBioClient {
         String endTime = end.atTime(23, 59, 59).format(DAY_TIME);
         try {
             return restClient.get()
-                .uri(uriBuilder -> uriBuilder
-                    .path("/iclock/api/transactions/")
-                    .queryParam("emp_code", empCode)
-                    .queryParam("start_time", startTime)
-                    .queryParam("end_time", endTime)
-                    .queryParam("page", page)
-                    .queryParam("page_size", pageSize)
-                    .build())
+                .uri(uriBuilder -> {
+                    var builder = uriBuilder
+                        .path("/iclock/api/transactions/")
+                        .queryParam("start_time", startTime)
+                        .queryParam("end_time", endTime)
+                        .queryParam("page", page)
+                        .queryParam("page_size", pageSize);
+                    if (empCode != null && !empCode.isBlank()) {
+                        builder.queryParam("emp_code", empCode.trim());
+                    }
+                    return builder.build();
+                })
                 .header("Authorization", "Token " + token)
                 .retrieve()
                 .body(ZKBioTransactionsResponse.class);
@@ -245,23 +300,7 @@ public class HttpZKBioClient implements ZKBioClient {
             if (e.getStatusCode().value() == 401) {
                 token = null;
                 authenticate();
-                try {
-                    return restClient.get()
-                        .uri(uriBuilder -> uriBuilder
-                            .path("/iclock/api/transactions/")
-                            .queryParam("emp_code", empCode)
-                            .queryParam("start_time", startTime)
-                            .queryParam("end_time", endTime)
-                            .queryParam("page", page)
-                            .queryParam("page_size", pageSize)
-                            .build())
-                        .header("Authorization", "Token " + token)
-                        .retrieve()
-                        .body(ZKBioTransactionsResponse.class);
-                } catch (RestClientResponseException retry) {
-                    log.error("ZKBio transactions HTTP {}: {}", retry.getStatusCode(), retry.getResponseBodyAsString());
-                    throw new ZKBioException("Не удалось получить проходы из ZKBio", retry);
-                }
+                return fetchTransactionsPage(empCode, begin, end, page, pageSize);
             }
             log.error("ZKBio transactions HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new ZKBioException("Не удалось получить проходы из ZKBio", e);

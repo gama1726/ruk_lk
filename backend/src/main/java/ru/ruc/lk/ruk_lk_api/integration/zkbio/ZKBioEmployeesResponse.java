@@ -7,5 +7,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ZKBioEmployeesResponse(
     Integer count,
+    String next,
+    String previous,
     List<ZKBioEmployee> data
 ) {}

@@ -61,6 +61,8 @@ export type AbsenceReportRow = {
 }
 
 export type AbsenceReport = {
+  id: string
+  status: 'RUNNING' | 'DONE' | 'FAILED' | string
   date: string
   group: string
   scheduleRange: string
@@ -69,6 +71,18 @@ export type AbsenceReport = {
   source: string
   rows: AbsenceReportRow[]
   warnings: string[]
+  error?: string
+}
+
+export type AbsenceReportSummary = {
+  id: string
+  date: string
+  status: string
+  rosterSize: number
+  absentCount: number
+  createdAt: string
+  finishedAt: string
+  error: string
 }
 
 export const LK_ADMIN_SECTION_LABELS: Record<LkAdminSection, string> = {
@@ -112,6 +126,14 @@ export async function fetchLkAdminAttendance(
 
 export async function fetchAbsenceReport(body: { date: string }): Promise<AbsenceReport> {
   return apiPost<AbsenceReport>('/api/admin/lk/absence-report', body)
+}
+
+export async function getAbsenceReport(id: string): Promise<AbsenceReport> {
+  return apiGet<AbsenceReport>(`/api/admin/lk/absence-report/${id}`)
+}
+
+export async function listAbsenceReports(): Promise<AbsenceReportSummary[]> {
+  return apiGet<AbsenceReportSummary[]>('/api/admin/lk/absence-reports')
 }
 
 export async function setAbsenceParentNotice(
