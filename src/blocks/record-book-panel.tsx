@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { gradeStatusLabel, type GradeRow } from '@/mocks/record-book-types'
+import type { GradeRow } from '@/mocks/record-book-types'
 import {
   formatControlForm,
   formatHours,
@@ -212,8 +212,6 @@ export function RecordBookPanel({
                     <th>Вид контроля</th>
                     <th>Часы</th>
                     <th>Оценка</th>
-                    <th>Баллы</th>
-                    <th>Статус</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -226,10 +224,8 @@ export function RecordBookPanel({
                       </td>
                       <td>{formatControlForm(row.controlForm)}</td>
                       <td>{row.hours > 0 ? formatHours(row.hours) : '—'}</td>
-                      <td className={styles.grade}>{formatGrade(row.grade)}</td>
-                      <td className={styles.points}>{row.points ?? '—'}</td>
-                      <td>
-                        <StatusBadge status={row.status} label={gradeStatusLabel[row.status]} />
+                      <td className={styles.grade}>
+                        <StatusBadge status={row.status} label={formatGrade(row.grade)} />
                       </td>
                     </tr>
                   ))}
@@ -242,12 +238,9 @@ export function RecordBookPanel({
                 <article key={row.id} className={styles.mobileCard}>
                   <div className={styles.mobileCardHead}>
                     <strong>{row.subject}</strong>
-                    <StatusBadge status={row.status} label={gradeStatusLabel[row.status]} />
+                    <StatusBadge status={row.status} label={formatGrade(row.grade)} />
                   </div>
-                  <p>
-                    {formatControlForm(row.controlForm)} · {formatGrade(row.grade)}
-                    {row.points != null ? ` (${row.points})` : ''}
-                  </p>
+                  <p>{formatControlForm(row.controlForm)}</p>
                   <p className={styles.mobileMeta}>
                     {formatRecordDate(row.date, row.displayDate)}
                     {row.teacher ? ` · ${row.teacher}` : ''}
