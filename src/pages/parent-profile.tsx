@@ -208,7 +208,7 @@ export function ParentProfile() {
             <Card title="Ваш ребёнок" padding="lg" className={styles.studentCard}>
               <h3 className={styles.studentName}>{student?.fullName || profile.studentFullName}</h3>
               <dl className={styles.studentMeta}>
-                <InfoRow label="Зачётка" value={recordBookNumber} />
+                <InfoRow label="Зачетная книжка" value={recordBookNumber} />
               </dl>
               <div className={styles.badges}>
                 {student?.group ? (

@@ -38,7 +38,7 @@ public class AuthController {
         return authService.loginChannels();
     }
 
-    /** Шаг 1: зачётка → проверка в 1С. */
+    /** Шаг 1: зачетная книжка → проверка в 1С. */
     @PostMapping("/identify")
     public IdentifyResponse identify(
         @RequestBody IdentifyRequest body,
@@ -49,7 +49,7 @@ public class AuthController {
         return authService.identify(body.studentId(), session);
     }
 
-    /** Deep link для привязки MAX к текущей зачётке. */
+    /** Deep link для привязки MAX к текущей зачетной книжке. */
     @GetMapping("/max-bind-link")
     public MaxBindLinkResponse maxBindLink(HttpSession session) {
         return authService.maxBindLink(session);
@@ -92,7 +92,7 @@ public class AuthController {
         return authService.pendingIdentification(session)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
-                "Нет незавершённой проверки зачётки"));
+                "Нет незавершённой проверки зачетной книжки"));
     }
 
     @GetMapping("/pending-challenge")

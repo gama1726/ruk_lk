@@ -8,7 +8,7 @@ import { student } from '@/mocks/student'
 /** Ответ `GET /api/student/profile` */
 export type StudentProfileDto = {
   fullName: string
-  /** Номер зачётки */
+  /** Номер зачетной книжки */
   studentId: string
   email: string
   phone: string

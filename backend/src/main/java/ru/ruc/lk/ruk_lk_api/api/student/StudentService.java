@@ -400,7 +400,7 @@ public class StudentService {
         return getPaymentsForStudentId(student.studentId(), date);
     }
 
-    /** Оплата обучения по номеру зачётки (родительский кабинет). */
+    /** Оплата обучения по номеру зачетной книжки (родительский кабинет). */
     public StudentPaymentsResponse getPaymentsForStudentId(String studentId, LocalDate date) {
         LocalDate asOf = date != null ? date : LocalDate.now();
 
@@ -449,7 +449,7 @@ public class StudentService {
         return getAttendanceForStudentId(session, student.studentId(), from, to);
     }
 
-    /** Посещаемость по номеру зачётки (родительский кабинет). */
+    /** Посещаемость по номеру зачетной книжки (родительский кабинет). */
     public StudentAttendanceResponse getAttendanceForStudentId(
         HttpSession session,
         String studentId,
@@ -459,7 +459,7 @@ public class StudentService {
         return loadAttendance(session, studentId, from, to).attendance();
     }
 
-    /** Посещаемость по зачётке для админки ЛК: голова (Perco) и Казань (ZKBio). */
+    /** Посещаемость по зачетной книжке для админки ЛК: голова (Perco) и Казань (ZKBio). */
     public AdminAttendanceResponse getAttendanceForAdmin(
         HttpSession session,
         String studentId,
@@ -468,13 +468,13 @@ public class StudentService {
     ) {
         String id = studentId == null ? "" : studentId.trim();
         if (id.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите номер зачётки");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите номер зачетной книжки");
         }
         OneCProfileResponse profile = onecClient
             .fetchProfile(id)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
-                "Студент с таким номером зачётки не найден"
+                "Студент с таким номером зачетной книжки не найден"
             ));
         AttendanceLoad loaded = loadAttendance(session, id, from, to);
         boolean branch = CampusSupport.isBranchCampus(
@@ -691,7 +691,7 @@ public class StudentService {
 
     /**
      * Читательский билет и книги из МегаAPI.
-     * {@code rdr_id} = номер зачётки из сессии.
+     * {@code rdr_id} = номер зачетной книжки из сессии.
      */
     public StudentLibraryResponse getLibrary(HttpSession session) {
         StudentSession student = requireStudent(session);
@@ -743,7 +743,7 @@ public class StudentService {
         return getScheduleMonthForStudentId(session, student.studentId(), year, month);
     }
 
-    /** Расписание по номеру зачётки (родительский кабинет). */
+    /** Расписание по номеру зачетной книжки (родительский кабинет). */
     public ScheduleMonthResponse getScheduleMonthForStudentId(
         HttpSession session,
         String studentId,

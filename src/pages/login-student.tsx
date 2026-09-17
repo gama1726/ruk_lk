@@ -1,5 +1,5 @@
 /**
- * @file Вход по зачётке — шаг 1: только номер зачётки.
+ * @file Вход по зачетной книжке — шаг 1: только номер зачетной книжки.
  */
 
 import { useEffect, useState, type FormEvent } from 'react'
@@ -13,7 +13,7 @@ import { Input, Button } from '@/ui'
 import form from './auth-form.module.css'
 
 /**
- * Зачётка → {@link paths.loginDelivery}.
+ * Зачетная книжка → {@link paths.loginDelivery}.
  */
 export function StudentLogin() {
   const navigate = useNavigate()
@@ -47,12 +47,12 @@ export function StudentLogin() {
 
   return (
     <AuthCard>
-      <p className={card.sectionLabel}>Вход по номеру зачётки</p>
-      <p className={form.hint}>Укажите номер зачётки — проверим, что вы есть в базе студентов.</p>
+      <p className={card.sectionLabel}>Вход по номеру зачетной книжки</p>
+      <p className={form.hint}>Укажите номер зачетной книжки — проверим, что вы есть в базе студентов.</p>
 
       <form className={form.form} onSubmit={(e) => void handleSubmit(e)}>
         <Input
-          label="Номер зачётки"
+          label="Номер зачетной книжки"
           name="studentId"
           autoComplete="username"
           placeholder="172194"

@@ -4,7 +4,7 @@ import java.util.List;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.ProgramSummary;
 
-/** Шаг после проверки зачётки — до выбора канала доставки кода. */
+/** Шаг после проверки зачетной книжки — до выбора канала доставки кода. */
 public record PendingIdentification(
     String studentId,
     String fullName,

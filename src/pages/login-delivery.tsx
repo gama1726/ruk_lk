@@ -1,5 +1,5 @@
 /**
- * @file Вход по зачётке — шаг 2: выбор канала доставки кода.
+ * @file Вход по зачетной книжке — шаг 2: выбор канала доставки кода.
  */
 
 import { useEffect, useState, type FormEvent } from 'react'
@@ -241,7 +241,7 @@ export function LoginDelivery() {
       </form>
 
       <p className={card.forgotRow}>
-        <Link to={paths.loginStudent}>Другой номер зачётки</Link>
+        <Link to={paths.loginStudent}>Другой номер зачетной книжки</Link>
       </p>
     </AuthCard>
   )

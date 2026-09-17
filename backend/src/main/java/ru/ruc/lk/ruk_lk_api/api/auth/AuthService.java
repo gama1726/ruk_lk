@@ -77,13 +77,13 @@ public class AuthService {
         return new AuthChannelsDto(maxBindingService.isLoginChannelEnabled());
     }
 
-    /** Шаг 1: проверка зачётки в 1С, сохранение данных для выбора канала. */
+    /** Шаг 1: проверка зачетной книжки в 1С, сохранение данных для выбора канала. */
     public IdentifyResponse identify(String studentId, HttpSession session) {
         MeResponse me = onecClient
             .login(studentId)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
-                "Студент с таким номером зачётки не найден"
+                "Студент с таким номером зачетной книжки не найден"
             ));
 
         String email = resolveEmail(me);
@@ -305,7 +305,7 @@ public class AuthService {
         if (session == null) {
             throw new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
-                "Сначала войдите по номеру зачётки"
+                "Сначала войдите по номеру зачетной книжки"
             );
         }
 
@@ -313,7 +313,7 @@ public class AuthService {
         if (!(raw instanceof PendingChallenge pending)) {
             throw new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
-                "Сначала войдите по номеру зачётки"
+                "Сначала войдите по номеру зачетной книжки"
             );
         }
 
@@ -479,7 +479,7 @@ public class AuthService {
         if (!(raw instanceof PendingIdentification pending)) {
             throw new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
-                "Сначала укажите номер зачётки"
+                "Сначала укажите номер зачетной книжки"
             );
         }
         return pending;

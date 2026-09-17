@@ -1,5 +1,5 @@
 /**
- * @file Вход для родителя — шаг 1: номер зачётки.
+ * @file Вход для родителя — шаг 1: номер зачетной книжки.
  */
 
 import { useState, type FormEvent } from 'react'
@@ -23,7 +23,7 @@ export function ParentLogin() {
     const studentId = String(data.get('studentId') ?? '')
 
     if (!studentId.trim()) {
-      setFieldErrors({ studentId: 'Укажите номер зачётки' })
+      setFieldErrors({ studentId: 'Укажите номер зачетной книжки' })
       return
     }
 
@@ -42,11 +42,11 @@ export function ParentLogin() {
     <AuthCard brand="parent">
       <p className={card.sectionLabel}>Вход для родителя</p>
       <p className={form.hint}>
-        Укажите номер зачётки ребёнка. На следующем шаге выберите, как вы связаны с обучающимся.
+        Укажите номер зачетной книжки ребёнка. На следующем шаге выберите, как вы связаны с обучающимся.
       </p>
       <form className={form.form} onSubmit={(e) => void handleSubmit(e)}>
         <Input
-          label="Номер зачётки ребёнка"
+          label="Номер зачетной книжки ребёнка"
           name="studentId"
           placeholder="831857"
           inputMode="numeric"

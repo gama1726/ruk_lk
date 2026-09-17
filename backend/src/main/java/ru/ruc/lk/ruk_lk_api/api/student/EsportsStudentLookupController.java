@@ -47,14 +47,14 @@ public class EsportsStudentLookupController {
         }
         String studentId = normalizeStudentId(request.studentId());
         if (studentId.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите номер зачётки");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите номер зачетной книжки");
         }
 
         String fullName = resolveFullName(studentId);
         if (blank(fullName)) {
             throw new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
-                "Студент с таким номером зачётки не найден в 1С"
+                "Студент с таким номером зачетной книжки не найден в 1С"
             );
         }
         return new EsportsStudentLookupResponse(studentId, fullName.trim());

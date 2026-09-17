@@ -3,7 +3,7 @@ package ru.ruc.lk.ruk_lk_api.integration.zkbio;
 public class ZKBioException extends Exception {
 
     public static final String NOT_ENROLLED =
-        "Ваш номер зачётки не добавлен в сервис посещений";
+        "Ваш номер зачетной книжки не добавлен в сервис посещений";
 
     private final boolean notEnrolled;
 

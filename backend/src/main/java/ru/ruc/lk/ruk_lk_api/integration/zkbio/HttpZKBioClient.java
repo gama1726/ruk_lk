@@ -41,7 +41,7 @@ public class HttpZKBioClient implements ZKBioClient {
 
     private final RestClient restClient;
     private final ZKBioProperties properties;
-    /** зачётка → emp_code, если карточка уже подтверждалась. */
+    /** зачетная книжка → emp_code, если карточка уже подтверждалась. */
     private final ConcurrentHashMap<String, String> empCodeByStudentId = new ConcurrentHashMap<>();
     private String token;
 
@@ -62,7 +62,7 @@ public class HttpZKBioClient implements ZKBioClient {
     public List<SkudAccessEvent> fetchAccessEvents(String studentId, LocalDate from, LocalDate to)
         throws ZKBioException {
         if (studentId == null || studentId.isBlank()) {
-            throw new ZKBioException("Не указан номер зачётки для ZKBio");
+            throw new ZKBioException("Не указан номер зачетной книжки для ZKBio");
         }
         if (from == null || to == null) {
             throw new ZKBioException("Укажите период проходов");
@@ -167,7 +167,7 @@ public class HttpZKBioClient implements ZKBioClient {
         return all;
     }
 
-    /** Только точное совпадение {@code emp_code} с зачёткой. */
+    /** Только точное совпадение {@code emp_code} с зачетной книжкой. */
     private String requireEmpCode(String zachetka) throws ZKBioException {
         String cached = empCodeByStudentId.get(zachetka);
         if (cached != null) {

@@ -48,7 +48,7 @@ public class ParentAuthService {
     private static final String LAST_SEND_AT_KEY = "PARENT_AUTH_LAST_CODE_SENT_AT";
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String PARENT_IDENTIFY_FAILED =
-        "Родители для указанной зачётки не найдены. Проверьте номер или обратитесь в деканат.";
+        "Родители для указанной зачетной книжки не найдены. Проверьте номер или обратитесь в деканат.";
 
     private final OneCClient onecClient;
     private final VerificationEmailSender emailSender;
@@ -456,7 +456,7 @@ public class ParentAuthService {
         return optionalPendingFamily(session)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
-                "Сначала укажите номер зачётки ребёнка"
+                "Сначала укажите номер зачетной книжки ребёнка"
             ));
     }
 
@@ -542,7 +542,7 @@ public class ParentAuthService {
 
     private static String normalizeStudentId(String studentId) {
         if (studentId == null || studentId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите номер зачётки");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите номер зачетной книжки");
         }
         return studentId.trim();
     }

@@ -2,7 +2,7 @@ package ru.ruc.lk.ruk_lk_api.integration.zkbio;
 
 import java.util.Optional;
 
-/** Сопоставление зачётки с {@code emp_code} в ZKBio. */
+/** Сопоставление зачетной книжки с {@code emp_code} в ZKBio. */
 final class ZKBioEmpCodeResolver {
 
     private ZKBioEmpCodeResolver() {}

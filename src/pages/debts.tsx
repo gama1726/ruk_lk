@@ -21,7 +21,7 @@ import styles from './debts.module.css'
 
 /**
  * Академические задолженности: неявка, неудовлетворительно, не зачтено
- * из уже загруженной зачётки / успеваемости.
+ * из уже загруженной зачетной книжки / успеваемости.
  */
 export function Debts() {
   const program = useCurrentProgram()

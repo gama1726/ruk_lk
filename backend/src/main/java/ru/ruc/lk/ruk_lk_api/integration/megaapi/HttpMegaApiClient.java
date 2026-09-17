@@ -17,7 +17,7 @@ import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
 
 /**
  * HTTP-клиент МегаAPI (ilibrary): GetReader / GetHandBooks / GetDebtBooks / GetOrderBooks.
- * {@code rdr_id} — номер зачётки (читательского билета).
+ * {@code rdr_id} — номер зачетной книжки (читательского билета).
  */
 @Component
 @ConditionalOnProperty(name = "app.megaapi.enabled", havingValue = "true")

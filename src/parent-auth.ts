@@ -134,7 +134,7 @@ export const useParentAuth = create<ParentAuthState>((set, get) => ({
 
   async identify(studentId) {
     const trimmedId = studentId.trim()
-    if (!trimmedId) return 'Укажите номер зачётки ребёнка'
+    if (!trimmedId) return 'Укажите номер зачетной книжки ребёнка'
 
     if (!isApiConfigured()) {
       set({
@@ -154,7 +154,7 @@ export const useParentAuth = create<ParentAuthState>((set, get) => ({
       return null
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        return error.message || 'Родители для указанной зачётки не найдены. Проверьте номер или обратитесь в деканат.'
+        return error.message || 'Родители для указанной зачетной книжки не найдены. Проверьте номер или обратитесь в деканат.'
       }
       if (error instanceof ApiError) return error.message || 'Не удалось проверить данные'
       return error instanceof Error ? error.message : 'Не удалось проверить данные'

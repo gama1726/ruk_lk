@@ -1,5 +1,5 @@
 /**
- * @file Посещаемость по зачётке в админке ЛК.
+ * @file Посещаемость по зачетной книжке в админке ЛК.
  */
 
 import { useCallback, useRef, useState } from 'react'
@@ -29,10 +29,10 @@ export function AdminEventsAttendancePage() {
     ? [meta.fullName, meta.group, sourceLabel(meta.source, meta.branchCampus)]
         .filter((part) => part && part.trim())
         .join(' · ')
-    : 'Проходы по расписанию для выбранной зачётки'
+    : 'Проходы по расписанию для выбранной зачетной книжки'
 
   return (
-    <section aria-label="Посещаемость по зачётке">
+    <section aria-label="Посещаемость по зачетной книжке">
       {meta ? (
         <p className={styles.attendanceMeta}>
           {meta.studentId}
@@ -46,7 +46,7 @@ export function AdminEventsAttendancePage() {
         fetchAttendance={fetchAttendance}
         extraFilters={
           <Input
-            label="Номер зачётки"
+            label="Номер зачетной книжки"
             name="studentId"
             autoComplete="off"
             placeholder="172194"
@@ -57,7 +57,7 @@ export function AdminEventsAttendancePage() {
         }
         onBeforeApply={() => {
           const id = draftStudentId.trim()
-          if (!id) return 'Укажите номер зачётки'
+          if (!id) return 'Укажите номер зачетной книжки'
           studentIdRef.current = id
           setMeta(null)
           return null

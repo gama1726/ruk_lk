@@ -62,7 +62,7 @@ public class HttpPercoClient implements PercoClient {
     @Override
     public void uploadPassPhoto(String zachetka, byte[] jpeg) throws PercoException {
         if (zachetka == null || zachetka.isBlank()) {
-            throw new PercoException("Не указан номер зачётки для Perco-Web");
+            throw new PercoException("Не указан номер зачетной книжки для Perco-Web");
         }
         if (jpeg == null || jpeg.length == 0) {
             throw new PercoException("Пустой файл фото");
@@ -81,14 +81,14 @@ public class HttpPercoClient implements PercoClient {
 
         maybeUpdateDivisionAndAccess(staff, staffId);
 
-        log.info("Фото загружено в Perco-Web для зачётки {}, staffId={}", zachetka, staffId);
+        log.info("Фото загружено в Perco-Web для зачетной книжки {}, staffId={}", zachetka, staffId);
     }
 
     @Override
     public List<PercoAccessEvent> fetchAccessEvents(String zachetka, LocalDate from, LocalDate to)
         throws PercoException {
         if (zachetka == null || zachetka.isBlank()) {
-            throw new PercoException("Не указан номер зачётки для Perco-Web");
+            throw new PercoException("Не указан номер зачетной книжки для Perco-Web");
         }
         if (from == null || to == null) {
             throw new PercoException("Укажите период проходов");
@@ -109,7 +109,7 @@ public class HttpPercoClient implements PercoClient {
         }
 
         log.info(
-            "Perco УРВ проходы: зачётка={}, staffId={}, {}..{}, событий={}",
+            "Perco УРВ проходы: зачетная книжка={}, staffId={}, {}..{}, событий={}",
             tabel,
             staffId,
             begin,
@@ -446,7 +446,7 @@ public class HttpPercoClient implements PercoClient {
 
         List<PercoStaffMember> rows = table == null || table.rows() == null ? List.of() : table.rows();
         if (rows.isEmpty()) {
-            throw new PercoException("Студент не найден в Perco-Web по зачётке " + zachetka);
+            throw new PercoException("Студент не найден в Perco-Web по зачетной книжке " + zachetka);
         }
 
         // filters ищет по вхождению — оставляем только точное совпадение табельного
@@ -455,7 +455,7 @@ public class HttpPercoClient implements PercoClient {
             .toList();
 
         if (exact.isEmpty()) {
-            throw new PercoException("Студент не найден в Perco-Web по зачётке " + zachetka);
+            throw new PercoException("Студент не найден в Perco-Web по зачетной книжке " + zachetka);
         }
         if (exact.size() > 1) {
             throw new PercoException(
@@ -565,7 +565,7 @@ public class HttpPercoClient implements PercoClient {
     private static String requireStaffId(PercoStaffMember person, String zachetka) throws PercoException {
         String id = person.resolvedId();
         if (id == null || id.isBlank()) {
-            throw new PercoException("Perco-Web: у записи для зачётки " + zachetka + " нет id");
+            throw new PercoException("Perco-Web: у записи для зачетной книжки " + zachetka + " нет id");
         }
         return id;
     }

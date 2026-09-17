@@ -8,7 +8,7 @@ public interface PercoClient {
     /**
      * Загрузка фото в Perco-Web после одобрения администратором.
      *
-     * @param zachetka идентификатор студента в Perco (зачётка / табельный)
+     * @param zachetka идентификатор студента в Perco (зачетная книжка / табельный)
      * @param jpeg нормализованное фото
      */
     void uploadPassPhoto(String zachetka, byte[] jpeg) throws PercoException;
@@ -16,7 +16,7 @@ public interface PercoClient {
     /**
      * События проходов через УРВ: {@code staff/table} → {@code /taReports/eventsTable} по дням.
      *
-     * @param zachetka табельный = номер зачётки
+     * @param zachetka табельный = номер зачетной книжки
      * @param from включительно
      * @param to включительно
      */
@@ -25,7 +25,7 @@ public interface PercoClient {
 
     /**
      * Массовые события проходов за период ({@code /api/accessReports/events}).
-     * Ключ карты — табельный номер (зачётка), если удалось извлечь из строки отчёта.
+     * Ключ карты — табельный номер (зачетная книжка), если удалось извлечь из строки отчёта.
      * Пустая карта — endpoint недоступен / нет табельных в ответе (тогда вызывающий код
      * должен ходить поштучно через {@link #fetchAccessEvents}).
      */

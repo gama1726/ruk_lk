@@ -160,7 +160,7 @@ export function AdminEventsStats() {
                     <tr>
                       <th>Роль</th>
                       <th>ФИО</th>
-                      <th>Зачётка</th>
+                      <th>Зачетная книжка</th>
                       <th>Первый вход</th>
                       <th>Был в сети</th>
                     </tr>

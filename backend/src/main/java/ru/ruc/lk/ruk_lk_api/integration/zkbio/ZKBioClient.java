@@ -11,7 +11,7 @@ public interface ZKBioClient {
     /**
      * Проходы студента за период.
      *
-     * @param studentId номер зачётки из 1С; ищем только по {@code emp_code}
+     * @param studentId номер зачетной книжки из 1С; ищем только по {@code emp_code}
      */
     List<SkudAccessEvent> fetchAccessEvents(String studentId, LocalDate from, LocalDate to)
         throws ZKBioException;

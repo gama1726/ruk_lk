@@ -16,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class MaxBindingService {
 
-    /** Ключ привязки MAX для родителя (не пересекается с номером зачётки). */
+    /** Ключ привязки MAX для родителя (не пересекается с номером зачетной книжки). */
     public static String parentBindingKey(String studentId, int memberIndex) {
         return "P:" + studentId.trim() + ":" + memberIndex;
     }
@@ -139,7 +139,7 @@ public class MaxBindingService {
             );
         }
         if (studentId == null || studentId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Сначала укажите номер зачётки");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Сначала укажите номер зачетной книжки");
         }
 
         String normalizedStudentId = studentId.trim();
@@ -147,7 +147,7 @@ public class MaxBindingService {
         if (properties.isRequirePhoneMatch() && expectedPhoneNorm.isBlank()) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "В базе нет телефона для этой зачётки. Обратитесь в институт, чтобы добавить номер, или войдите через email."
+                "В базе нет телефона для этой зачетной книжки. Обратитесь в институт, чтобы добавить номер, или войдите через email."
             );
         }
 

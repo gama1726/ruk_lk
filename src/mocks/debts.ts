@@ -1,6 +1,6 @@
 /**
  * @file Устаревший мок задолженностей.
- * @deprecated Долги берутся из failed-строк зачётки ({@link academicDebtsFromRows}).
+ * @deprecated Долги берутся из failed-строк зачетной книжки ({@link academicDebtsFromRows}).
  */
 
 export type Debt = {

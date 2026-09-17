@@ -5,7 +5,7 @@ import java.util.List;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAttendanceDayResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAttendanceSummaryResponse;
 
-/** Посещаемость по зачётке для админки ЛК. */
+/** Посещаемость по зачетной книжке для админки ЛК. */
 public record AdminAttendanceResponse(
     String studentId,
     String fullName,

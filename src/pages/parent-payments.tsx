@@ -11,7 +11,7 @@ export function ParentPayments() {
   const session = useParentAuth((s) => s.session)
   const fetchPayments = useCallback(fetchParentPayments, [])
 
-  const subtitle = session ? `Зачётка ${session.studentId}` : 'Договор и график платежей'
+  const subtitle = session ? `Зачетная книжка ${session.studentId}` : 'Договор и график платежей'
 
   return (
     <ParentDataSection title="Оплата обучения">

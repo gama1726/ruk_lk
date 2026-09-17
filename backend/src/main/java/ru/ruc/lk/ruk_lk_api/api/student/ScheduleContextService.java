@@ -78,14 +78,14 @@ public class ScheduleContextService {
         });
     }
 
-    /** Контекст расписания по номеру зачётки (родительский кабинет). */
+    /** Контекст расписания по номеру зачетной книжки (родительский кабинет). */
     public ScheduleSessionContext requireForStudentId(
         HttpSession session,
         String studentId,
         Supplier<Optional<String>> groupFromProfile
     ) {
         if (studentId == null || studentId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указан номер зачётки");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указан номер зачетной книжки");
         }
         String trimmedId = studentId.trim();
 

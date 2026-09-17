@@ -1,6 +1,6 @@
 /**
  * @file Клиентская авторизация.
- * Зачётка → канал доставки → код → сессия (cookie backend).
+ * Зачетная книжка → канал доставки → код → сессия (cookie backend).
  */
 
 import { create } from 'zustand'
@@ -221,7 +221,7 @@ export const useAuth = create<AuthState>((set) => ({
   async identifyStudent(studentId) {
     const trimmed = studentId.trim()
 
-    if (!trimmed) return { field: 'login', message: 'Укажите номер зачётки' }
+    if (!trimmed) return { field: 'login', message: 'Укажите номер зачетной книжки' }
 
     if (!isApiConfigured()) {
       set({
@@ -251,9 +251,9 @@ export const useAuth = create<AuthState>((set) => ({
       return null
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        return { field: 'login', message: 'Студент с таким номером зачётки не найден' }
+        return { field: 'login', message: 'Студент с таким номером зачетной книжки не найден' }
       }
-      const message = error instanceof Error ? error.message : 'Не удалось проверить зачётку'
+      const message = error instanceof Error ? error.message : 'Не удалось проверить зачетную книжку'
       return { field: 'login', message }
     }
   },
@@ -341,7 +341,7 @@ export const useAuth = create<AuthState>((set) => ({
           if (error.status === 401) {
             const msg = error.message
             if (!msg || msg === 'Сессия истекла. Войдите снова.') {
-              return 'Сначала войдите по номеру зачётки'
+              return 'Сначала войдите по номеру зачетной книжки'
             }
             return msg
           }

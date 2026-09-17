@@ -49,7 +49,7 @@ export function Education() {
 
   return (
     <>
-      <ScreenHeader title="Обучение" subtitle="Зачётка, план и документы" />
+      <ScreenHeader title="Обучение" subtitle="Зачетная книжка, план и документы" />
 
       <ul className={styles.list}>
         {items.map((item) => (

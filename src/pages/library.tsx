@@ -85,7 +85,7 @@ export function Library() {
 
       {!loading && !error && missing && (
         <p className={common.meta}>
-          Читатель с номером зачётки {data?.studentId || '—'} в библиотеке не найден.
+          Читатель с номером зачетной книжки {data?.studentId || '—'} в библиотеке не найден.
         </p>
       )}
 

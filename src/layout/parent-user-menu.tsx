@@ -1,5 +1,5 @@
 /**
- * @file Выпадающее меню родителя: зачётка ребёнка и выход.
+ * @file Выпадающее меню родителя: зачетная книжка ребёнка и выход.
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -84,7 +84,7 @@ export function ParentUserMenu() {
       {open ? (
         <div className={styles.menu} role="menu">
           <div className={styles.badges}>
-            <span className={[styles.badge, styles.badgeActive].join(' ')} title="Зачётка обучающегося">
+            <span className={[styles.badge, styles.badgeActive].join(' ')} title="Зачетная книжка обучающегося">
               {session.studentId}
             </span>
           </div>

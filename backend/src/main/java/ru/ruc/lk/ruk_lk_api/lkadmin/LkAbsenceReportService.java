@@ -166,7 +166,7 @@ public class LkAbsenceReportService {
         String group = requireText(body.groupName(), "Укажите номер группы");
         List<String> ids = normalizeIds(body.studentIds());
         if (ids.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите хотя бы одну зачётку");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите хотя бы одну зачетную книжку");
         }
         return toRosterDto(saveRosterInternal(group, ids));
     }
@@ -185,7 +185,7 @@ public class LkAbsenceReportService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
         }
         LocalDate date = parseDate(body.date());
-        String studentId = requireText(body.studentId(), "Укажите зачётку");
+        String studentId = requireText(body.studentId(), "Укажите зачетную книжку");
         LkAbsenceParentNoticeId id = new LkAbsenceParentNoticeId(date, studentId);
         LkAbsenceParentNotice row = noticeRepository.findById(id)
             .orElseGet(() -> new LkAbsenceParentNotice(date, studentId, body.notified()));

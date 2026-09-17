@@ -7,7 +7,7 @@ import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 
 public interface OneCClient {
     /**
-     * @param studentId номер зачётки в 1С, например 172194
+     * @param studentId номер зачетной книжки в 1С, например 172194
      * @return данные студента или пусто, если не найден
      */
     Optional<MeResponse> login(String studentId);
@@ -20,11 +20,11 @@ public interface OneCClient {
 
     /**
      * Смена личной почты студента в 1С.
-     * @param studentId номер зачётки
+     * @param studentId номер зачетной книжки
      * @param email новый адрес
      */
     Optional<OneCProfileEmailResponse> updateProfileEmail(String studentId, String email);
 
-    /** Родители: {@code POST /hs/student/parent/check} (зачётка + email родителя). */
+    /** Родители: {@code POST /hs/student/parent/check} (зачетная книжка + email родителя). */
     Optional<OneCFamilyResponse> checkParent(String studentId, String parentEmail);
 }

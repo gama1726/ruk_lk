@@ -13,7 +13,7 @@ import { LoginRoleLinks } from '@/blocks/login-role-links'
 import { Button } from '@/ui'
 
 /**
- * Главный экран входа: «Войти» → SSO или зачётка и код подтверждения.
+ * Главный экран входа: «Войти» → SSO или зачетная книжка и код подтверждения.
  */
 export function Login() {
   const navigate = useNavigate()

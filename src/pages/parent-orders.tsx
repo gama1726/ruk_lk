@@ -8,7 +8,7 @@ export function ParentOrders() {
   const session = useParentAuth((s) => s.session)
   const fetchOrders = useCallback(fetchParentOrders, [])
 
-  const subtitle = session ? `Зачётка ${session.studentId}` : 'Приказы'
+  const subtitle = session ? `Зачетная книжка ${session.studentId}` : 'Приказы'
 
   return (
     <ParentDataSection title="Приказы">
