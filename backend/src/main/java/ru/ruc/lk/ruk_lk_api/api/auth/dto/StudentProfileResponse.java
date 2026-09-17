@@ -13,6 +13,7 @@ public record StudentProfileResponse(
     String branch,
     String department,
     String direction,
+    String directionGUID,
     String level,
     String educationForm,
     String group,

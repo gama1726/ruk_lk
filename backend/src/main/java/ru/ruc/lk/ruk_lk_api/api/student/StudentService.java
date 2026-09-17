@@ -166,6 +166,7 @@ public class StudentService {
             blankToEmpty(profile.branch()),
             blankToEmpty(profile.department()),
             formatDirection(profile.direction(), profile.specialization()),
+            blankToEmpty(profile.directionGUID()),
             blankToEmpty(profile.level()),
             blankToEmpty(profile.educationForm()),
             blankToEmpty(profile.group()),

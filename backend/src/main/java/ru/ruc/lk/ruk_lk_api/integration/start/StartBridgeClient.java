@@ -107,6 +107,7 @@ public class StartBridgeClient {
             blankToEmpty(profile.branch()),
             blankToEmpty(profile.department()),
             blankToEmpty(profile.direction()),
+            blankToEmpty(profile.directionGUID()),
             blankToEmpty(profile.level()),
             blankToEmpty(profile.educationForm()),
             blankToEmpty(profile.group()),

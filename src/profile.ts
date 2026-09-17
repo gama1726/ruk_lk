@@ -21,6 +21,7 @@ export type StudentProfileDto = {
   branch: string
   department: string
   direction: string
+  directionGUID: string
   level: string
   educationForm: string
   group: string
@@ -57,6 +58,7 @@ export function mockStudentProfile(): StudentProfileDto {
     branch: '',
     department: program?.department ?? '',
     direction: program?.direction ?? '',
+    directionGUID: '',
     level: program?.level ?? '',
     educationForm: program?.form ?? '',
     group: program?.group ?? '',

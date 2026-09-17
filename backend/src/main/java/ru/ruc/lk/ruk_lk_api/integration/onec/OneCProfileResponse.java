@@ -18,6 +18,8 @@ public record OneCProfileResponse(
     /** Подразделение/филиал из 1С, напр. «Казанский кооперативный институт (филиал)…». */
     String branch,
     String direction,
+    /** GUID направления подготовки из 1С. */
+    String directionGUID,
     String specialization,
     String educationForm,
     String level,
