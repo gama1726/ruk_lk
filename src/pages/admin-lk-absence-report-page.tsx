@@ -2,7 +2,8 @@
  * @file Отчёт отсутствующих (Казань / ZKBio) в админ-панели ЛК.
  */
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { groupAbsenceWarnings } from '@/absence-report-warnings'
 import { ApiError } from '@/apiClient'
 import {
   fetchAbsenceReport,
@@ -29,6 +30,30 @@ function statusLabel(status: string): string {
   if (status === 'DONE') return 'готов'
   if (status === 'FAILED') return 'ошибка'
   return status
+}
+
+function AbsenceWarningSections({ warnings }: { warnings: string[] }) {
+  const sections = useMemo(() => groupAbsenceWarnings(warnings), [warnings])
+  if (sections.length === 0) return null
+
+  return (
+    <div className={styles.warningSections}>
+      {sections.map((section) => (
+        <details
+          key={section.id}
+          className={styles.warningSection}
+          open={section.id === 'summary'}
+        >
+          <summary className={styles.warningSectionSummary}>{section.title}</summary>
+          <ul className={styles.warningSectionList}>
+            {section.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </details>
+      ))}
+    </div>
+  )
 }
 
 export function AdminLkAbsenceReportPage() {
@@ -192,13 +217,7 @@ export function AdminLkAbsenceReportPage() {
             {report.scheduleRange ? ` · пары ${report.scheduleRange}` : ''} · проверено{' '}
             {report.rosterSize}, отсутствий {report.absentCount}
           </h2>
-          {report.warnings.length > 0 ? (
-            <ul className={styles.statsHint}>
-              {report.warnings.map((w) => (
-                <li key={w}>{w}</li>
-              ))}
-            </ul>
-          ) : null}
+          <AbsenceWarningSections warnings={report.warnings} />
           <div className={styles.usersTableWrap}>
             <table className={styles.usersTable}>
               <thead>
@@ -254,11 +273,7 @@ export function AdminLkAbsenceReportPage() {
       ) : null}
 
       {report && report.status === 'RUNNING' && report.warnings.length > 0 ? (
-        <ul className={styles.statsHint}>
-          {report.warnings.map((w) => (
-            <li key={w}>{w}</li>
-          ))}
-        </ul>
+        <AbsenceWarningSections warnings={report.warnings} />
       ) : null}
     </section>
   )
