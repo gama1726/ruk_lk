@@ -11,17 +11,20 @@ public class FeaturesController {
 
     private final boolean attendanceEnabled;
     private final boolean startEnabled;
+    private final boolean startShowInLk;
 
     public FeaturesController(
         @Value("${app.attendance.enabled:false}") boolean attendanceEnabled,
-        @Value("${app.start.enabled:false}") boolean startEnabled
+        @Value("${app.start.enabled:false}") boolean startEnabled,
+        @Value("${app.start.show-in-lk:false}") boolean startShowInLk
     ) {
         this.attendanceEnabled = attendanceEnabled;
         this.startEnabled = startEnabled;
+        this.startShowInLk = startShowInLk;
     }
 
     @GetMapping
     public FeaturesDto features() {
-        return new FeaturesDto(attendanceEnabled, startEnabled);
+        return new FeaturesDto(attendanceEnabled, startEnabled, startShowInLk);
     }
 }

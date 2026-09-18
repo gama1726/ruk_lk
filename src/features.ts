@@ -8,6 +8,8 @@ import { apiGet, isApiConfigured } from '@/apiClient'
 export type AppFeatures = {
   attendanceEnabled: boolean
   startEnabled: boolean
+  /** Показывать Start в меню/сервисах (мост может быть включён отдельно). */
+  startShowInLk: boolean
 }
 
 type FeaturesState = {
@@ -19,6 +21,7 @@ type FeaturesState = {
 const offlineDefaults: AppFeatures = {
   attendanceEnabled: true,
   startEnabled: false,
+  startShowInLk: false,
 }
 
 let loadPromise: Promise<void> | null = null
@@ -43,12 +46,16 @@ export const useAppFeatures = create<FeaturesState>((set, get) => ({
           features: {
             attendanceEnabled: raw.attendanceEnabled === true,
             startEnabled: raw.startEnabled === true,
+            startShowInLk: raw.startShowInLk === true,
           },
           status: 'ready',
         })
       } catch {
         // Старый backend без /api/features — посещаемость не прячем, Start выкл.
-        set({ features: { attendanceEnabled: true, startEnabled: false }, status: 'ready' })
+        set({
+          features: { attendanceEnabled: true, startEnabled: false, startShowInLk: false },
+          status: 'ready',
+        })
       } finally {
         loadPromise = null
       }
@@ -67,3 +74,9 @@ export function isAttendanceFeatureEnabled(): boolean {
 export function isStartFeatureEnabled(): boolean {
   return useAppFeatures.getState().features?.startEnabled === true
 }
+
+/** Пункт Start виден в меню ЛК. */
+export function isStartShownInLk(): boolean {
+  return useAppFeatures.getState().features?.startShowInLk === true
+}
+

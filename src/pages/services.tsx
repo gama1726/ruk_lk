@@ -15,6 +15,7 @@ export function Services() {
   const status = useStudentProfile((s) => s.status)
   const load = useStudentProfile((s) => s.load)
   const startEnabled = useAppFeatures((s) => s.features?.startEnabled === true)
+  const startShowInLk = useAppFeatures((s) => s.features?.startShowInLk === true)
   const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
 
@@ -41,9 +42,12 @@ export function Services() {
       { to: paths.esports, title: 'Киберспорт', note: 'Кабинет капитана и заявки на турниры' },
       { to: paths.library, title: 'Библиотека', note: 'Читательский билет, книги' },
     ] as const
-    if (isPassPhotoNavVisible(profile)) return [...allItems]
-    return allItems.filter((item) => item.to !== paths.passPhoto)
-  }, [profile, startEnabled])
+    return allItems.filter((item) => {
+      if (item.to === paths.passPhoto && !isPassPhotoNavVisible(profile)) return false
+      if (item.to === paths.start && !startShowInLk) return false
+      return true
+    })
+  }, [profile, startEnabled, startShowInLk])
 
   return (
     <>

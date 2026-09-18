@@ -49,8 +49,10 @@ nano backend/application-local.properties
 
 См. [`START_LK_BRIDGE.md`](./START_LK_BRIDGE.md). В `application-local.properties` задайте
 `app.start.enabled=true`, `app.start.api-base-url`, `app.start.frontend-url`,
-`app.start.exchange-secret` (тот же секрет, что на Start). Без `enabled=true` раздел Start
-в ЛК остаётся заглушкой, API-мост не работает.
+`app.start.exchange-secret` (тот же секрет, что на Start). Без `enabled=true` API-мост
+не работает; `/start` и `/api/student/start/redirect` остаются заглушкой.
+`app.start.show-in-lk=true` — показать пункт Start в меню и «Сервисах» (по умолчанию скрыт;
+кнопку на Start можно вести на `https://my.ruc.su/api/student/start/redirect`).
 
 ### Админ-панель фото для пропуска
 

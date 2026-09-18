@@ -65,6 +65,7 @@ app.lk-admin.full-name=Супер-администратор ЛК
 
 # start.ruc.su — тот же секрет, что LK_EXCHANGE_SECRET на стороне Start
 # app.start.enabled=true
+# app.start.show-in-lk=false
 # app.start.api-base-url=https://start.ruc.su
 # app.start.frontend-url=https://start.ruc.su
 # app.start.exchange-secret=CHANGE_ME

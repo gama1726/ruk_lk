@@ -17,6 +17,7 @@ export function Sidebar() {
   const status = useStudentProfile((s) => s.status)
   const load = useStudentProfile((s) => s.load)
   const attendanceEnabled = useAppFeatures((s) => s.features?.attendanceEnabled === true)
+  const startShowInLk = useAppFeatures((s) => s.features?.startShowInLk === true)
   const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
 
@@ -32,6 +33,7 @@ export function Sidebar() {
     attendance: isAttendanceNavVisible(profile, attendanceEnabled),
     events: isEventsNavVisible(profile),
     passPhoto: isPassPhotoNavVisible(profile),
+    start: startShowInLk,
   }
   const topItems = getSidebarTop(navOptions)
   const groups = getSidebarGroups(navOptions)
