@@ -1,5 +1,7 @@
 package ru.ruc.lk.ruk_lk_api.integration.zkbio;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -8,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLContext;
 
@@ -38,11 +41,13 @@ public class HttpZKBioClient implements ZKBioClient {
 
     private static final Logger log = LoggerFactory.getLogger(HttpZKBioClient.class);
     private static final DateTimeFormatter DAY_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final Duration DIRECTORY_TTL = Duration.ofHours(6);
 
     private final RestClient restClient;
     private final ZKBioProperties properties;
     /** зачетная книжка → emp_code, если карточка уже подтверждалась. */
     private final ConcurrentHashMap<String, String> empCodeByStudentId = new ConcurrentHashMap<>();
+    private final AtomicReference<CachedDirectory> directoryCache = new AtomicReference<>();
     private String token;
 
     public HttpZKBioClient(ZKBioProperties properties, OutboundRestClients outboundRestClients) {
@@ -164,10 +169,13 @@ public class HttpZKBioClient implements ZKBioClient {
             page++;
         }
         log.info("ZKBio справочник: сотрудников={}", all.size());
+        directoryCache.set(new CachedDirectory(ZKBioEmployeesDirectory.from(all), Instant.now()));
         return all;
     }
 
-    /** Только точное совпадение {@code emp_code} с зачетной книжкой. */
+    /**
+     * Сначала {@code emp_code} через REST, иначе локальный индекс {@code emp_code}/{@code nickname}.
+     */
     private String requireEmpCode(String zachetka) throws ZKBioException {
         String cached = empCodeByStudentId.get(zachetka);
         if (cached != null) {
@@ -179,14 +187,37 @@ public class HttpZKBioClient implements ZKBioClient {
             : response.data();
         for (ZKBioEmployee employee : batch) {
             Optional<String> code = ZKBioEmpCodeResolver.resolveTransactionCode(zachetka, employee);
-            if (code.isPresent()) {
+            if (code.isPresent() && ZKBioEmpCodeResolver.matchesStudentId(zachetka, employee.empCode())) {
                 String empCode = code.get();
                 empCodeByStudentId.put(zachetka, empCode);
                 return empCode;
             }
         }
+        Optional<String> fromDirectory = loadDirectory().resolveEmpCode(zachetka);
+        if (fromDirectory.isPresent()) {
+            String empCode = fromDirectory.get();
+            empCodeByStudentId.put(zachetka, empCode);
+            log.info("ZKBio emp_code через nickname: zachetka={} → emp_code={}", zachetka, empCode);
+            return empCode;
+        }
         throw ZKBioException.notEnrolled();
     }
+
+    private ZKBioEmployeesDirectory loadDirectory() throws ZKBioException {
+        CachedDirectory cached = directoryCache.get();
+        Instant now = Instant.now();
+        if (cached != null && cached.loadedAt().plus(DIRECTORY_TTL).isAfter(now)) {
+            return cached.directory();
+        }
+        fetchEmployees();
+        CachedDirectory refreshed = directoryCache.get();
+        if (refreshed == null) {
+            return ZKBioEmployeesDirectory.from(List.of());
+        }
+        return refreshed.directory();
+    }
+
+    private record CachedDirectory(ZKBioEmployeesDirectory directory, Instant loadedAt) {}
 
     private List<SkudAccessEvent> fetchAllTransactions(String empCode, LocalDate begin, LocalDate end)
         throws ZKBioException {

@@ -46,6 +46,7 @@ export function groupAbsenceWarnings(warnings: string[]): AbsenceWarningSection[
     if (
       line.startsWith('Проверено студентов:') ||
       line.startsWith('Пропущено по длине emp_code') ||
+      line.startsWith('Пропущено без зачётки') ||
       line.startsWith('Проходов ZKBio') ||
       line.startsWith('Нет профиля в 1С') ||
       line.startsWith('Нет группы в 1С') ||

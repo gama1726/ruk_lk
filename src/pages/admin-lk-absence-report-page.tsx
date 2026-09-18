@@ -145,8 +145,9 @@ export function AdminLkAbsenceReportPage() {
         <h1 className={styles.pageTitle}>Отчёт отсутствующих</h1>
       </div>
       <p className={styles.statsHint}>
-        Казань (ZKBio): массовые проходы за день + emp_code длины 6 + профиль/группа из 1С + очные
-        пары. Отчёт строится в фоне и сохраняется — можно открыть из списка ниже.
+        Казань (ZKBio): массовые проходы за день + зачётка (emp_code или nickname длины 6) +
+        профиль/группа из 1С + очные пары. Отчёт строится в фоне и сохраняется — можно открыть из
+        списка ниже.
       </p>
 
       <form className={styles.card} style={{ marginBottom: '1.25rem' }} onSubmit={onBuild}>

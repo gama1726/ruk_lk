@@ -8,6 +8,7 @@ public record ZKBioEmployee(
     @JsonProperty("emp_code") String empCode,
     @JsonProperty("ssn") String ssn,
     @JsonProperty("national") String national,
+    @JsonProperty("nickname") String nickname,
     @JsonProperty("first_name") String firstName,
     @JsonProperty("last_name") String lastName
 ) {

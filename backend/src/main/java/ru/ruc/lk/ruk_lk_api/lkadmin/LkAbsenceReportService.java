@@ -45,6 +45,7 @@ import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupNameNormalizer;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleWeekApiResponse;
 import ru.ruc.lk.ruk_lk_api.integration.skud.SkudAccessEvent;
 import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioClient;
+import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioEmpCodeResolver;
 import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioEmployee;
 import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioException;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRequest;
@@ -250,18 +251,24 @@ public class LkAbsenceReportService {
 
         List<ZKBioEmployee> employees = loadEmployeesCached();
         List<ZKBioEmployee> allUnique = uniqueByEmpCode(employees);
-        List<ZKBioEmployee> roster = allUnique.stream()
-            .filter(e -> e.empCode() != null && e.empCode().trim().length() == EMP_CODE_LENGTH)
-            .toList();
-        int skippedByLength = allUnique.size() - roster.size();
-        if (skippedByLength > 0) {
-            warnings.add("Пропущено по длине emp_code ≠ " + EMP_CODE_LENGTH + ": " + skippedByLength
-                + " из " + allUnique.size());
+        List<RosterCandidate> roster = new ArrayList<>();
+        int skippedNoGradebook = 0;
+        for (ZKBioEmployee employee : allUnique) {
+            Optional<String> gradebook = ZKBioEmpCodeResolver.resolveGradebookId(employee);
+            if (gradebook.isEmpty() || employee.empCode() == null || employee.empCode().isBlank()) {
+                skippedNoGradebook++;
+                continue;
+            }
+            roster.add(new RosterCandidate(gradebook.get(), employee.empCode().trim(), employee));
+        }
+        if (skippedNoGradebook > 0) {
+            warnings.add("Пропущено без зачётки (emp_code/nickname длины ≠ " + EMP_CODE_LENGTH + "): "
+                + skippedNoGradebook + " из " + allUnique.size());
         }
         if (roster.isEmpty()) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "В ZKBio нет сотрудников с emp_code длины " + EMP_CODE_LENGTH
+                "В ZKBio нет сотрудников с emp_code или nickname длины " + EMP_CODE_LENGTH
             );
         }
 
@@ -286,7 +293,7 @@ public class LkAbsenceReportService {
         }
         if (enriched.isEmpty()) {
             warnings.add("После фильтрации не осталось студентов с профилем и группой в 1С");
-            warnings.add(0, "Проверено студентов: 0 (кандидаты emp_code длины " + EMP_CODE_LENGTH
+            warnings.add(0, "Проверено студентов: 0 (кандидаты зачётки длины " + EMP_CODE_LENGTH
                 + ": " + roster.size() + ")");
             return new BuildResult(allUnique.size(), roster.size(), 0, punchesByEmp.size(), List.of(), warnings);
         }
@@ -308,7 +315,7 @@ public class LkAbsenceReportService {
             .comparing(AbsenceReportRowDto::group, String.CASE_INSENSITIVE_ORDER)
             .thenComparing(AbsenceReportRowDto::fullName, String.CASE_INSENSITIVE_ORDER));
 
-        warnings.add(0, "Проверено студентов: " + enriched.size() + " (кандидаты emp_code длины "
+        warnings.add(0, "Проверено студентов: " + enriched.size() + " (кандидаты зачётки длины "
             + EMP_CODE_LENGTH + ": " + roster.size() + ")");
 
         return new BuildResult(
@@ -333,12 +340,12 @@ public class LkAbsenceReportService {
         return fresh;
     }
 
-    private Map<String, EnrichedStudent> enrichStudents(List<ZKBioEmployee> roster, EnrichStats stats) {
+    private Map<String, EnrichedStudent> enrichStudents(List<RosterCandidate> roster, EnrichStats stats) {
         Map<String, EnrichedStudent> result = new LinkedHashMap<>();
         try (ExecutorService pool = Executors.newFixedThreadPool(Math.min(MAX_PARALLEL, Math.max(1, roster.size())))) {
             List<CompletableFuture<EnrichOutcome>> futures = new ArrayList<>();
-            for (ZKBioEmployee employee : roster) {
-                futures.add(CompletableFuture.supplyAsync(() -> enrichOne(employee), pool));
+            for (RosterCandidate candidate : roster) {
+                futures.add(CompletableFuture.supplyAsync(() -> enrichOne(candidate), pool));
             }
             for (CompletableFuture<EnrichOutcome> future : futures) {
                 EnrichOutcome outcome = future.join();
@@ -359,12 +366,9 @@ public class LkAbsenceReportService {
         return result;
     }
 
-    private EnrichOutcome enrichOne(ZKBioEmployee employee) {
-        String empCode = employee.empCode() == null ? "" : employee.empCode().trim();
-        if (empCode.length() != EMP_CODE_LENGTH) {
-            return null;
-        }
-        OneCProfileResponse profile = onecClient.fetchProfile(empCode).orElse(null);
+    private EnrichOutcome enrichOne(RosterCandidate candidate) {
+        String studentId = candidate.studentId();
+        OneCProfileResponse profile = onecClient.fetchProfile(studentId).orElse(null);
         if (profile == null) {
             return EnrichOutcome.noProfile();
         }
@@ -374,12 +378,18 @@ public class LkAbsenceReportService {
         }
         String fullName = profile.fullName() != null && !profile.fullName().isBlank()
             ? profile.fullName().trim()
-            : employee.displayName();
+            : candidate.employee().displayName();
         if (fullName == null || fullName.isBlank()) {
-            fullName = empCode;
+            fullName = studentId;
         }
         String phone = profile.phone() != null ? profile.phone().trim() : "";
-        return EnrichOutcome.ok(new EnrichedStudent(empCode, fullName, phone, group));
+        return EnrichOutcome.ok(new EnrichedStudent(
+            studentId,
+            candidate.skudEmpCode(),
+            fullName,
+            phone,
+            group
+        ));
     }
 
     private Map<String, List<CampusLesson>> loadLessonsByGroup(
@@ -420,7 +430,7 @@ public class LkAbsenceReportService {
             return null;
         }
 
-        List<SkudAccessEvent> events = punchesByEmp.getOrDefault(student.studentId(), List.of());
+        List<SkudAccessEvent> events = punchesByEmp.getOrDefault(student.skudEmpCode(), List.of());
         StudentAttendanceResponse attendance = AttendanceMapper.toResponse(SOURCE, events, dayLessons);
         List<StudentAttendanceLessonResponse> lessons = attendance.days().stream()
             .filter(d -> date.toString().equals(d.date()))
@@ -697,7 +707,15 @@ public class LkAbsenceReportService {
         return msg.length() > 160 ? msg.substring(0, 157) + "…" : msg;
     }
 
-    private record EnrichedStudent(String studentId, String fullName, String phone, String group) {}
+    private record RosterCandidate(String studentId, String skudEmpCode, ZKBioEmployee employee) {}
+
+    private record EnrichedStudent(
+        String studentId,
+        String skudEmpCode,
+        String fullName,
+        String phone,
+        String group
+    ) {}
 
     private static final class EnrichStats {
         int noProfile;
