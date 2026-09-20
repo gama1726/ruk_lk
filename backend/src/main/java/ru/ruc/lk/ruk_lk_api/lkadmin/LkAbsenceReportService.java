@@ -39,6 +39,8 @@ import ru.ruc.lk.ruk_lk_api.api.student.ScheduleMapper;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAttendanceLessonResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCFamilyResponse;
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCParentMember;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupLookupResponse;
@@ -426,14 +428,49 @@ public class LkAbsenceReportService {
         if (fullName == null || fullName.isBlank()) {
             fullName = studentId;
         }
-        String phone = profile.phone() != null ? profile.phone().trim() : "";
+        String parentContacts = formatParentContacts(onecClient.checkParent(studentId, null).orElse(null));
         return EnrichOutcome.ok(new EnrichedStudent(
             studentId,
             candidate.skudEmpCode(),
             fullName,
-            phone,
+            parentContacts,
             group
         ));
+    }
+
+    /**
+     * Контакты родителей из {@code /hs/student/parent/check}: телефоны с кратким родством.
+     * Заказчики ({@code isCustomer}) идут первыми.
+     */
+    static String formatParentContacts(OneCFamilyResponse family) {
+        if (family == null || !family.parentsFound() || family.parents() == null || family.parents().isEmpty()) {
+            return "";
+        }
+        List<OneCParentMember> ordered = new ArrayList<>(family.parents());
+        ordered.sort((a, b) -> Boolean.compare(b != null && b.isCustomer(), a != null && a.isCustomer()));
+
+        LinkedHashSet<String> parts = new LinkedHashSet<>();
+        for (OneCParentMember parent : ordered) {
+            if (parent == null) {
+                continue;
+            }
+            List<String> phones = parent.phones() == null ? List.of() : parent.phones().stream()
+                .filter(p -> p != null && !p.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+            if (phones.isEmpty()) {
+                continue;
+            }
+            String relation = parent.relation() == null ? "" : parent.relation().trim();
+            String joined = String.join(", ", phones);
+            parts.add(relation.isEmpty() ? joined : relation + ": " + joined);
+        }
+        if (parts.isEmpty()) {
+            return "";
+        }
+        String text = String.join("; ", parts);
+        return text.length() > 500 ? text.substring(0, 497) + "…" : text;
     }
 
     private Map<String, List<CampusLesson>> loadLessonsByGroup(

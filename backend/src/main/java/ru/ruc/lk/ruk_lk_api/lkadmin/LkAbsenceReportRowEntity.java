@@ -33,7 +33,7 @@ public class LkAbsenceReportRowEntity {
     @Column(nullable = false, length = 300)
     private String fullName;
 
-    @Column(nullable = false, length = 64)
+    @Column(nullable = false, length = 500)
     private String phone = "";
 
     @Column(nullable = false, length = 64)

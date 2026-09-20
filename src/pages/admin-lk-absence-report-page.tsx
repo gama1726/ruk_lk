@@ -203,8 +203,8 @@ export function AdminLkAbsenceReportPage() {
       </div>
       <p className={styles.statsHint}>
         Казань (ZKBio): массовые проходы за день + зачётка (emp_code или nickname длины 6) +
-        профиль/группа из 1С + очные пары. Отчёт строится в фоне и сохраняется — можно открыть из
-        списка ниже.
+        профиль/группа из 1С + очные пары. В колонке контактов — телефоны родителей из 1С.
+        Отчёт строится в фоне и сохраняется — можно открыть из списка ниже.
       </p>
 
       <form className={styles.card} style={{ marginBottom: '1.25rem' }} onSubmit={onBuild}>
@@ -283,7 +283,7 @@ export function AdminLkAbsenceReportPage() {
                   <th>Дата</th>
                   <th>Номер группы</th>
                   <th>ФИО</th>
-                  <th>Телефон</th>
+                  <th>Телефон родителя</th>
                   <th>Расписание</th>
                   <th>Время отсутствия</th>
                   <th>Уведомление родителям</th>
