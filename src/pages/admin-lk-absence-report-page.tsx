@@ -285,7 +285,7 @@ export function AdminLkAbsenceReportPage() {
                   <th>ФИО</th>
                   <th>Телефон родителя</th>
                   <th>Расписание</th>
-                  <th>Время отсутствия</th>
+                  <th>Посещение по парам</th>
                   <th>Уведомление родителям</th>
                 </tr>
               </thead>
@@ -306,10 +306,10 @@ export function AdminLkAbsenceReportPage() {
                       <td>{row.phone || '—'}</td>
                       <td>{row.scheduleRange || '—'}</td>
                       <td>
-                        {row.absenceRange}
-                        <div className={styles.cardMeta}>
-                          {row.kind === 'full' ? 'не приходил' : 'частично'}
-                        </div>
+                        {row.absenceRange || '—'}
+                        {row.kind === 'full' ? (
+                          <div className={styles.cardMeta}>неявка на все пары</div>
+                        ) : null}
                       </td>
                       <td>
                         <label className={styles.checkRow}>

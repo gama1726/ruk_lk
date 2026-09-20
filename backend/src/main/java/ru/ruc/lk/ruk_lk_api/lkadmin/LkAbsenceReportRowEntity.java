@@ -39,7 +39,7 @@ public class LkAbsenceReportRowEntity {
     @Column(nullable = false, length = 64)
     private String scheduleRange = "";
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = 1000)
     private String absenceRange = "";
 
     @Column(nullable = false, length = 16)

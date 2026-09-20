@@ -540,8 +540,11 @@ public class LkAbsenceReportService {
             return null;
         }
 
+        List<StudentAttendanceLessonResponse> ordered = lessons.stream()
+            .sorted(Comparator.comparing(StudentAttendanceLessonResponse::startTime))
+            .toList();
         String scheduleRange = formatScheduleRange(dayLessons);
-        String absenceRange = mergeAbsenceRanges(absent);
+        String absenceRange = formatLessonAttendanceDetail(ordered);
         boolean fullDay = absent.size() >= dayLessons.size();
         String kind = fullDay ? "full" : "partial";
         boolean notified = noticeRepository
@@ -736,38 +739,56 @@ public class LkAbsenceReportService {
         return start.format(TIME_DOT) + "-" + end.format(TIME_DOT);
     }
 
-    private static String mergeAbsenceRanges(List<StudentAttendanceLessonResponse> absent) {
-        if (absent.isEmpty()) {
+    /**
+     * Разбор дня по парам в тех же формулировках, что раздел посещаемости.
+     * В отчёт попадает только если была хотя бы одна неявка ({@code absent}).
+     */
+    static String formatLessonAttendanceDetail(List<StudentAttendanceLessonResponse> lessons) {
+        if (lessons == null || lessons.isEmpty()) {
             return "";
         }
         List<String> parts = new ArrayList<>();
-        String rangeStart = toDotTime(absent.getFirst().startTime());
-        String rangeEnd = toDotTime(absent.getFirst().endTime());
-        for (int i = 1; i < absent.size(); i++) {
-            StudentAttendanceLessonResponse lesson = absent.get(i);
-            String start = toDotTime(lesson.startTime());
-            String end = toDotTime(lesson.endTime());
-            if (rangeEnd.equals(start) || isImmediateNext(rangeEnd, start)) {
-                rangeEnd = end;
-            } else {
-                parts.add(rangeStart + "-" + rangeEnd);
-                rangeStart = start;
-                rangeEnd = end;
+        int index = 0;
+        for (StudentAttendanceLessonResponse lesson : lessons) {
+            if (lesson == null) {
+                continue;
             }
+            index++;
+            String start = blank(lesson.startTime()).replace('.', ':');
+            String end = blank(lesson.endTime()).replace('.', ':');
+            String time = end.isEmpty() ? start : start + "–" + end;
+            String status = attendanceStatusLabel(lesson.status(), lesson.lateMinutes(), lesson.arrivedAt());
+            parts.add(index + ". " + time + " — " + status);
         }
-        parts.add(rangeStart + "-" + rangeEnd);
-        return String.join(", ", parts);
+        String text = String.join("; ", parts);
+        return text.length() > 1000 ? text.substring(0, 997) + "…" : text;
     }
 
-    private static boolean isImmediateNext(String endDot, String startDot) {
-        return endDot != null && startDot != null && endDot.compareTo(startDot) <= 0;
-    }
-
-    private static String toDotTime(String hhmm) {
-        if (hhmm == null || hhmm.isBlank()) {
-            return "";
+    static String attendanceStatusLabel(String status, Integer lateMinutes, String arrivedAt) {
+        if (AttendanceMapper.STATUS_LATE.equals(status)) {
+            String label = "Опоздание";
+            if (lateMinutes != null && lateMinutes > 0) {
+                label += " · " + lateMinutes + " мин";
+            }
+            if (arrivedAt != null && !arrivedAt.isBlank()) {
+                label += " · вход " + arrivedAt.trim();
+            }
+            return label;
         }
-        return hhmm.trim().replace(':', '.');
+        if (AttendanceMapper.STATUS_ABSENT.equals(status)) {
+            return "Неявка";
+        }
+        if (AttendanceMapper.STATUS_UNCONFIRMED.equals(status)) {
+            return "Без выхода";
+        }
+        if (AttendanceMapper.STATUS_PRESENT.equals(status)) {
+            String label = "Вовремя";
+            if (arrivedAt != null && !arrivedAt.isBlank()) {
+                label += " · вход " + arrivedAt.trim();
+            }
+            return label;
+        }
+        return "—";
     }
 
     private static List<String> normalizeIds(List<String> raw) {
