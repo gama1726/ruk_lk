@@ -50,6 +50,22 @@ public class LkAbsenceReportEntity {
     @Column(nullable = false)
     private int absentCount;
 
+    /** employees | punches | profiles | schedule | matching | done */
+    @Column(nullable = false, length = 32)
+    private String progressPhase = "queued";
+
+    @Column(nullable = false, length = 240)
+    private String progressLabel = "В очереди…";
+
+    @Column(nullable = false)
+    private int progressPercent;
+
+    @Column(nullable = false)
+    private int progressCurrent;
+
+    @Column(nullable = false)
+    private int progressTotal;
+
     @Lob
     @Column(columnDefinition = "TEXT")
     private String warningsText = "";
@@ -129,6 +145,46 @@ public class LkAbsenceReportEntity {
 
     public void setAbsentCount(int absentCount) {
         this.absentCount = absentCount;
+    }
+
+    public String getProgressPhase() {
+        return progressPhase == null ? "" : progressPhase;
+    }
+
+    public void setProgressPhase(String progressPhase) {
+        this.progressPhase = progressPhase == null ? "" : progressPhase;
+    }
+
+    public String getProgressLabel() {
+        return progressLabel == null ? "" : progressLabel;
+    }
+
+    public void setProgressLabel(String progressLabel) {
+        this.progressLabel = progressLabel == null ? "" : progressLabel;
+    }
+
+    public int getProgressPercent() {
+        return progressPercent;
+    }
+
+    public void setProgressPercent(int progressPercent) {
+        this.progressPercent = Math.max(0, Math.min(100, progressPercent));
+    }
+
+    public int getProgressCurrent() {
+        return progressCurrent;
+    }
+
+    public void setProgressCurrent(int progressCurrent) {
+        this.progressCurrent = Math.max(0, progressCurrent);
+    }
+
+    public int getProgressTotal() {
+        return progressTotal;
+    }
+
+    public void setProgressTotal(int progressTotal) {
+        this.progressTotal = Math.max(0, progressTotal);
     }
 
     public String getWarningsText() {

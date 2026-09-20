@@ -72,6 +72,11 @@ export type AbsenceReport = {
   rows: AbsenceReportRow[]
   warnings: string[]
   error?: string
+  progressPhase?: string
+  progressLabel?: string
+  progressPercent?: number
+  progressCurrent?: number
+  progressTotal?: number
 }
 
 export type AbsenceReportSummary = {

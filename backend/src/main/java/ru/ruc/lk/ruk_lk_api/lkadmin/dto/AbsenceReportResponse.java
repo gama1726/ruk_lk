@@ -13,5 +13,10 @@ public record AbsenceReportResponse(
     String source,
     List<AbsenceReportRowDto> rows,
     List<String> warnings,
-    String error
+    String error,
+    String progressPhase,
+    String progressLabel,
+    int progressPercent,
+    int progressCurrent,
+    int progressTotal
 ) {}

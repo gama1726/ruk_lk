@@ -17,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -119,6 +120,9 @@ public class LkAbsenceReportService {
         LocalDate date = parseDate(body.date());
         UUID id = UUID.randomUUID();
         LkAbsenceReportEntity entity = new LkAbsenceReportEntity(id, date);
+        entity.setProgressPhase("queued");
+        entity.setProgressLabel("Отчёт в очереди…");
+        entity.setProgressPercent(1);
         reportRepository.save(entity);
         reportExecutor.execute(() -> runBuild(id, date));
         return toResponse(entity, List.of(), List.of("Отчёт строится…"));
@@ -197,7 +201,7 @@ public class LkAbsenceReportService {
 
     private void runBuild(UUID reportId, LocalDate date) {
         try {
-            BuildResult result = buildInternal(date);
+            BuildResult result = buildInternal(reportId, date);
             transactionTemplate.executeWithoutResult(status -> {
                 LkAbsenceReportEntity entity = reportRepository.findById(reportId)
                     .orElseThrow(() -> new IllegalStateException("Отчёт исчез: " + reportId));
@@ -208,6 +212,11 @@ public class LkAbsenceReportService {
                 entity.setAbsentCount(result.rows().size());
                 entity.setWarningsText(String.join("\n", result.warnings()));
                 entity.setErrorMessage(null);
+                entity.setProgressPhase("done");
+                entity.setProgressLabel("Готово");
+                entity.setProgressPercent(100);
+                entity.setProgressCurrent(result.checkedCount());
+                entity.setProgressTotal(result.checkedCount());
                 entity.setFinishedAt(Instant.now());
                 List<LkAbsenceReportRowEntity> rowEntities = new ArrayList<>();
                 for (AbsenceReportRowDto row : result.rows()) {
@@ -239,6 +248,8 @@ public class LkAbsenceReportService {
                 reportRepository.findById(reportId).ifPresent(entity -> {
                     entity.setStatus(LkAbsenceReportStatus.FAILED);
                     entity.setErrorMessage(shortMessage(e));
+                    entity.setProgressPhase("failed");
+                    entity.setProgressLabel("Ошибка построения");
                     entity.setFinishedAt(Instant.now());
                     reportRepository.save(entity);
                 })
@@ -246,9 +257,10 @@ public class LkAbsenceReportService {
         }
     }
 
-    private BuildResult buildInternal(LocalDate date) throws ZKBioException {
+    private BuildResult buildInternal(UUID reportId, LocalDate date) throws ZKBioException {
         List<String> warnings = new ArrayList<>();
 
+        updateProgress(reportId, "employees", "Загрузка сотрудников ZKBio…", 5, 0, 0);
         List<ZKBioEmployee> employees = loadEmployeesCached();
         List<ZKBioEmployee> allUnique = uniqueByEmpCode(employees);
         List<RosterCandidate> roster = new ArrayList<>();
@@ -272,6 +284,7 @@ public class LkAbsenceReportService {
             );
         }
 
+        updateProgress(reportId, "punches", "Загрузка проходов ZKBio за день…", 12, 0, 0);
         Map<String, List<SkudAccessEvent>> punchesByEmp;
         try {
             punchesByEmp = zkbioClient.fetchDayAccessEventsByEmpCode(date);
@@ -284,7 +297,15 @@ public class LkAbsenceReportService {
         warnings.add("Проходов ZKBio за день: emp_code=" + punchesByEmp.size());
 
         EnrichStats enrichStats = new EnrichStats();
-        Map<String, EnrichedStudent> enriched = enrichStudents(roster, enrichStats);
+        updateProgress(
+            reportId,
+            "profiles",
+            "Профили 1С: 0 / " + roster.size(),
+            20,
+            0,
+            roster.size()
+        );
+        Map<String, EnrichedStudent> enriched = enrichStudents(reportId, roster, enrichStats);
         if (enrichStats.noProfile > 0) {
             warnings.add("Нет профиля в 1С — пропуск: " + enrichStats.noProfile);
         }
@@ -298,8 +319,10 @@ public class LkAbsenceReportService {
             return new BuildResult(allUnique.size(), roster.size(), 0, punchesByEmp.size(), List.of(), warnings);
         }
 
-        Map<String, List<CampusLesson>> lessonsByGroup = loadLessonsByGroup(enriched, date, warnings);
+        Map<String, List<CampusLesson>> lessonsByGroup =
+            loadLessonsByGroup(reportId, enriched, date, warnings);
 
+        updateProgress(reportId, "matching", "Сверка проходов с расписанием…", 92, 0, enriched.size());
         List<AbsenceReportRowDto> rows = new ArrayList<>();
         for (EnrichedStudent student : enriched.values()) {
             try {
@@ -340,12 +363,33 @@ public class LkAbsenceReportService {
         return fresh;
     }
 
-    private Map<String, EnrichedStudent> enrichStudents(List<RosterCandidate> roster, EnrichStats stats) {
+    private Map<String, EnrichedStudent> enrichStudents(
+        UUID reportId,
+        List<RosterCandidate> roster,
+        EnrichStats stats
+    ) {
         Map<String, EnrichedStudent> result = new LinkedHashMap<>();
-        try (ExecutorService pool = Executors.newFixedThreadPool(Math.min(MAX_PARALLEL, Math.max(1, roster.size())))) {
+        int total = roster.size();
+        AtomicInteger done = new AtomicInteger();
+        try (ExecutorService pool = Executors.newFixedThreadPool(Math.min(MAX_PARALLEL, Math.max(1, total)))) {
             List<CompletableFuture<EnrichOutcome>> futures = new ArrayList<>();
             for (RosterCandidate candidate : roster) {
-                futures.add(CompletableFuture.supplyAsync(() -> enrichOne(candidate), pool));
+                futures.add(CompletableFuture.supplyAsync(() -> {
+                    EnrichOutcome outcome = enrichOne(candidate);
+                    int finished = done.incrementAndGet();
+                    if (finished == total || finished % 100 == 0) {
+                        int pct = 20 + (int) Math.round(40.0 * finished / Math.max(1, total));
+                        updateProgress(
+                            reportId,
+                            "profiles",
+                            "Профили 1С: " + finished + " / " + total,
+                            pct,
+                            finished,
+                            total
+                        );
+                    }
+                    return outcome;
+                }, pool));
             }
             for (CompletableFuture<EnrichOutcome> future : futures) {
                 EnrichOutcome outcome = future.join();
@@ -393,6 +437,7 @@ public class LkAbsenceReportService {
     }
 
     private Map<String, List<CampusLesson>> loadLessonsByGroup(
+        UUID reportId,
         Map<String, EnrichedStudent> enriched,
         LocalDate date,
         List<String> warnings
@@ -403,7 +448,19 @@ public class LkAbsenceReportService {
             .collect(Collectors.toCollection(LinkedHashSet::new));
 
         Map<String, List<CampusLesson>> lessonsByGroup = new LinkedHashMap<>();
+        int total = groups.size();
+        int index = 0;
         for (String group : groups) {
+            index++;
+            int pct = 60 + (int) Math.round(30.0 * index / Math.max(1, total));
+            updateProgress(
+                reportId,
+                "schedule",
+                "Расписание групп: " + index + " / " + total,
+                pct,
+                index,
+                total
+            );
             try {
                 List<CampusLesson> lessons = loadCampusLessons(group, date);
                 lessonsByGroup.put(group, lessons);
@@ -559,7 +616,35 @@ public class LkAbsenceReportService {
             entity.getSource(),
             rows,
             warnings,
-            blank(entity.getErrorMessage())
+            blank(entity.getErrorMessage()),
+            entity.getProgressPhase(),
+            entity.getProgressLabel(),
+            entity.getProgressPercent(),
+            entity.getProgressCurrent(),
+            entity.getProgressTotal()
+        );
+    }
+
+    private void updateProgress(
+        UUID reportId,
+        String phase,
+        String label,
+        int percent,
+        int current,
+        int total
+    ) {
+        transactionTemplate.executeWithoutResult(status ->
+            reportRepository.findById(reportId).ifPresent(entity -> {
+                if (entity.getStatus() != LkAbsenceReportStatus.RUNNING) {
+                    return;
+                }
+                entity.setProgressPhase(phase);
+                entity.setProgressLabel(label);
+                entity.setProgressPercent(percent);
+                entity.setProgressCurrent(current);
+                entity.setProgressTotal(total);
+                reportRepository.save(entity);
+            })
         );
     }
 

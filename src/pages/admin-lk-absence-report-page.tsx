@@ -14,8 +14,18 @@ import {
   type AbsenceReportRow,
   type AbsenceReportSummary,
 } from '@/lk-admin'
-import { Button, Input, Loader } from '@/ui'
+import { Button, Input } from '@/ui'
 import styles from './admin-events.module.css'
+
+const PROGRESS_STEPS = [
+  { id: 'queued', label: 'В очереди' },
+  { id: 'employees', label: 'Сотрудники ZKBio' },
+  { id: 'punches', label: 'Проходы за день' },
+  { id: 'profiles', label: 'Профили 1С' },
+  { id: 'schedule', label: 'Расписание групп' },
+  { id: 'matching', label: 'Сверка отсутствий' },
+  { id: 'done', label: 'Готово' },
+] as const
 
 function todayIso(): string {
   const d = new Date()
@@ -30,6 +40,11 @@ function statusLabel(status: string): string {
   if (status === 'DONE') return 'готов'
   if (status === 'FAILED') return 'ошибка'
   return status
+}
+
+function stepIndex(phase: string | undefined): number {
+  const idx = PROGRESS_STEPS.findIndex((s) => s.id === phase)
+  return idx >= 0 ? idx : 0
 }
 
 function AbsenceWarningSections({ warnings }: { warnings: string[] }) {
@@ -52,6 +67,48 @@ function AbsenceWarningSections({ warnings }: { warnings: string[] }) {
           </ul>
         </details>
       ))}
+    </div>
+  )
+}
+
+function AbsenceBuildProgress({ report }: { report: AbsenceReport }) {
+  const percent = Math.max(0, Math.min(100, report.progressPercent ?? 0))
+  const active = stepIndex(report.progressPhase)
+  const label = report.progressLabel?.trim() || 'Строим отчёт…'
+  const hasCounts = (report.progressTotal ?? 0) > 0
+
+  return (
+    <div className={styles.progressCard} aria-live="polite">
+      <p className={styles.progressTitle}>{label}</p>
+      <div
+        className={styles.progressTrack}
+        role="progressbar"
+        aria-valuenow={percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div className={styles.progressFill} style={{ width: `${percent}%` }} />
+      </div>
+      <p className={styles.progressMeta}>
+        {percent}%
+        {hasCounts ? ` · ${report.progressCurrent ?? 0} / ${report.progressTotal}` : null}
+      </p>
+      <ol className={styles.progressSteps}>
+        {PROGRESS_STEPS.filter((s) => s.id !== 'done').map((step, i) => {
+          const cls =
+            i < active
+              ? `${styles.progressStep} ${styles.progressStepDone}`
+              : i === active
+                ? `${styles.progressStep} ${styles.progressStepActive}`
+                : styles.progressStep
+          return (
+            <li key={step.id} className={cls}>
+              {i < active ? '✓ ' : i === active ? '→ ' : '· '}
+              {step.label}
+            </li>
+          )
+        })}
+      </ol>
     </div>
   )
 }
@@ -89,7 +146,7 @@ export function AdminLkAbsenceReportPage() {
           setError(err instanceof ApiError ? err.message : 'Не удалось обновить статус отчёта')
         }
       })()
-    }, 2500)
+    }, 1500)
     return () => window.clearInterval(timer)
   }, [report?.id, report?.status, loadSaved])
 
@@ -205,7 +262,7 @@ export function AdminLkAbsenceReportPage() {
         </div>
       ) : null}
 
-      {building ? <Loader /> : null}
+      {building && report ? <AbsenceBuildProgress report={report} /> : null}
 
       {report && report.status === 'FAILED' ? (
         <p className={styles.error}>{report.error || 'Не удалось построить отчёт'}</p>
