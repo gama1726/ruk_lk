@@ -17,7 +17,14 @@ export type ClientValidationResult = {
 
 export const PASS_PHOTO_FORMAT_HINT = 'JPG, JPEG, BMP или PNG'
 
+/** Лимит одного файла (как app.pass-photo.max-size-bytes). */
 export const PASS_PHOTO_MAX_BYTES = 2 * 1024 * 1024
+
+/**
+ * Лимит всего multipart-запроса (фото + студенческий + overhead).
+ * Должен быть ≤ spring.servlet.multipart.max-request-size.
+ */
+export const PASS_PHOTO_MAX_REQUEST_BYTES = 8 * 1024 * 1024
 
 export const PASS_PHOTO_MIN_WIDTH = 400
 
@@ -32,6 +39,12 @@ const PASS_PHOTO_MIME_PREFIXES = [
   'image/bmp',
   'image/x-ms-bmp',
 ] as const
+
+export function formatFileSizeMb(bytes: number): string {
+  const mb = bytes / (1024 * 1024)
+  if (mb < 0.1) return mb.toFixed(2)
+  return mb.toFixed(1)
+}
 
 export function isSupportedPassPhotoFormat(file: File): boolean {
   const name = file.name.toLowerCase()
@@ -78,7 +91,7 @@ export async function validatePassPhotoClient(file: File): Promise<ClientValidat
     issues.push({
       code: 'FILE_TOO_LARGE',
       severity: 'FAIL',
-      message: 'Файл больше 2 МБ.',
+      message: `Фото лица больше 2 МБ (сейчас ${formatFileSizeMb(file.size)} МБ). Сожмите файл и выберите снова.`,
     })
     return { ok: false, issues }
   }
@@ -128,7 +141,7 @@ export async function validateIdCardClient(file: File): Promise<ClientValidation
     issues.push({
       code: 'FILE_TOO_LARGE',
       severity: 'FAIL',
-      message: 'Файл студенческого билета больше 2 МБ.',
+      message: `Фото студенческого билета больше 2 МБ (сейчас ${formatFileSizeMb(file.size)} МБ). Сожмите файл и выберите снова.`,
     })
     return { ok: false, issues }
   }
@@ -153,4 +166,24 @@ export async function validateIdCardClient(file: File): Promise<ClientValidation
   }
 
   return { ok: true, issues }
+}
+
+/** Проверка суммарного размера до POST (два файла). */
+export function validatePassPhotoUploadPair(photo: File, idCard: File): ClientValidationResult {
+  const total = photo.size + idCard.size
+  if (total > PASS_PHOTO_MAX_REQUEST_BYTES) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'REQUEST_TOO_LARGE',
+          severity: 'FAIL',
+          message:
+            `Суммарный размер фото и студенческого билета ${formatFileSizeMb(total)} МБ ` +
+            `(лимит ${formatFileSizeMb(PASS_PHOTO_MAX_REQUEST_BYTES)} МБ). Сожмите файлы.`,
+        },
+      ],
+    }
+  }
+  return { ok: true, issues: [] }
 }

@@ -20,6 +20,7 @@ import {
   PASS_PHOTO_MIN_WIDTH,
   validateIdCardClient,
   validatePassPhotoClient,
+  validatePassPhotoUploadPair,
   type ClientValidationIssue,
 } from '@/pass-photo-validation'
 import { Button, Card, ScreenHeader } from '@/ui'
@@ -152,6 +153,11 @@ export function PassPhoto() {
 
   const onSubmit = async () => {
     if (!file || !idCardFile || !clientOk || !idCardOk || !consent) return
+    const pairCheck = validatePassPhotoUploadPair(file, idCardFile)
+    if (!pairCheck.ok) {
+      setError(pairCheck.issues[0]?.message ?? 'Файлы слишком большие.')
+      return
+    }
     setUploading(true)
     setError(null)
     try {
