@@ -133,12 +133,17 @@ public class LkAbsenceReportService {
     @Transactional(readOnly = true)
     public AbsenceReportResponse get(HttpSession session, UUID id) {
         LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminSession admin = LkAdminAuthService.require(session);
         LkAbsenceReportEntity entity = reportRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден"));
         List<AbsenceReportRowDto> rows = entity.getStatus() == LkAbsenceReportStatus.DONE
             ? mapRows(entity)
             : List.of();
-        return toResponse(entity, rows, splitWarnings(entity.getWarningsText()));
+        List<String> warnings = splitWarnings(entity.getWarningsText());
+        if (!admin.superAdmin()) {
+            warnings = filterOutSummaryWarnings(warnings);
+        }
+        return toResponse(entity, rows, warnings);
     }
 
     @Transactional(readOnly = true)
@@ -815,6 +820,28 @@ public class LkAbsenceReportService {
             return List.of();
         }
         return List.of(text.split("\\R"));
+    }
+
+    /** Сводка ZKBio/1С — только супер-админу; остальным не отдаём в API. */
+    private static List<String> filterOutSummaryWarnings(List<String> warnings) {
+        if (warnings == null || warnings.isEmpty()) {
+            return List.of();
+        }
+        return warnings.stream().filter(line -> !isSummaryWarning(line)).toList();
+    }
+
+    private static boolean isSummaryWarning(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        String line = raw.trim();
+        return line.startsWith("Проверено студентов:")
+            || line.startsWith("Пропущено по длине emp_code")
+            || line.startsWith("Пропущено без зачётки")
+            || line.startsWith("Проходов ZKBio")
+            || line.startsWith("Нет профиля в 1С")
+            || line.startsWith("Нет группы в 1С")
+            || line.startsWith("После фильтрации");
     }
 
     private static LocalDate parseDate(String raw) {

@@ -3,6 +3,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import { groupAbsenceWarnings } from '@/absence-report-warnings'
 import { ApiError } from '@/apiClient'
 import {
@@ -13,6 +14,7 @@ import {
   type AbsenceReport,
   type AbsenceReportRow,
   type AbsenceReportSummary,
+  type LkAdminMe,
 } from '@/lk-admin'
 import { Button, Input } from '@/ui'
 import styles from './admin-events.module.css'
@@ -47,8 +49,17 @@ function stepIndex(phase: string | undefined): number {
   return idx >= 0 ? idx : 0
 }
 
-function AbsenceWarningSections({ warnings }: { warnings: string[] }) {
-  const sections = useMemo(() => groupAbsenceWarnings(warnings), [warnings])
+function AbsenceWarningSections({
+  warnings,
+  includeSummary,
+}: {
+  warnings: string[]
+  includeSummary: boolean
+}) {
+  const sections = useMemo(
+    () => groupAbsenceWarnings(warnings, { includeSummary }),
+    [warnings, includeSummary],
+  )
   if (sections.length === 0) return null
 
   return (
@@ -114,6 +125,8 @@ function AbsenceBuildProgress({ report }: { report: AbsenceReport }) {
 }
 
 export function AdminLkAbsenceReportPage() {
+  const { me } = useOutletContext<{ me?: LkAdminMe }>()
+  const includeSummary = me?.superAdmin === true
   const [date, setDate] = useState(todayIso)
   const [report, setReport] = useState<AbsenceReport | null>(null)
   const [saved, setSaved] = useState<AbsenceReportSummary[]>([])
@@ -275,7 +288,7 @@ export function AdminLkAbsenceReportPage() {
             {report.scheduleRange ? ` · пары ${report.scheduleRange}` : ''} · проверено{' '}
             {report.rosterSize}, отсутствий {report.absentCount}
           </h2>
-          <AbsenceWarningSections warnings={report.warnings} />
+          <AbsenceWarningSections warnings={report.warnings} includeSummary={includeSummary} />
           <div className={styles.usersTableWrap}>
             <table className={styles.usersTable}>
               <thead>
@@ -331,7 +344,7 @@ export function AdminLkAbsenceReportPage() {
       ) : null}
 
       {report && report.status === 'RUNNING' && report.warnings.length > 0 ? (
-        <AbsenceWarningSections warnings={report.warnings} />
+        <AbsenceWarningSections warnings={report.warnings} includeSummary={includeSummary} />
       ) : null}
     </section>
   )

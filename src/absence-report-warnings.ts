@@ -19,10 +19,19 @@ function splitGroupMessage(line: string, suffix: string): string | null {
   return group || null
 }
 
+export type GroupAbsenceWarningsOptions = {
+  /** Сводка (ZKBio / 1С skip stats) — только супер-админ */
+  includeSummary?: boolean
+}
+
 /**
  * Группирует плоский список warnings в разделы для UI.
  */
-export function groupAbsenceWarnings(warnings: string[]): AbsenceWarningSection[] {
+export function groupAbsenceWarnings(
+  warnings: string[],
+  options: GroupAbsenceWarningsOptions = {},
+): AbsenceWarningSection[] {
+  const includeSummary = options.includeSummary === true
   const summary: string[] = []
   const notFound: string[] = []
   const noLessons: string[] = []
@@ -52,7 +61,9 @@ export function groupAbsenceWarnings(warnings: string[]): AbsenceWarningSection[
       line.startsWith('Нет группы в 1С') ||
       line.startsWith('После фильтрации')
     ) {
-      summary.push(line)
+      if (includeSummary) {
+        summary.push(line)
+      }
       continue
     }
 
@@ -60,7 +71,7 @@ export function groupAbsenceWarnings(warnings: string[]): AbsenceWarningSection[
   }
 
   const sections: AbsenceWarningSection[] = []
-  if (summary.length > 0) {
+  if (includeSummary && summary.length > 0) {
     sections.push({ id: 'summary', title: 'Сводка', items: summary })
   }
   if (notFound.length > 0) {
