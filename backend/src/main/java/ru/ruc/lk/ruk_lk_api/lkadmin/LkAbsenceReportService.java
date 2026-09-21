@@ -146,6 +146,33 @@ public class LkAbsenceReportService {
         return toResponse(entity, rows, warnings);
     }
 
+    /**
+     * Готовый отчёт в .xlsx (те же строки, что в UI).
+     * @return bytes + имя файла для Content-Disposition
+     */
+    @Transactional(readOnly = true)
+    public AbsenceReportExcelFile exportExcel(HttpSession session, UUID id) {
+        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAbsenceReportEntity entity = reportRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден"));
+        if (entity.getStatus() != LkAbsenceReportStatus.DONE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Отчёт ещё не готов");
+        }
+        List<AbsenceReportRowDto> rows = mapRows(entity);
+        int checked = entity.getCheckedCount() > 0 ? entity.getCheckedCount() : entity.getCandidateCount();
+        byte[] bytes = LkAbsenceReportExcelExporter.build(
+            entity.getReportDate().toString(),
+            entity.getCampusLabel(),
+            checked,
+            entity.getAbsentCount(),
+            rows
+        );
+        String filename = "absence-report-" + entity.getReportDate() + ".xlsx";
+        return new AbsenceReportExcelFile(filename, bytes);
+    }
+
+    public record AbsenceReportExcelFile(String filename, byte[] content) {}
+
     @Transactional(readOnly = true)
     public List<AbsenceReportSummaryDto> list(HttpSession session) {
         LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);

@@ -2,7 +2,7 @@
  * @file Клиент API административной панели ЛК.
  */
 
-import { apiGet, apiPost, apiPut } from '@/apiClient'
+import { apiGet, apiGetBlob, apiPost, apiPut } from '@/apiClient'
 import type { StudentAttendanceDto } from '@/attendance'
 
 export type LkAdminSection = 'ATTENDANCE' | 'ABSENCE_REPORT' | 'ADMINS'
@@ -139,6 +139,18 @@ export async function getAbsenceReport(id: string): Promise<AbsenceReport> {
 
 export async function listAbsenceReports(): Promise<AbsenceReportSummary[]> {
   return apiGet<AbsenceReportSummary[]>('/api/admin/lk/absence-reports')
+}
+
+export async function downloadAbsenceReportExcel(id: string): Promise<void> {
+  const { blob, filename } = await apiGetBlob(`/api/admin/lk/absence-report/${id}/excel`)
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename || `absence-report-${id}.xlsx`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
 }
 
 export async function setAbsenceParentNotice(

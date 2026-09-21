@@ -7,6 +7,7 @@ import { useOutletContext } from 'react-router-dom'
 import { groupAbsenceWarnings } from '@/absence-report-warnings'
 import { ApiError } from '@/apiClient'
 import {
+  downloadAbsenceReportExcel,
   fetchAbsenceReport,
   getAbsenceReport,
   listAbsenceReports,
@@ -132,6 +133,7 @@ export function AdminLkAbsenceReportPage() {
   const [saved, setSaved] = useState<AbsenceReportSummary[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [downloadBusy, setDownloadBusy] = useState(false)
 
   const loadSaved = useCallback(async () => {
     try {
@@ -204,6 +206,19 @@ export function AdminLkAbsenceReportPage() {
       })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить отметку')
+    }
+  }
+
+  const onDownloadExcel = async () => {
+    if (!report?.id) return
+    setDownloadBusy(true)
+    setError(null)
+    try {
+      await downloadAbsenceReportExcel(report.id)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось скачать Excel')
+    } finally {
+      setDownloadBusy(false)
     }
   }
 
@@ -283,11 +298,25 @@ export function AdminLkAbsenceReportPage() {
 
       {report && report.status === 'DONE' ? (
         <div className={styles.usersCard}>
-          <h2 className={styles.chartTitle}>
-            {report.date} · {report.group}
-            {report.scheduleRange ? ` · пары ${report.scheduleRange}` : ''} · проверено{' '}
-            {report.rosterSize}, отсутствий {report.absentCount}
-          </h2>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.75rem',
+              marginBottom: '0.75rem',
+            }}
+          >
+            <h2 className={styles.chartTitle} style={{ margin: 0 }}>
+              {report.date} · {report.group}
+              {report.scheduleRange ? ` · пары ${report.scheduleRange}` : ''} · проверено{' '}
+              {report.rosterSize}, отсутствий {report.absentCount}
+            </h2>
+            <Button type="button" disabled={downloadBusy || busy} onClick={() => void onDownloadExcel()}>
+              {downloadBusy ? 'Скачивание…' : 'Скачать Excel'}
+            </Button>
+          </div>
           <AbsenceWarningSections warnings={report.warnings} includeSummary={includeSummary} />
           <div className={styles.usersTableWrap}>
             <table className={styles.usersTable}>

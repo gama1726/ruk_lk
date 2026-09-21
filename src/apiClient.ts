@@ -205,6 +205,47 @@ export type PassPhotoIssuePayload = {
 }
 
 /**
+ * GET бинарного ответа (файл) с разбором имени из Content-Disposition.
+ */
+export async function apiGetBlob(path: string, init?: RequestInit): Promise<{ blob: Blob; filename: string | null }> {
+  const response = await fetch(buildUrl(path), {
+    credentials: 'include',
+    method: 'GET',
+    ...init,
+  })
+  if (!response.ok) {
+    const text = await response.text()
+    let message = defaultMessage(response.status)
+    if (text) {
+      try {
+        const body = JSON.parse(text) as ApiErrorBody
+        message = body.message ?? body.detail ?? message
+      } catch {
+        /* ignore */
+      }
+    }
+    throw new ApiError(response.status, message)
+  }
+  const blob = await response.blob()
+  const disposition = response.headers.get('Content-Disposition')
+  let filename: string | null = null
+  if (disposition) {
+    const utf = /filename\*=UTF-8''([^;]+)/i.exec(disposition)
+    const plain = /filename="?([^";]+)"?/i.exec(disposition)
+    if (utf?.[1]) {
+      try {
+        filename = decodeURIComponent(utf[1])
+      } catch {
+        filename = utf[1]
+      }
+    } else if (plain?.[1]) {
+      filename = plain[1]
+    }
+  }
+  return { blob, filename }
+}
+
+/**
  * @param status - HTTP-код
  * @returns сообщение по умолчанию для UI
  */

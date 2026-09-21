@@ -6,6 +6,10 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,6 +23,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.api.student.StudentService;
 import ru.ruc.lk.ruk_lk_api.events.dto.AdminAttendanceResponse;
+import ru.ruc.lk.ruk_lk_api.lkadmin.LkAbsenceReportService.AbsenceReportExcelFile;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportSummaryDto;
@@ -106,6 +111,20 @@ public class LkAdminController {
     @GetMapping("/absence-report/{id}")
     public AbsenceReportResponse getAbsenceReport(HttpSession session, @PathVariable UUID id) {
         return absenceReportService.get(session, id);
+    }
+
+    @GetMapping("/absence-report/{id}/excel")
+    public ResponseEntity<byte[]> exportAbsenceReportExcel(HttpSession session, @PathVariable UUID id) {
+        AbsenceReportExcelFile file = absenceReportService.exportExcel(session, id);
+        ContentDisposition disposition = ContentDisposition.attachment()
+            .filename(file.filename(), java.nio.charset.StandardCharsets.UTF_8)
+            .build();
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+            .contentType(MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+            .contentLength(file.content().length)
+            .body(file.content());
     }
 
     @GetMapping("/absence-reports")
