@@ -1,5 +1,5 @@
 /**
- * @file Список и создание учёток админ-панели ЛК.
+ * @file Список, создание и правка доступов учёток админ-панели ЛК.
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
@@ -30,17 +30,58 @@ function formatCreatedAt(value: string): string {
   })
 }
 
+function SectionCheckboxes({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: LkAdminSection[]
+  onChange: (next: LkAdminSection[]) => void
+  disabled?: boolean
+}) {
+  const toggle = (section: LkAdminSection) => {
+    onChange(
+      value.includes(section) ? value.filter((s) => s !== section) : [...value, section],
+    )
+  }
+  return (
+    <fieldset style={{ border: 0, margin: 0, padding: 0 }} disabled={disabled}>
+      <legend className={styles.cardMeta} style={{ marginBottom: '0.5rem' }}>
+        Доступ к разделам
+      </legend>
+      <div className={styles.formGrid}>
+        {ALL_SECTIONS.map((section) => (
+          <label key={section} className={styles.checkRow}>
+            <input
+              type="checkbox"
+              checked={value.includes(section)}
+              onChange={() => toggle(section)}
+            />
+            {LK_ADMIN_SECTION_LABELS[section]}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
 export function AdminLkAdminsPage() {
   const [items, setItems] = useState<LkAdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const [fullName, setFullName] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [sections, setSections] = useState<LkAdminSection[]>(['ATTENDANCE'])
+
+  const [editing, setEditing] = useState<LkAdminUser | null>(null)
+  const [editFullName, setEditFullName] = useState('')
+  const [editPassword, setEditPassword] = useState('')
+  const [editSections, setEditSections] = useState<LkAdminSection[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -58,10 +99,19 @@ export function AdminLkAdminsPage() {
     void load()
   }, [load])
 
-  const toggleSection = (section: LkAdminSection) => {
-    setSections((prev) =>
-      prev.includes(section) ? prev.filter((s) => s !== section) : [...prev, section],
-    )
+  const openEdit = (user: LkAdminUser) => {
+    if (user.superAdmin) return
+    setEditError(null)
+    setEditing(user)
+    setEditFullName(user.fullName)
+    setEditPassword('')
+    setEditSections([...user.sections])
+  }
+
+  const closeEdit = () => {
+    setEditing(null)
+    setEditError(null)
+    setEditPassword('')
   }
 
   const onCreate = async (e: FormEvent) => {
@@ -82,6 +132,30 @@ export function AdminLkAdminsPage() {
       await load()
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : 'Не удалось создать учётку')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const onSaveEdit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!editing) return
+    if (editSections.length === 0) {
+      setEditError('Выберите хотя бы один раздел')
+      return
+    }
+    setBusy(true)
+    setEditError(null)
+    try {
+      await updateLkAdmin(editing.id, {
+        fullName: editFullName.trim(),
+        sections: editSections,
+        ...(editPassword.trim() ? { password: editPassword.trim() } : {}),
+      })
+      closeEdit()
+      await load()
+    } catch (err) {
+      setEditError(err instanceof ApiError ? err.message : 'Не удалось сохранить изменения')
     } finally {
       setBusy(false)
     }
@@ -153,23 +227,7 @@ export function AdminLkAdminsPage() {
               />
             </label>
           </div>
-          <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-            <legend className={styles.cardMeta} style={{ marginBottom: '0.5rem' }}>
-              Доступ к разделам
-            </legend>
-            <div className={styles.formGrid}>
-              {ALL_SECTIONS.map((section) => (
-                <label key={section} className={styles.checkRow}>
-                  <input
-                    type="checkbox"
-                    checked={sections.includes(section)}
-                    onChange={() => toggleSection(section)}
-                  />
-                  {LK_ADMIN_SECTION_LABELS[section]}
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <SectionCheckboxes value={sections} onChange={setSections} disabled={busy} />
           {formError ? <p className={styles.error}>{formError}</p> : null}
           <div className={styles.footerActions}>
             <Button type="submit" disabled={busy || sections.length === 0}>
@@ -178,6 +236,49 @@ export function AdminLkAdminsPage() {
           </div>
         </form>
       </div>
+
+      {editing ? (
+        <div className={styles.card} style={{ marginBottom: '1.25rem' }}>
+          <h2 className={styles.cardTitle}>Права: {editing.username}</h2>
+          <p className={styles.cardMeta}>
+            Можно изменить ФИО, доступы к разделам и пароль. Логин не меняется.
+          </p>
+          <form className={styles.formGrid} onSubmit={onSaveEdit}>
+            <label className={styles.label}>
+              ФИО
+              <input
+                className={styles.input}
+                value={editFullName}
+                onChange={(e) => setEditFullName(e.target.value)}
+                required
+                autoComplete="name"
+              />
+            </label>
+            <label className={styles.label}>
+              Новый пароль (необязательно)
+              <input
+                className={styles.input}
+                type="password"
+                value={editPassword}
+                onChange={(e) => setEditPassword(e.target.value)}
+                minLength={6}
+                autoComplete="new-password"
+                placeholder="Оставьте пустым, чтобы не менять"
+              />
+            </label>
+            <SectionCheckboxes value={editSections} onChange={setEditSections} disabled={busy} />
+            {editError ? <p className={styles.error}>{editError}</p> : null}
+            <div className={styles.footerActions}>
+              <Button type="button" disabled={busy} onClick={closeEdit}>
+                Отмена
+              </Button>
+              <Button type="submit" disabled={busy || editSections.length === 0}>
+                {busy ? 'Сохранение…' : 'Сохранить'}
+              </Button>
+            </div>
+          </form>
+        </div>
+      ) : null}
 
       <div className={styles.usersCard}>
         <h2 className={styles.chartTitle}>Все пользователи ({items.length})</h2>
@@ -212,15 +313,27 @@ export function AdminLkAdminsPage() {
                   <td>{formatCreatedAt(user.createdAt)}</td>
                   <td>
                     {!user.superAdmin ? (
-                      <button
-                        type="button"
-                        className={styles.logoutBtn}
-                        disabled={busy}
-                        onClick={() => void onToggleActive(user)}
-                      >
-                        {user.active ? 'Отключить' : 'Включить'}
-                      </button>
-                    ) : null}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <button
+                          type="button"
+                          className={styles.logoutBtn}
+                          disabled={busy}
+                          onClick={() => openEdit(user)}
+                        >
+                          Доступы
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.logoutBtn}
+                          disabled={busy}
+                          onClick={() => void onToggleActive(user)}
+                        >
+                          {user.active ? 'Отключить' : 'Включить'}
+                        </button>
+                      </div>
+                    ) : (
+                      <span className={styles.cardMeta}>все разделы</span>
+                    )}
                   </td>
                 </tr>
               ))}
