@@ -3,141 +3,45 @@
   isolation: isolate;
   display: flex;
   align-items: center;
-  gap: 20px;
   width: 100%;
   box-sizing: border-box;
-  height: calc(var(--profile-hero-avatar-size, 9rem) * 0.75 + 1.25rem);
-  min-height: 118px;
-  padding: 18px 22px;
-  overflow: visible;
-  border-radius: 14px;
-  border: 1px solid rgba(93, 45, 164, 0.1);
+  min-height: 0;
+  padding: 10px 16px;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid rgba(93, 45, 164, 0.12);
   font-family: var(--font-family);
   background: linear-gradient(
-    100deg,
-    rgba(109, 68, 187, 0.12) 0%,
-    rgba(151, 112, 218, 0.075) 24%,
-    rgba(248, 246, 253, 0.96) 52%,
-    rgba(244, 242, 252, 0.96) 70%,
-    rgba(144, 123, 205, 0.1) 100%
+    105deg,
+    rgba(109, 68, 187, 0.11) 0%,
+    rgba(151, 112, 218, 0.06) 28%,
+    rgba(248, 246, 253, 0.98) 55%,
+    rgba(244, 242, 252, 0.98) 78%,
+    rgba(144, 123, 205, 0.09) 100%
   );
-  box-shadow: 0 3px 12px rgba(40, 25, 65, 0.03);
+  box-shadow: 0 2px 8px rgba(40, 25, 65, 0.03);
 }
 
 .bannerWithBadge {
-  padding-right: clamp(9rem, 22vw, 13.5rem);
-}
-
-.bannerNoEmblem {
-  background: linear-gradient(
-    105deg,
-    rgba(109, 68, 187, 0.1) 0%,
-    rgba(248, 246, 253, 0.98) 38%,
-    rgba(244, 242, 252, 0.98) 72%,
-    rgba(144, 123, 205, 0.09) 100%
-  );
+  padding-right: clamp(8rem, 20vw, 12rem);
 }
 
 .backgroundGlow {
   position: absolute;
   z-index: 0;
-  width: calc(var(--profile-hero-avatar-size, 9rem) * 0.95);
-  height: calc(var(--profile-hero-avatar-size, 9rem) * 0.78);
-  left: -18px;
+  width: 140px;
+  height: 90px;
+  left: -20px;
   top: 50%;
   transform: translateY(-50%);
   background: radial-gradient(
-    circle at 52% 50%,
-    rgba(255, 220, 132, 0.28) 0%,
-    rgba(255, 223, 153, 0.18) 16%,
-    rgba(195, 148, 236, 0.18) 35%,
-    rgba(147, 94, 215, 0.12) 53%,
-    rgba(119, 70, 194, 0.05) 66%,
-    transparent 76%
-  );
-  filter: blur(10px);
-  pointer-events: none;
-}
-
-.bannerNoEmblem .backgroundGlow {
-  width: 160px;
-  height: 110px;
-  left: -8px;
-  background: radial-gradient(
     circle at 40% 50%,
-    rgba(147, 94, 215, 0.16) 0%,
-    rgba(119, 70, 194, 0.08) 45%,
+    rgba(147, 94, 215, 0.18) 0%,
+    rgba(119, 70, 194, 0.09) 42%,
     transparent 72%
   );
   filter: blur(14px);
-}
-
-.emblem {
-  position: relative;
-  z-index: 2;
-  flex-shrink: 0;
-  align-self: center;
-  width: auto;
-  height: 120%;
-  aspect-ratio: 1;
-  max-height: calc(var(--profile-hero-avatar-size, 9rem) * 0.9);
-  min-height: 6.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.emblem::before {
-  content: '';
-  position: absolute;
-  inset: -12%;
-  z-index: 0;
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(255, 213, 105, 0.38) 0%,
-    rgba(255, 223, 153, 0.22) 22%,
-    rgba(195, 148, 236, 0.14) 48%,
-    transparent 72%
-  );
-  filter: blur(8px);
   pointer-events: none;
-}
-
-.emblemImg {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: transparent;
-  filter:
-    drop-shadow(0 0 10px rgba(255, 200, 80, 0.32))
-    drop-shadow(0 0 18px rgba(255, 213, 105, 0.14))
-    drop-shadow(0 3px 7px rgba(82, 42, 145, 0.1));
-}
-
-.mark {
-  position: relative;
-  z-index: 2;
-  flex-shrink: 0;
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(145deg, rgba(93, 45, 164, 0.12), rgba(93, 45, 164, 0.04));
-  border: 1px solid rgba(93, 45, 164, 0.16);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
-}
-
-.markLetter {
-  font-size: 1.35rem;
-  font-weight: 700;
-  line-height: 1;
-  color: #5b2ca0;
-  letter-spacing: -0.02em;
 }
 
 .content {
@@ -148,27 +52,28 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  gap: 1px;
 }
 
 .label {
-  margin-bottom: 3px;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.3;
   font-weight: 500;
+  letter-spacing: 0.01em;
   color: #756e83;
 }
 
 .title {
-  margin: 0 0 3px;
-  font-size: 21px;
-  line-height: 1.25;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
   font-weight: 700;
   color: #211832;
 }
 
 .university {
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 1.35;
   font-weight: 400;
   color: #756e83;
 }
@@ -177,20 +82,20 @@
   position: absolute;
   z-index: 2;
   top: 50%;
-  right: 22px;
+  right: 14px;
   transform: translateY(-50%);
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   width: max-content;
-  max-width: min(12.5rem, 36%);
-  padding: 6px 10px;
+  max-width: min(11.5rem, 38%);
+  padding: 4px 9px;
   border-radius: 999px;
-  background: rgba(93, 45, 164, 0.06);
+  background: rgba(93, 45, 164, 0.07);
   border: 1px solid rgba(93, 45, 164, 0.14);
   color: #5b2ca0;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.25;
   font-weight: 600;
   white-space: normal;
@@ -198,86 +103,41 @@
 }
 
 .badgeDot {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: #5b2ca0;
   flex: 0 0 auto;
 }
 
-@media (max-width: 1023px) {
-  .banner {
-    height: calc(var(--profile-hero-avatar-size, 9rem) * 0.68 + 1rem);
-    min-height: 108px;
-  }
-}
-
 @media (max-width: 599px) {
   .banner,
   .bannerWithBadge {
-    height: auto;
-    min-height: 0;
-    padding: 14px 16px;
-    padding-right: 16px;
-    gap: 12px 14px;
-    align-items: center;
-    background: linear-gradient(
-      100deg,
-      rgba(109, 68, 187, 0.1) 0%,
-      rgba(248, 246, 253, 0.96) 52%,
-      rgba(144, 123, 205, 0.08) 100%
-    );
+    padding: 10px 14px;
+    padding-right: 14px;
   }
 
   .backgroundGlow {
-    width: 130px;
-    height: 120px;
+    width: 110px;
+    height: 80px;
     left: -24px;
-    opacity: 0.8;
-  }
-
-  .bannerNoEmblem .backgroundGlow {
-    width: 120px;
-    height: 100px;
-    left: -16px;
-  }
-
-  .emblem {
-    height: auto;
-    min-height: 4.75rem;
-    max-height: 5.25rem;
-  }
-
-  .mark {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 10px;
-  }
-
-  .markLetter {
-    font-size: 1.15rem;
-  }
-
-  .content {
-    flex: 1 1 auto;
-    gap: 2px;
+    opacity: 0.85;
   }
 
   .title {
-    font-size: 17px;
+    font-size: 14px;
   }
 
   .university {
-    font-size: 12px;
+    font-size: 11px;
   }
 
-  /* Компактный чип в потоке текста — без отдельной полосы */
   .badge {
     position: static;
     transform: none;
-    margin-top: 8px;
+    margin-top: 6px;
     max-width: 100%;
-    padding: 5px 9px;
-    font-size: 11px;
+    padding: 4px 8px;
+    font-size: 10px;
   }
 }
