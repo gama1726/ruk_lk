@@ -327,7 +327,7 @@ public class PassPhotoService {
         }
 
         try {
-            percoClient.uploadPassPhoto(zachetka, jpeg);
+            percoClient.uploadPassPhoto(zachetka, jpeg, submission.getStudentFullName());
             submission.setStatus(PassPhotoStatus.PERCO_SYNCED);
             submission.setPercoSyncedAt(Instant.now());
             submission.setPercoError(null);
@@ -399,7 +399,7 @@ public class PassPhotoService {
         byte[] jpeg = storageService.read(submission.getStoredFileName());
         String zachetka = submission.getZachetka() != null ? submission.getZachetka() : submission.getStudentId();
         try {
-            percoClient.uploadPassPhoto(zachetka, jpeg);
+            percoClient.uploadPassPhoto(zachetka, jpeg, submission.getStudentFullName());
             submission.setStatus(PassPhotoStatus.PERCO_SYNCED);
             submission.setPercoSyncedAt(Instant.now());
             submission.setPercoError(null);

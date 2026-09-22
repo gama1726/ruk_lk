@@ -71,3 +71,14 @@ app.lk-admin.full-name=Супер-администратор ЛК
 # app.start.exchange-secret=CHANGE_ME
 # app.start.exchange-path=/api/internal/lk/exchange
 # app.start.callback-path=/account/lk/callback
+
+# Perco-Web: автосоздание карточки, если по зачётке нет (нужны position/work-schedule id из вашей Perco)
+# app.perco.enabled=true
+# app.perco.base-url=
+# app.perco.login=
+# app.perco.password=
+# app.perco.create-if-missing=true
+# app.perco.division-id=13
+# app.perco.access-template-id=2
+# app.perco.position-id=
+# app.perco.work-schedule-id=

@@ -9,8 +9,10 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.imageio.ImageIO;
 import javax.net.ssl.SSLContext;
@@ -60,7 +62,7 @@ public class HttpPercoClient implements PercoClient {
     }
 
     @Override
-    public void uploadPassPhoto(String zachetka, byte[] jpeg) throws PercoException {
+    public void uploadPassPhoto(String zachetka, byte[] jpeg, String fullName) throws PercoException {
         if (zachetka == null || zachetka.isBlank()) {
             throw new PercoException("Не указан номер зачетной книжки для Perco-Web");
         }
@@ -70,8 +72,21 @@ public class HttpPercoClient implements PercoClient {
 
         authenticate();
 
-        PercoStaffMember staff = findStaffByZachetka(zachetka.trim());
-        String staffId = requireStaffId(staff, zachetka.trim());
+        String tabel = zachetka.trim();
+        Optional<PercoStaffMember> existing = findStaffByZachetka(tabel);
+        PercoStaffMember staff;
+        String staffId;
+        if (existing.isPresent()) {
+            staff = existing.get();
+            staffId = requireStaffId(staff, tabel);
+        } else if (properties.createIfMissing()) {
+            staffId = createStaff(tabel, fullName);
+            staff = null;
+            log.info("Perco: создана карточка staffId={} для зачетной книжки {}", staffId, tabel);
+        } else {
+            throw new PercoException("Студент не найден в Perco-Web по зачетной книжке " + tabel);
+        }
+
         byte[] resized = resizeToPercoFormat(jpeg);
         String base64 = Base64.getEncoder().encodeToString(resized);
         String photoWithPrefix = "data:image/jpeg;base64," + base64;
@@ -79,7 +94,9 @@ public class HttpPercoClient implements PercoClient {
         updateStaffPhoto(staffId, photoWithPrefix);
         updateBiometricPhoto(staffId, base64);
 
-        maybeUpdateDivisionAndAccess(staff, staffId);
+        if (staff != null) {
+            maybeUpdateDivisionAndAccess(staff, staffId);
+        }
 
         log.info("Фото загружено в Perco-Web для зачетной книжки {}, staffId={}", zachetka, staffId);
     }
@@ -100,7 +117,8 @@ public class HttpPercoClient implements PercoClient {
         authenticate();
 
         // УРВ: /taReports/eventsTable — один сотрудник + один день (не accessReports!).
-        PercoStaffMember staff = findStaffByZachetka(tabel);
+        PercoStaffMember staff = findStaffByZachetka(tabel)
+            .orElseThrow(() -> new PercoException("Студент не найден в Perco-Web по зачетной книжке " + tabel));
         String staffId = requireStaffId(staff, tabel);
 
         List<PercoAccessEvent> all = new ArrayList<>();
@@ -420,7 +438,7 @@ public class HttpPercoClient implements PercoClient {
         }
     }
 
-    private PercoStaffMember findStaffByZachetka(String zachetka) throws PercoException {
+    private Optional<PercoStaffMember> findStaffByZachetka(String zachetka) throws PercoException {
         // list?searchString=номер не ищет по табельному; нужен staff/table + filters
         String filtersJson = tabelNumberFilter(zachetka);
 
@@ -446,7 +464,7 @@ public class HttpPercoClient implements PercoClient {
 
         List<PercoStaffMember> rows = table == null || table.rows() == null ? List.of() : table.rows();
         if (rows.isEmpty()) {
-            throw new PercoException("Студент не найден в Perco-Web по зачетной книжке " + zachetka);
+            return Optional.empty();
         }
 
         // filters ищет по вхождению — оставляем только точное совпадение табельного
@@ -455,7 +473,7 @@ public class HttpPercoClient implements PercoClient {
             .toList();
 
         if (exact.isEmpty()) {
-            throw new PercoException("Студент не найден в Perco-Web по зачетной книжке " + zachetka);
+            return Optional.empty();
         }
         if (exact.size() > 1) {
             throw new PercoException(
@@ -463,8 +481,88 @@ public class HttpPercoClient implements PercoClient {
             );
         }
 
-        return exact.getFirst();
+        return Optional.of(exact.getFirst());
     }
+
+    /**
+     * Создание карточки: {@code PUT /api/users/staff} (офики PERCo api_examples).
+     */
+    private String createStaff(String tabelNumber, String fullName) throws PercoException {
+        if (fullName == null || fullName.isBlank()) {
+            throw new PercoException(
+                "Студент не найден в Perco-Web, а для создания карточки нет ФИО"
+            );
+        }
+        FioParts fio = splitFio(fullName);
+        if (fio.lastName().isBlank()) {
+            throw new PercoException("Не удалось разобрать ФИО для создания карточки в Perco-Web");
+        }
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("last_name", fio.lastName());
+        body.put("first_name", fio.firstName());
+        if (!fio.middleName().isBlank()) {
+            body.put("middle_name", fio.middleName());
+        }
+        body.put("tabel_number", tabelNumber);
+        body.put("hiring_date", LocalDate.now().toString());
+        if (properties.divisionId() != null) {
+            body.put("division", properties.divisionId());
+        }
+        if (properties.accessTemplateId() != null) {
+            body.put("access_template", List.of(properties.accessTemplateId()));
+        }
+        if (properties.positionId() != null) {
+            body.put("position", properties.positionId());
+        }
+        if (properties.workScheduleId() != null) {
+            body.put("work_schedule", properties.workScheduleId());
+        }
+
+        try {
+            PercoStaffCreateResponse response = restClient.put()
+                .uri(uriBuilder -> uriBuilder
+                    .path("/api/users/staff")
+                    .queryParam("token", token)
+                    .build())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(PercoStaffCreateResponse.class);
+            if (response == null || response.id() == null) {
+                String err = response != null && response.error() != null ? response.error() : "пустой ответ";
+                throw new PercoException("Не удалось создать карточку в Perco-Web: " + err);
+            }
+            return String.valueOf(response.id());
+        } catch (PercoException e) {
+            throw e;
+        } catch (RestClientResponseException e) {
+            log.error("Perco create staff HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new PercoException(
+                "Не удалось создать карточку в Perco-Web (HTTP " + e.getStatusCode().value() + ")",
+                e
+            );
+        } catch (ResourceAccessException e) {
+            log.error("Perco create staff I/O: {}", e.getMessage());
+            throw new PercoException("Не удалось подключиться к Perco-Web: " + rootMessage(e), e);
+        }
+    }
+
+    /** Фамилия Имя Отчество → поля Perco. */
+    static FioParts splitFio(String fullName) {
+        String normalized = fullName == null ? "" : fullName.trim().replaceAll("\\s+", " ");
+        if (normalized.isEmpty()) {
+            return new FioParts("", "", "");
+        }
+        String[] parts = normalized.split(" ");
+        String last = parts[0];
+        String first = parts.length > 1 ? parts[1] : "";
+        String middle = parts.length > 2 ? String.join(" ", List.of(parts).subList(2, parts.length)) : "";
+        return new FioParts(last, first, middle);
+    }
+
+    record FioParts(String lastName, String firstName, String middleName) {}
 
     private static String escapeJson(String value) {
         return value

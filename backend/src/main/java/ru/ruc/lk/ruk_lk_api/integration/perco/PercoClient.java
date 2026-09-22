@@ -7,11 +7,13 @@ public interface PercoClient {
 
     /**
      * Загрузка фото в Perco-Web после одобрения администратором.
+     * Если карточки с табельным = зачётка нет — создаёт её (ФИО из заявки).
      *
      * @param zachetka идентификатор студента в Perco (зачетная книжка / табельный)
      * @param jpeg нормализованное фото
+     * @param fullName ФИО для создания карточки, если сотрудника ещё нет
      */
-    void uploadPassPhoto(String zachetka, byte[] jpeg) throws PercoException;
+    void uploadPassPhoto(String zachetka, byte[] jpeg, String fullName) throws PercoException;
 
     /**
      * События проходов через УРВ: {@code staff/table} → {@code /taReports/eventsTable} по дням.

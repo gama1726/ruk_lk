@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 public class LoggingPercoClient implements PercoClient {
 
     @Override
-    public void uploadPassPhoto(String zachetka, byte[] jpeg) {
+    public void uploadPassPhoto(String zachetka, byte[] jpeg, String fullName) {
         // Perco-Web не настроен — считаем успехом для dev; админ видит статус PERCO_SYNCED.
     }
 

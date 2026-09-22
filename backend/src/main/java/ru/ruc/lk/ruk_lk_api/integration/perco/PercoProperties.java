@@ -1,6 +1,7 @@
 package ru.ruc.lk.ruk_lk_api.integration.perco;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 
 @ConfigurationProperties(prefix = "app.perco")
 public record PercoProperties(
@@ -11,6 +12,12 @@ public record PercoProperties(
     boolean trustSelfSigned,
     Integer divisionId,
     Integer accessTemplateId,
+    /** Должность при создании карточки (PUT /api/users/staff). */
+    Integer positionId,
+    /** График работы при создании карточки. */
+    Integer workScheduleId,
+    /** Создавать карточку, если по зачётке не найдена. */
+    @DefaultValue("true") boolean createIfMissing,
     int photoWidth,
     int photoHeight,
     /** Имя зоны «улица» в Perco для IN/OUT. */
