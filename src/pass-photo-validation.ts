@@ -1,5 +1,6 @@
 /**
  * @file Проверка фото пропуска до отправки на сервер (формат, вес, разрешение).
+ * HEIC/HEIF конвертируются в JPEG в браузере перед проверкой и upload.
  */
 
 export type ValidationSeverity = 'FAIL' | 'WARN'
@@ -15,22 +16,25 @@ export type ClientValidationResult = {
   issues: ClientValidationIssue[]
 }
 
-export const PASS_PHOTO_FORMAT_HINT = 'JPG, JPEG, BMP или PNG'
+export const PASS_PHOTO_FORMAT_HINT = 'JPG, JPEG, PNG, BMP или HEIC'
 
-/** Лимит одного файла (как app.pass-photo.max-size-bytes). */
-export const PASS_PHOTO_MAX_BYTES = 2 * 1024 * 1024
+/** Лимит одного файла на загрузку (как app.pass-photo.max-size-bytes = 50 МБ). */
+export const PASS_PHOTO_MAX_BYTES = 50 * 1024 * 1024
 
 /**
  * Лимит всего multipart-запроса (фото + студенческий + overhead).
  * Должен быть ≤ spring.servlet.multipart.max-request-size.
  */
-export const PASS_PHOTO_MAX_REQUEST_BYTES = 8 * 1024 * 1024
+export const PASS_PHOTO_MAX_REQUEST_BYTES = 105 * 1024 * 1024
 
 export const PASS_PHOTO_MIN_WIDTH = 400
 
 export const PASS_PHOTO_MIN_HEIGHT = 500
 
-const PASS_PHOTO_EXTENSIONS = ['.jpg', '.jpeg', '.bmp', '.png'] as const
+export const PASS_PHOTO_ACCEPT =
+  'image/jpeg,image/jpg,image/png,image/bmp,image/x-ms-bmp,image/heic,image/heif,.jpg,.jpeg,.bmp,.png,.heic,.heif'
+
+const PASS_PHOTO_EXTENSIONS = ['.jpg', '.jpeg', '.bmp', '.png', '.heic', '.heif'] as const
 
 const PASS_PHOTO_MIME_PREFIXES = [
   'image/jpeg',
@@ -38,12 +42,22 @@ const PASS_PHOTO_MIME_PREFIXES = [
   'image/png',
   'image/bmp',
   'image/x-ms-bmp',
+  'image/heic',
+  'image/heif',
 ] as const
 
 export function formatFileSizeMb(bytes: number): string {
   const mb = bytes / (1024 * 1024)
   if (mb < 0.1) return mb.toFixed(2)
+  if (mb >= 10) return mb.toFixed(0)
   return mb.toFixed(1)
+}
+
+export function isHeicLikeFile(file: File): boolean {
+  const name = file.name.toLowerCase()
+  if (name.endsWith('.heic') || name.endsWith('.heif')) return true
+  const type = file.type.toLowerCase()
+  return type.includes('heic') || type.includes('heif')
 }
 
 export function isSupportedPassPhotoFormat(file: File): boolean {
@@ -54,6 +68,33 @@ export function isSupportedPassPhotoFormat(file: File): boolean {
   const type = file.type.toLowerCase()
   if (!type) return false
   return PASS_PHOTO_MIME_PREFIXES.some((prefix) => type === prefix || type.startsWith(prefix))
+}
+
+/**
+ * HEIC/HEIF → JPEG File; остальные файлы без изменений.
+ */
+export async function preparePassPhotoFile(file: File): Promise<File> {
+  if (!isHeicLikeFile(file)) {
+    return file
+  }
+  try {
+    const heic2any = (await import('heic2any')).default
+    const converted = await heic2any({
+      blob: file,
+      toType: 'image/jpeg',
+      quality: 0.92,
+    })
+    const blob = Array.isArray(converted) ? converted[0] : converted
+    if (!(blob instanceof Blob)) {
+      throw new Error('empty')
+    }
+    const base = file.name.replace(/\.(heic|heif)$/i, '') || 'photo'
+    return new File([blob], `${base}.jpg`, { type: 'image/jpeg', lastModified: Date.now() })
+  } catch {
+    throw new Error(
+      'Не удалось открыть HEIC. Сохраните фото как JPG в «Фото» и выберите снова.',
+    )
+  }
 }
 
 function loadImageSize(file: File): Promise<{ width: number; height: number } | null> {
@@ -74,15 +115,18 @@ function loadImageSize(file: File): Promise<{ width: number; height: number } | 
 
 /**
  * Формат, вес файла и минимальное разрешение — до запроса на сервер.
+ * Передавайте уже подготовленный файл ({@link preparePassPhotoFile}).
  */
 export async function validatePassPhotoClient(file: File): Promise<ClientValidationResult> {
   const issues: ClientValidationIssue[] = []
 
-  if (!isSupportedPassPhotoFormat(file)) {
+  if (!isSupportedPassPhotoFormat(file) || isHeicLikeFile(file)) {
     issues.push({
       code: 'INVALID_FORMAT',
       severity: 'FAIL',
-      message: `Используйте формат ${PASS_PHOTO_FORMAT_HINT}.`,
+      message: isHeicLikeFile(file)
+        ? 'Не удалось конвертировать HEIC. Сохраните как JPG и выберите снова.'
+        : `Используйте формат ${PASS_PHOTO_FORMAT_HINT}.`,
     })
     return { ok: false, issues }
   }
@@ -91,7 +135,7 @@ export async function validatePassPhotoClient(file: File): Promise<ClientValidat
     issues.push({
       code: 'FILE_TOO_LARGE',
       severity: 'FAIL',
-      message: `Фото лица больше 2 МБ (сейчас ${formatFileSizeMb(file.size)} МБ). Сожмите файл и выберите снова.`,
+      message: `Фото лица больше ${formatFileSizeMb(PASS_PHOTO_MAX_BYTES)} МБ (сейчас ${formatFileSizeMb(file.size)} МБ).`,
     })
     return { ok: false, issues }
   }
@@ -128,11 +172,13 @@ export const ID_CARD_MIN_HEIGHT = 200
 export async function validateIdCardClient(file: File): Promise<ClientValidationResult> {
   const issues: ClientValidationIssue[] = []
 
-  if (!isSupportedPassPhotoFormat(file)) {
+  if (!isSupportedPassPhotoFormat(file) || isHeicLikeFile(file)) {
     issues.push({
       code: 'INVALID_FORMAT',
       severity: 'FAIL',
-      message: `Используйте формат ${PASS_PHOTO_FORMAT_HINT}.`,
+      message: isHeicLikeFile(file)
+        ? 'Не удалось конвертировать HEIC. Сохраните как JPG и выберите снова.'
+        : `Используйте формат ${PASS_PHOTO_FORMAT_HINT}.`,
     })
     return { ok: false, issues }
   }
@@ -141,7 +187,7 @@ export async function validateIdCardClient(file: File): Promise<ClientValidation
     issues.push({
       code: 'FILE_TOO_LARGE',
       severity: 'FAIL',
-      message: `Фото студенческого билета больше 2 МБ (сейчас ${formatFileSizeMb(file.size)} МБ). Сожмите файл и выберите снова.`,
+      message: `Фото студенческого билета больше ${formatFileSizeMb(PASS_PHOTO_MAX_BYTES)} МБ (сейчас ${formatFileSizeMb(file.size)} МБ).`,
     })
     return { ok: false, issues }
   }
@@ -180,7 +226,7 @@ export function validatePassPhotoUploadPair(photo: File, idCard: File): ClientVa
           severity: 'FAIL',
           message:
             `Суммарный размер фото и студенческого билета ${formatFileSizeMb(total)} МБ ` +
-            `(лимит ${formatFileSizeMb(PASS_PHOTO_MAX_REQUEST_BYTES)} МБ). Сожмите файлы.`,
+            `(лимит ${formatFileSizeMb(PASS_PHOTO_MAX_REQUEST_BYTES)} МБ).`,
         },
       ],
     }

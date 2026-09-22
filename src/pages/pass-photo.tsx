@@ -14,10 +14,12 @@ import {
   type PassPhotoSubmission,
 } from '@/pass-photo'
 import {
+  PASS_PHOTO_ACCEPT,
   PASS_PHOTO_FORMAT_HINT,
   PASS_PHOTO_MAX_BYTES,
   PASS_PHOTO_MIN_HEIGHT,
   PASS_PHOTO_MIN_WIDTH,
+  preparePassPhotoFile,
   validateIdCardClient,
   validatePassPhotoClient,
   validatePassPhotoUploadPair,
@@ -94,18 +96,19 @@ export function PassPhoto() {
 
     if (!picked) return
 
-    const url = URL.createObjectURL(picked)
-    setPreviewUrl(url)
-
     setChecking(true)
     try {
-      const clientResult = await validatePassPhotoClient(picked)
+      const prepared = await preparePassPhotoFile(picked)
+      const url = URL.createObjectURL(prepared)
+      setPreviewUrl(url)
+
+      const clientResult = await validatePassPhotoClient(prepared)
       if (!clientResult.ok) {
         setIssues(clientResult.issues)
         return
       }
 
-      const result = await validatePassPhoto(picked)
+      const result = await validatePassPhoto(prepared)
       const serverIssues: ClientValidationIssue[] = result.issues.map((i) => ({
         code: i.code ?? 'SERVER',
         severity: (i.severity ?? 'FAIL') as 'FAIL' | 'WARN',
@@ -114,7 +117,7 @@ export function PassPhoto() {
       setIssues(serverIssues)
       setClientOk(result.ok)
       if (result.ok) {
-        setFile(picked)
+        setFile(prepared)
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось проверить фото')
@@ -133,16 +136,17 @@ export function PassPhoto() {
 
     if (!picked) return
 
-    const url = URL.createObjectURL(picked)
-    setIdCardPreviewUrl(url)
-
     setIdCardChecking(true)
     try {
-      const clientResult = await validateIdCardClient(picked)
+      const prepared = await preparePassPhotoFile(picked)
+      const url = URL.createObjectURL(prepared)
+      setIdCardPreviewUrl(url)
+
+      const clientResult = await validateIdCardClient(prepared)
       setIdCardIssues(clientResult.issues)
       setIdCardOk(clientResult.ok)
       if (clientResult.ok) {
-        setIdCardFile(picked)
+        setIdCardFile(prepared)
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось проверить фото студенческого билета')
@@ -333,7 +337,7 @@ export function PassPhoto() {
             <input
               ref={inputRef}
               type="file"
-              accept="image/jpeg,image/jpg,image/png,image/bmp,image/x-ms-bmp,.jpg,.jpeg,.bmp,.png"
+              accept={PASS_PHOTO_ACCEPT}
               className={styles.fileInput}
               onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
             />
@@ -381,7 +385,7 @@ export function PassPhoto() {
             <input
               ref={idCardInputRef}
               type="file"
-              accept="image/jpeg,image/jpg,image/png,image/bmp,image/x-ms-bmp,.jpg,.jpeg,.bmp,.png"
+              accept={PASS_PHOTO_ACCEPT}
               className={styles.fileInput}
               onChange={(e) => void onPickIdCard(e.target.files?.[0] ?? null)}
             />

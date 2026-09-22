@@ -161,11 +161,11 @@ public class PassPhotoService {
         }
 
         byte[] storedBytes = validationService.normalizeForStorage(bytes, contentType);
-        if (storedBytes.length > validationService.maxSizeBytes()) {
+        if (storedBytes.length > validationService.storageMaxBytes()) {
             throw new PassPhotoValidationException(List.of(new PassPhotoIssue(
                 PassPhotoIssueCode.FILE_TOO_LARGE,
                 PassPhotoIssueSeverity.FAIL,
-                "Файл слишком большой. Максимум 2 МБ."
+                "Не удалось сжать фото до допустимого размера. Попробуйте другое изображение."
             )));
         }
 
@@ -173,11 +173,11 @@ public class PassPhotoService {
             idCardBytes,
             idCardFile.getContentType()
         );
-        if (storedIdCard.length > validationService.maxSizeBytes()) {
+        if (storedIdCard.length > validationService.storageMaxBytes()) {
             throw new PassPhotoValidationException(List.of(new PassPhotoIssue(
                 PassPhotoIssueCode.FILE_TOO_LARGE,
                 PassPhotoIssueSeverity.FAIL,
-                "Файл студенческого билета слишком большой. Максимум 2 МБ."
+                "Не удалось сжать фото студенческого билета. Попробуйте другое изображение."
             )));
         }
 

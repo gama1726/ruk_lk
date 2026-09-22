@@ -229,11 +229,13 @@ export function AdminLkAbsenceReportPage() {
       <div className={styles.toolbar}>
         <h1 className={styles.pageTitle}>Отчёт отсутствующих</h1>
       </div>
-      <p className={styles.statsHint}>
-        Казань (ZKBio): массовые проходы за день + зачётка (emp_code или nickname длины 6) +
-        профиль/группа из 1С + очные пары. В колонке контактов — телефоны родителей из 1С.
-        Отчёт строится в фоне и сохраняется — можно открыть из списка ниже.
-      </p>
+      {includeSummary ? (
+        <p className={styles.statsHint}>
+          Казань (ZKBio): массовые проходы за день + зачётка (emp_code или nickname длины 6) +
+          профиль/группа из 1С + очные пары. В колонке контактов — телефоны родителей из 1С.
+          Отчёт строится в фоне и сохраняется — можно открыть из списка ниже.
+        </p>
+      ) : null}
 
       <form className={styles.card} style={{ marginBottom: '1.25rem' }} onSubmit={onBuild}>
         <div className={styles.formGrid}>

@@ -19,7 +19,7 @@ import ru.ruc.lk.ruk_lk_api.passphoto.dto.PassPhotoIssueDto;
 public class ApiExceptionHandler {
 
     private static final String UPLOAD_TOO_LARGE =
-        "Файл слишком большой. Одно фото — до 2 МБ, фото и студенческий билет вместе — до 8 МБ. Сожмите изображение и попробуйте снова.";
+        "Файл слишком большой. Одно фото — до 50 МБ, фото и студенческий билет вместе — до 105 МБ.";
 
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, String>> handleResponseStatus(ResponseStatusException ex) {

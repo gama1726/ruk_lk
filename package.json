@@ -11,6 +11,7 @@
     "emblems:process": "node scripts/process-branch-emblems.mjs"
   },
   "dependencies": {
+    "heic2any": "^0.0.4",
     "lucide-react": "^1.26.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
