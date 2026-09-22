@@ -1,14 +1,9 @@
 /**
- * @file Клиент API редактора календаря мероприятий.
+ * @file Клиент API разделов мероприятий / нагрузки / статистики в админке ЛК.
  */
 
 import { apiDelete, apiGet, apiPost, apiPut } from '@/apiClient'
-import type { StudentAttendanceDto } from '@/attendance'
 import type { CampusEventDto } from '@/events'
-
-export type EventsAdminMe = {
-  username: string
-}
 
 export type CampusEventWrite = {
   /** HEAD | KAZAN */
@@ -18,18 +13,6 @@ export type CampusEventWrite = {
   startDate: string
   endDate: string
   published: boolean
-}
-
-export async function eventsAdminLogin(username: string, password: string): Promise<EventsAdminMe> {
-  return apiPost<EventsAdminMe>('/api/admin/events/auth/login', { username, password })
-}
-
-export async function eventsAdminLogout(): Promise<void> {
-  await apiPost<{ ok: string }>('/api/admin/events/auth/logout', {})
-}
-
-export async function eventsAdminMe(): Promise<EventsAdminMe> {
-  return apiGet<EventsAdminMe>('/api/admin/events/auth/me')
 }
 
 export async function listAdminEvents(campus?: string): Promise<CampusEventDto[]> {
@@ -130,22 +113,3 @@ export async function fetchEventsAdminLoad(): Promise<ApiLoadSnapshot> {
 export async function resetEventsAdminLoad(): Promise<ApiLoadSnapshot> {
   return apiPost<ApiLoadSnapshot>('/api/admin/events/load/reset', {})
 }
-
-export type AdminAttendanceDto = StudentAttendanceDto & {
-  studentId: string
-  fullName: string
-  group: string
-  faculty: string
-  branch: string
-  branchCampus: boolean
-}
-
-export async function fetchAdminAttendance(
-  studentId: string,
-  from: string,
-  to: string,
-): Promise<AdminAttendanceDto> {
-  const params = new URLSearchParams({ studentId, from, to })
-  return apiGet<AdminAttendanceDto>(`/api/admin/events/attendance?${params}`)
-}
-

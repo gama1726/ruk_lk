@@ -72,7 +72,7 @@ export function AdminEventsPage() {
       setItems(await listAdminEvents(campus))
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        navigate(paths.adminEventsLogin, { replace: true })
+        navigate(paths.adminLkLogin, { replace: true })
         return
       }
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить мероприятия')

@@ -38,7 +38,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/max/webhook").permitAll()
                 .requestMatchers("/api/admin/auth/**").permitAll()
-                .requestMatchers("/api/admin/events/auth/**").permitAll()
                 .requestMatchers("/api/admin/lk/auth/**").permitAll()
                 .requestMatchers("/api/admin/**").permitAll()
                 .anyRequest().permitAll()

@@ -4,5 +4,8 @@ package ru.ruc.lk.ruk_lk_api.lkadmin;
 public enum LkAdminSection {
     ATTENDANCE,
     ABSENCE_REPORT,
+    EVENTS,
+    API_LOAD,
+    CABINET_STATS,
     ADMINS
 }

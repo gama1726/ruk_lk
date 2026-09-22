@@ -5,7 +5,13 @@
 import { apiGet, apiGetBlob, apiPost, apiPut } from '@/apiClient'
 import type { StudentAttendanceDto } from '@/attendance'
 
-export type LkAdminSection = 'ATTENDANCE' | 'ABSENCE_REPORT' | 'ADMINS'
+export type LkAdminSection =
+  | 'ATTENDANCE'
+  | 'ABSENCE_REPORT'
+  | 'EVENTS'
+  | 'API_LOAD'
+  | 'CABINET_STATS'
+  | 'ADMINS'
 
 export type LkAdminMe = {
   id: string
@@ -93,6 +99,9 @@ export type AbsenceReportSummary = {
 export const LK_ADMIN_SECTION_LABELS: Record<LkAdminSection, string> = {
   ATTENDANCE: 'Посещаемость',
   ABSENCE_REPORT: 'Отчёт отсутствующих',
+  EVENTS: 'Мероприятия',
+  API_LOAD: 'Нагрузка API',
+  CABINET_STATS: 'Пользователи ЛК',
   ADMINS: 'Учётки админки',
 }
 
@@ -174,6 +183,9 @@ export function hasLkSection(me: LkAdminMe | undefined, section: LkAdminSection)
 export function firstAllowedLkPath(me: LkAdminMe): string {
   if (hasLkSection(me, 'ATTENDANCE')) return '/admin/lk/attendance'
   if (hasLkSection(me, 'ABSENCE_REPORT')) return '/admin/lk/absence-report'
+  if (hasLkSection(me, 'EVENTS')) return '/admin/lk/events'
+  if (hasLkSection(me, 'API_LOAD')) return '/admin/lk/load'
+  if (hasLkSection(me, 'CABINET_STATS')) return '/admin/lk/users'
   if (hasLkSection(me, 'ADMINS')) return '/admin/lk/admins'
   return '/admin/lk'
 }

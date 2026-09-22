@@ -27,7 +27,7 @@ export function AdminLkShell({ pageSection, children, username, onLogout }: Prop
             <img src={logo} alt="РУК" className={styles.logo} />
             <div className={styles.brandText}>
               <span className={styles.brandTitle}>Админ-панель ЛК</span>
-              <span className={styles.brandSub}>Посещаемость и учётки</span>
+              <span className={styles.brandSub}>Посещаемость, мероприятия, учётки</span>
             </div>
           </Link>
           <div className={styles.topActions}>

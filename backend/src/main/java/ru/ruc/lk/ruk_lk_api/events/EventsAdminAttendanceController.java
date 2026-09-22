@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.api.student.StudentService;
 import ru.ruc.lk.ruk_lk_api.events.dto.AdminAttendanceResponse;
+import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminAuthService;
+import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminSection;
 
 @RestController
 @RequestMapping("/api/admin/events/attendance")
@@ -29,7 +31,7 @@ public class EventsAdminAttendanceController {
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
-        EventsAdminAuthService.require(session);
+        LkAdminAuthService.requireSection(session, LkAdminSection.ATTENDANCE);
         return studentService.getAttendanceForAdmin(session, studentId, from, to);
     }
 }

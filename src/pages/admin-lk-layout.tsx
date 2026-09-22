@@ -40,6 +40,24 @@ const allNavItems: NavItem[] = [
     section: 'ABSENCE_REPORT',
   },
   {
+    to: paths.adminLkEvents,
+    label: 'Мероприятия',
+    title: 'Мероприятия',
+    section: 'EVENTS',
+  },
+  {
+    to: paths.adminLkApiLoad,
+    label: 'Нагрузка API',
+    title: 'Нагрузка API',
+    section: 'API_LOAD',
+  },
+  {
+    to: paths.adminLkUsers,
+    label: 'Пользователи ЛК',
+    title: 'Пользователи ЛК',
+    section: 'CABINET_STATS',
+  },
+  {
     to: paths.adminLkAdmins,
     label: 'Учётки',
     title: 'Учётки админки',
@@ -90,14 +108,11 @@ export function AdminLkLayout() {
 
   useEffect(() => {
     if (!me) return
-    const onAttendance = location.pathname.startsWith(paths.adminLkAttendance)
-    const onAbsence = location.pathname.startsWith(paths.adminLkAbsenceReport)
-    const onAdmins = location.pathname.startsWith(paths.adminLkAdmins)
-    if (onAttendance && !hasLkSection(me, 'ATTENDANCE')) {
-      navigate(firstAllowedLkPath(me), { replace: true })
-    } else if (onAbsence && !hasLkSection(me, 'ABSENCE_REPORT')) {
-      navigate(firstAllowedLkPath(me), { replace: true })
-    } else if (onAdmins && !hasLkSection(me, 'ADMINS')) {
+    const denied = allNavItems.find(
+      (item) =>
+        location.pathname.startsWith(item.to) && !hasLkSection(me, item.section),
+    )
+    if (denied) {
       navigate(firstAllowedLkPath(me), { replace: true })
     }
   }, [me, location.pathname, navigate])

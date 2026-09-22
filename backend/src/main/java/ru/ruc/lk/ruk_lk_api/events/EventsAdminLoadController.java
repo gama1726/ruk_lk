@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpSession;
+import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminAuthService;
+import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminSection;
 import ru.ruc.lk.ruk_lk_api.metrics.ApiLoadMetrics;
 import ru.ruc.lk.ruk_lk_api.metrics.OutboundLoadMetrics;
 import ru.ruc.lk.ruk_lk_api.metrics.dto.ApiLoadSnapshotDto;
@@ -28,13 +30,13 @@ public class EventsAdminLoadController {
 
     @GetMapping
     public ApiLoadSnapshotDto load(HttpSession session) {
-        EventsAdminAuthService.require(session);
+        LkAdminAuthService.requireSection(session, LkAdminSection.API_LOAD);
         return snapshot();
     }
 
     @PostMapping("/reset")
     public ApiLoadSnapshotDto reset(HttpSession session) {
-        EventsAdminAuthService.require(session);
+        LkAdminAuthService.requireSection(session, LkAdminSection.API_LOAD);
         apiLoadMetrics.resetAll();
         outboundLoadMetrics.resetAll();
         return snapshot();

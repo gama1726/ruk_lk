@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.events.dto.CampusEventDto;
 import ru.ruc.lk.ruk_lk_api.events.dto.CampusEventWriteRequest;
+import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminAuthService;
+import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminSection;
 
 @RestController
 @RequestMapping("/api/admin/events")
@@ -34,7 +36,7 @@ public class EventsAdminCrudController {
         HttpSession session,
         @RequestParam(required = false) String campus
     ) {
-        EventsAdminAuthService.require(session);
+        LkAdminAuthService.requireSection(session, LkAdminSection.EVENTS);
         Optional<EventCampus> filter = Optional.empty();
         if (campus != null && !campus.isBlank()) {
             filter = Optional.of(EventCampusResolver.requireAdminCampus(campus));
@@ -44,7 +46,7 @@ public class EventsAdminCrudController {
 
     @PostMapping
     public CampusEventDto create(@RequestBody CampusEventWriteRequest body, HttpSession session) {
-        EventsAdminAuthService.require(session);
+        LkAdminAuthService.requireSection(session, LkAdminSection.EVENTS);
         return eventService.create(body);
     }
 
@@ -54,13 +56,13 @@ public class EventsAdminCrudController {
         @RequestBody CampusEventWriteRequest body,
         HttpSession session
     ) {
-        EventsAdminAuthService.require(session);
+        LkAdminAuthService.requireSection(session, LkAdminSection.EVENTS);
         return eventService.update(id, body);
     }
 
     @DeleteMapping("/{id}")
     public Map<String, String> delete(@PathVariable UUID id, HttpSession session) {
-        EventsAdminAuthService.require(session);
+        LkAdminAuthService.requireSection(session, LkAdminSection.EVENTS);
         eventService.delete(id);
         return Map.of("ok", "true");
     }

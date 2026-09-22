@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.cabinet.CabinetUserService;
 import ru.ruc.lk.ruk_lk_api.cabinet.dto.CabinetStatsResponse;
+import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminAuthService;
+import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminSection;
 
 @RestController
 @RequestMapping("/api/admin/events/stats")
@@ -28,7 +30,7 @@ public class EventsAdminStatsController {
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
-        EventsAdminAuthService.require(session);
+        LkAdminAuthService.requireSection(session, LkAdminSection.CABINET_STATS);
         return cabinetUserService.stats(from, to);
     }
 }

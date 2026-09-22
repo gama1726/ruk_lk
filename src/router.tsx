@@ -54,12 +54,9 @@ import { EsportsRedirect } from '@/pages/esports-redirect'
 import { StartRedirect } from '@/pages/start-redirect'
 import { AdminPassPhotosHe, AdminPassPhotosSpo } from '@/pages/admin-pass-photos'
 import { AdminPassPhotoLogin } from '@/pages/admin-pass-photo-login'
-import { AdminEventsLogin } from '@/pages/admin-events-login'
-import { AdminEventsLayout } from '@/pages/admin-events-layout'
 import { AdminEventsPage } from '@/pages/admin-events'
 import { AdminEventsLoadPage } from '@/pages/admin-events-load-page'
 import { AdminEventsUsersPage } from '@/pages/admin-events-users-page'
-import { AdminEventsAttendancePage } from '@/pages/admin-events-attendance-page'
 import { AdminLkLogin } from '@/pages/admin-lk-login'
 import { AdminLkLayout } from '@/pages/admin-lk-layout'
 import { AdminLkAttendancePage } from '@/pages/admin-lk-attendance-page'
@@ -168,16 +165,11 @@ export const router = createBrowserRouter([
   { path: paths.adminPassPhotosHeLogin, element: <Navigate to={paths.adminPassPhotosLogin} replace /> },
   { path: paths.adminPassPhotosSpo, element: <AdminPassPhotosSpo /> },
   { path: paths.adminPassPhotosHe, element: <AdminPassPhotosHe /> },
-  { path: paths.adminEventsLogin, element: <AdminEventsLogin /> },
-  {
-    element: <AdminEventsLayout />,
-    children: [
-      { path: paths.adminEvents, element: <AdminEventsPage /> },
-      { path: paths.adminEventsLoad, element: <AdminEventsLoadPage /> },
-      { path: paths.adminEventsUsers, element: <AdminEventsUsersPage /> },
-      { path: paths.adminEventsAttendance, element: <AdminEventsAttendancePage /> },
-    ],
-  },
+  { path: paths.adminEventsLogin, element: <Navigate to={paths.adminLkLogin} replace /> },
+  { path: paths.adminEvents, element: <Navigate to={paths.adminLkEvents} replace /> },
+  { path: paths.adminEventsLoad, element: <Navigate to={paths.adminLkApiLoad} replace /> },
+  { path: paths.adminEventsUsers, element: <Navigate to={paths.adminLkUsers} replace /> },
+  { path: paths.adminEventsAttendance, element: <Navigate to={paths.adminLkAttendance} replace /> },
   { path: paths.adminLkLogin, element: <AdminLkLogin /> },
   {
     element: <AdminLkLayout />,
@@ -185,6 +177,9 @@ export const router = createBrowserRouter([
       { path: paths.adminLk, element: null },
       { path: paths.adminLkAttendance, element: <AdminLkAttendancePage /> },
       { path: paths.adminLkAbsenceReport, element: <AdminLkAbsenceReportPage /> },
+      { path: paths.adminLkEvents, element: <AdminEventsPage /> },
+      { path: paths.adminLkApiLoad, element: <AdminEventsLoadPage /> },
+      { path: paths.adminLkUsers, element: <AdminEventsUsersPage /> },
       { path: paths.adminLkAdmins, element: <AdminLkAdminsPage /> },
     ],
   },
