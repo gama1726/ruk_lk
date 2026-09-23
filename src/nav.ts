@@ -77,6 +77,11 @@ export type SidebarNavOptions = {
   passPhoto?: boolean
   /** false — скрыть Start в меню (мост /start остаётся). */
   start?: boolean
+  /**
+   * Электронный журнал: true при pulse.enabled или preview.
+   * false — скрыть пункт (остальным ComingSoon недоступен из меню).
+   */
+  eJournal?: boolean
 }
 
 /** Верхние пункты; {@code events: false} — скрыть календарь (другие филиалы). */
@@ -105,15 +110,21 @@ export const mobileTabs: NavItem[] = [
   { to: paths.services, label: 'Сервисы', icon: 'services' },
 ]
 
-/** Группы сайдбара; {@code attendance/passPhoto/start: false} — скрыть пункты. */
+/** Группы сайдбара; {@code attendance/passPhoto/start/eJournal: false} — скрыть пункты. */
 export function getSidebarGroups(options?: SidebarNavOptions): NavGroup[] {
   const showAttendance = options?.attendance !== false
   const showPassPhoto = options?.passPhoto !== false
   const showStart = options?.start !== false
+  const showEJournal = options?.eJournal !== false
   return sidebarGroups.map((group) => {
     let items = group.items
-    if (group.id === 'study' && !showAttendance) {
-      items = items.filter((item) => item.to !== paths.attendance)
+    if (group.id === 'study') {
+      if (!showAttendance) {
+        items = items.filter((item) => item.to !== paths.attendance)
+      }
+      if (!showEJournal) {
+        items = items.filter((item) => item.to !== paths.eJournal)
+      }
     }
     if (group.id === 'services') {
       if (!showPassPhoto) {

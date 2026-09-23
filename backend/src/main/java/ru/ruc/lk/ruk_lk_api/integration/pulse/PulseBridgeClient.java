@@ -1,8 +1,7 @@
-package ru.ruc.lk.ruk_lk_api.integration.start;
+package ru.ruc.lk.ruk_lk_api.integration.pulse;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,16 +17,17 @@ import org.springframework.web.server.ResponseStatusException;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.StudentService;
-import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentPaymentsResponse;
 import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
 
 /**
- * Мост ЛК → start.ruc.su: server-to-server exchange, затем redirect с ticket.
+ * Мост ЛК → pulse.ruc.su: server-to-server exchange, затем redirect с ticket.
+ * В теле — профиль студента без данных об оплате.
  */
 @Component
-public class StartBridgeClient {
+public class PulseBridgeClient {
 
-    private static final Logger log = LoggerFactory.getLogger(StartBridgeClient.class);
+    private static final Logger log = LoggerFactory.getLogger(PulseBridgeClient.class);
+    private static final String EMPTY_EMAIL = "—";
 
     private final RestClient restClient;
     private final StudentService studentService;
@@ -38,13 +38,13 @@ public class StartBridgeClient {
     private final boolean enabled;
     private final boolean configured;
 
-    public StartBridgeClient(
-        @Value("${app.start.enabled:false}") boolean enabled,
-        @Value("${app.start.api-base-url:}") String apiBaseUrl,
-        @Value("${app.start.frontend-url:}") String frontendUrl,
-        @Value("${app.start.exchange-secret:}") String exchangeSecret,
-        @Value("${app.start.exchange-path:/api/internal/lk/exchange}") String exchangePath,
-        @Value("${app.start.callback-path:/account/lk/callback}") String callbackPath,
+    public PulseBridgeClient(
+        @Value("${app.pulse.enabled:false}") boolean enabled,
+        @Value("${app.pulse.api-base-url:}") String apiBaseUrl,
+        @Value("${app.pulse.frontend-url:}") String frontendUrl,
+        @Value("${app.pulse.exchange-secret:}") String exchangeSecret,
+        @Value("${app.pulse.exchange-path:/api/internal/lk/exchange}") String exchangePath,
+        @Value("${app.pulse.callback-path:/account/lk/callback}") String callbackPath,
         StudentService studentService,
         OutboundRestClients outboundRestClients
     ) {
@@ -60,7 +60,7 @@ public class StartBridgeClient {
             : (callbackPath.startsWith("/") ? callbackPath : "/" + callbackPath);
         String base = trimSlash(apiBaseUrl);
         this.configured = !blank(base) && !blank(this.frontendUrl) && !blank(this.exchangeSecret);
-        this.restClient = outboundRestClients.builder("start")
+        this.restClient = outboundRestClients.builder("pulse")
             .baseUrl(blank(base) ? "http://localhost" : base)
             .build();
     }
@@ -77,13 +77,13 @@ public class StartBridgeClient {
         if (!enabled) {
             throw new ResponseStatusException(
                 HttpStatus.SERVICE_UNAVAILABLE,
-                "Вход на start.ruc.su временно отключён"
+                "Вход на pulse.ruc.su временно отключён"
             );
         }
         if (!configured) {
             throw new ResponseStatusException(
                 HttpStatus.SERVICE_UNAVAILABLE,
-                "Мост start.ruc.su не настроен"
+                "Мост pulse.ruc.su не настроен"
             );
         }
         if (student == null || blank(student.studentId())) {
@@ -91,13 +91,12 @@ public class StartBridgeClient {
         }
 
         StudentProfileResponse profile = studentService.getProfileForStudentId(student.studentId());
-        PaymentSnapshot payment = loadPayment(student.studentId());
 
-        StartExchangeRequest body = new StartExchangeRequest(
+        PulseExchangeRequest body = new PulseExchangeRequest(
             exchangeSecret,
             profile.studentId(),
             profile.fullName(),
-            emailOrFallback(profile),
+            emailOrDash(profile),
             blankToEmpty(profile.phone()),
             blankToEmpty(profile.gender()),
             blankToEmpty(profile.birthDate()),
@@ -111,72 +110,46 @@ public class StartBridgeClient {
             blankToEmpty(profile.level()),
             blankToEmpty(profile.educationForm()),
             blankToEmpty(profile.group()),
-            blankToEmpty(profile.course()),
-            payment.status(),
-            payment.found(),
-            payment.contractNumber(),
-            payment.contractDate(),
-            payment.nextDate(),
-            payment.nextAmount()
+            blankToEmpty(profile.course())
         );
 
         try {
-            StartExchangeResponse response = restClient.post()
+            PulseExchangeResponse response = restClient.post()
                 .uri(exchangePath)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .body(StartExchangeResponse.class);
+                .body(PulseExchangeResponse.class);
 
             if (response == null || blank(response.ticket())) {
-                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "start.ruc.su не выдал ticket");
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "pulse.ruc.su не выдал ticket");
             }
             String ticket = URLEncoder.encode(response.ticket().trim(), StandardCharsets.UTF_8);
             return frontendUrl + callbackPath + "?ticket=" + ticket;
         } catch (ResponseStatusException e) {
             throw e;
         } catch (RestClientResponseException e) {
-            log.warn("start exchange HTTP {}: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
+            log.warn("pulse exchange HTTP {}: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
             throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY,
-                "Не удалось открыть start.ruc.su",
+                "Не удалось открыть pulse.ruc.su",
                 e
             );
         } catch (RestClientException e) {
-            log.warn("start exchange I/O: {}", e.getMessage());
+            log.warn("pulse exchange I/O: {}", e.getMessage());
             throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY,
-                "start.ruc.su недоступен",
+                "pulse.ruc.su недоступен",
                 e
             );
         }
     }
 
-    private PaymentSnapshot loadPayment(String studentId) {
-        try {
-            StudentPaymentsResponse payments = studentService.getPaymentsForStudentId(studentId, LocalDate.now());
-            String status = blank(payments.status()) ? "unknown" : payments.status().trim();
-            String contractNumber = payments.contract() == null ? "" : blankToEmpty(payments.contract().number());
-            String contractDate = payments.contract() == null ? "" : blankToEmpty(payments.contract().date());
-            return new PaymentSnapshot(
-                payments.paymentFound(),
-                status,
-                contractNumber,
-                contractDate,
-                blankToEmpty(payments.nextDate()),
-                payments.nextAmount()
-            );
-        } catch (Exception e) {
-            log.info("start exchange: оплата недоступна для {}: {}", studentId, e.getMessage());
-            return new PaymentSnapshot(false, "not_found", "", "", "", null);
-        }
-    }
-
-    private static String emailOrFallback(StudentProfileResponse profile) {
+    private static String emailOrDash(StudentProfileResponse profile) {
         if (!blank(profile.email())) {
             return profile.email().trim();
         }
-        return "—";
+        return EMPTY_EMAIL;
     }
 
     private static String trimSlash(String value) {
@@ -194,13 +167,4 @@ public class StartBridgeClient {
     private static boolean blank(String value) {
         return value == null || value.isBlank();
     }
-
-    private record PaymentSnapshot(
-        boolean found,
-        String status,
-        String contractNumber,
-        String contractDate,
-        String nextDate,
-        Double nextAmount
-    ) {}
 }

@@ -80,6 +80,14 @@ app.lk-admin.full-name=Супер-администратор ЛК
 # app.start.exchange-path=/api/internal/lk/exchange
 # app.start.callback-path=/account/lk/callback
 
+# pulse.ruc.su — электронный журнал (тот же контракт exchange, без полей оплаты)
+# app.pulse.enabled=true
+# app.pulse.api-base-url=https://pulse.ruc.su
+# app.pulse.frontend-url=https://pulse.ruc.su
+# app.pulse.exchange-secret=CHANGE_ME
+# app.pulse.exchange-path=/api/internal/lk/exchange
+# app.pulse.callback-path=/account/lk/callback
+
 # Perco-Web: автосоздание карточки, если по зачётке нет (нужны position/work-schedule id из вашей Perco)
 # app.perco.enabled=true
 # app.perco.base-url=

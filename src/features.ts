@@ -10,6 +10,8 @@ export type AppFeatures = {
   startEnabled: boolean
   /** Показывать Start в меню/сервисах (мост может быть включён отдельно). */
   startShowInLk: boolean
+  /** Мост электронного журнала → pulse.ruc.su. */
+  pulseEnabled: boolean
   /** Тестовая зачётка: разделы «в разработке» без ComingSoon. */
   previewEnabled: boolean
 }
@@ -25,6 +27,7 @@ const offlineDefaults: AppFeatures = {
   attendanceEnabled: true,
   startEnabled: false,
   startShowInLk: false,
+  pulseEnabled: false,
   previewEnabled: false,
 }
 
@@ -60,6 +63,7 @@ export const useAppFeatures = create<FeaturesState>((set, get) => ({
             attendanceEnabled: raw.attendanceEnabled === true,
             startEnabled: raw.startEnabled === true,
             startShowInLk: raw.startShowInLk === true,
+            pulseEnabled: raw.pulseEnabled === true,
             previewEnabled: raw.previewEnabled === true,
           },
           status: 'ready',
@@ -70,6 +74,7 @@ export const useAppFeatures = create<FeaturesState>((set, get) => ({
             attendanceEnabled: true,
             startEnabled: false,
             startShowInLk: false,
+            pulseEnabled: false,
             previewEnabled: false,
           },
           status: 'ready',
@@ -96,6 +101,11 @@ export function isStartFeatureEnabled(): boolean {
 /** Пункт Start виден в меню ЛК. */
 export function isStartShownInLk(): boolean {
   return useAppFeatures.getState().features?.startShowInLk === true
+}
+
+/** Мост Pulse (электронный журнал) включён на backend. */
+export function isPulseFeatureEnabled(): boolean {
+  return useAppFeatures.getState().features?.pulseEnabled === true
 }
 
 /** Разделы в разработке доступны текущей сессии. */

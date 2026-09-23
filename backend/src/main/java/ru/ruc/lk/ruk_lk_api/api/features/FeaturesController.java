@@ -17,17 +17,20 @@ public class FeaturesController {
     private final boolean attendanceEnabled;
     private final boolean startEnabled;
     private final boolean startShowInLk;
+    private final boolean pulseEnabled;
     private final PreviewStudents previewStudents;
 
     public FeaturesController(
         @Value("${app.attendance.enabled:false}") boolean attendanceEnabled,
         @Value("${app.start.enabled:false}") boolean startEnabled,
         @Value("${app.start.show-in-lk:false}") boolean startShowInLk,
+        @Value("${app.pulse.enabled:false}") boolean pulseEnabled,
         PreviewStudents previewStudents
     ) {
         this.attendanceEnabled = attendanceEnabled;
         this.startEnabled = startEnabled;
         this.startShowInLk = startShowInLk;
+        this.pulseEnabled = pulseEnabled;
         this.previewStudents = previewStudents;
     }
 
@@ -37,6 +40,7 @@ public class FeaturesController {
             attendanceEnabled,
             startEnabled,
             startShowInLk,
+            pulseEnabled,
             resolvePreview(session)
         );
     }

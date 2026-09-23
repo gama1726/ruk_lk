@@ -77,7 +77,7 @@ public class EsportsBridgeClient {
         if (!blank(student.email())) {
             return student.email().trim();
         }
-        return student.studentId().trim() + "@student.ruc.su";
+        return "—";
     }
 
     private static String trimSlash(String value) {
