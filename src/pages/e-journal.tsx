@@ -1,12 +1,11 @@
 /**
- * @file Электронный журнал — мост на pulse.ruc.su при app.pulse.enabled=true.
+ * @file Электронный журнал — мост на pulse.ruc.su.
+ * При app.pulse.enabled — всем; при false — полноценный вход только тестовым зачёткам, остальным ComingSoon.
  */
 
 import { useEffect } from 'react'
-import { Navigate } from 'react-router-dom'
 import { useAppFeatures } from '@/features'
 import { ComingSoon } from '@/pages/coming-soon'
-import { paths } from '@/paths'
 import { Loader } from '@/ui'
 
 const PULSE_API_REDIRECT = '/api/student/pulse/redirect'
@@ -16,27 +15,24 @@ export function EJournal() {
   const status = useAppFeatures((s) => s.status)
   const load = useAppFeatures((s) => s.load)
 
+  const usePulse = features?.pulseEnabled === true || features?.previewEnabled === true
+
   useEffect(() => {
     if (status === 'idle') void load(true)
   }, [status, load])
 
   useEffect(() => {
     if (status !== 'ready') return
-    if (features?.pulseEnabled !== true) return
+    if (!usePulse) return
     window.location.replace(PULSE_API_REDIRECT)
-  }, [status, features?.pulseEnabled])
+  }, [status, usePulse])
 
   if (status !== 'ready' || !features) {
     return <Loader />
   }
 
-  if (features.pulseEnabled === true) {
+  if (usePulse) {
     return <Loader />
-  }
-
-  // Мост выкл.: раздел только для тестовых зачёток — ComingSoon; остальным — на обучение.
-  if (features.previewEnabled !== true) {
-    return <Navigate to={paths.education} replace />
   }
 
   return <ComingSoon title="Электронный журнал" note="Электронный журнал pulse.ruc.su" />

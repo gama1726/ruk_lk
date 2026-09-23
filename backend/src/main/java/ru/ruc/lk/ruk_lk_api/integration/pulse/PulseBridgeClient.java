@@ -16,12 +16,14 @@ import org.springframework.web.server.ResponseStatusException;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
 import ru.ruc.lk.ruk_lk_api.api.auth.dto.StudentProfileResponse;
+import ru.ruc.lk.ruk_lk_api.api.features.PreviewStudents;
 import ru.ruc.lk.ruk_lk_api.api.student.StudentService;
 import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
 
 /**
  * Мост ЛК → pulse.ruc.su: server-to-server exchange, затем redirect с ticket.
  * В теле — профиль студента без данных об оплате.
+ * При {@code app.pulse.enabled=false} мост доступен только тестовым зачёткам ({@link PreviewStudents}).
  */
 @Component
 public class PulseBridgeClient {
@@ -31,6 +33,7 @@ public class PulseBridgeClient {
 
     private final RestClient restClient;
     private final StudentService studentService;
+    private final PreviewStudents previewStudents;
     private final String exchangeSecret;
     private final String frontendUrl;
     private final String exchangePath;
@@ -46,9 +49,11 @@ public class PulseBridgeClient {
         @Value("${app.pulse.exchange-path:/api/internal/lk/exchange}") String exchangePath,
         @Value("${app.pulse.callback-path:/account/lk/callback}") String callbackPath,
         StudentService studentService,
+        PreviewStudents previewStudents,
         OutboundRestClients outboundRestClients
     ) {
         this.studentService = studentService;
+        this.previewStudents = previewStudents;
         this.enabled = enabled;
         this.exchangeSecret = exchangeSecret == null ? "" : exchangeSecret.trim();
         this.frontendUrl = trimSlash(frontendUrl);
@@ -73,8 +78,16 @@ public class PulseBridgeClient {
         return configured;
     }
 
+    /** Глобально или тестовая зачётка. */
+    public boolean canUseBridge(StudentSession student) {
+        if (enabled) {
+            return true;
+        }
+        return student != null && previewStudents.isPreviewStudent(student.studentId());
+    }
+
     public String callbackUrl(StudentSession student) {
-        if (!enabled) {
+        if (!canUseBridge(student)) {
             throw new ResponseStatusException(
                 HttpStatus.SERVICE_UNAVAILABLE,
                 "Вход на pulse.ruc.su временно отключён"

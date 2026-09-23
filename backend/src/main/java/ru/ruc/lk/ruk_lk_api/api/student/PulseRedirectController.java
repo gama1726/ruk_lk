@@ -37,18 +37,18 @@ public class PulseRedirectController {
     /**
      * Вход на pulse.ruc.su через сессию ЛК.
      * Без сессии — на логин с {@code next=/e-journal}.
-     * При {@code app.pulse.enabled=false} — на SPA {@code /e-journal}.
+     * При {@code app.pulse.enabled=false} — только тестовые зачётки; остальным SPA ComingSoon.
      */
     @GetMapping("/pulse/redirect")
     public void redirect(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        if (!pulseBridgeClient.isEnabled()) {
-            response.sendRedirect(RETURN_PATH);
-            return;
-        }
         HttpSession session = request.getSession(false);
         Object raw = session == null ? null : session.getAttribute(SESSION_KEY);
         if (!(raw instanceof StudentSession student)) {
             response.sendRedirect(loginUrlWithReturn());
+            return;
+        }
+        if (!pulseBridgeClient.canUseBridge(student)) {
+            response.sendRedirect(RETURN_PATH);
             return;
         }
         response.sendRedirect(pulseBridgeClient.callbackUrl(student));

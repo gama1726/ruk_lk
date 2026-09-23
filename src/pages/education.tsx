@@ -31,8 +31,6 @@ export function Education() {
   const status = useStudentProfile((s) => s.status)
   const load = useStudentProfile((s) => s.load)
   const attendanceEnabled = useAppFeatures((s) => s.features?.attendanceEnabled === true)
-  const pulseEnabled = useAppFeatures((s) => s.features?.pulseEnabled === true)
-  const previewEnabled = useAppFeatures((s) => s.features?.previewEnabled === true)
   const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
 
@@ -45,15 +43,9 @@ export function Education() {
   }, [featuresStatus, loadFeatures])
 
   const items = useMemo(() => {
-    let list = [...allItems]
-    if (!isAttendanceNavVisible(profile, attendanceEnabled)) {
-      list = list.filter((item) => item.to !== paths.attendance)
-    }
-    if (!(pulseEnabled || previewEnabled)) {
-      list = list.filter((item) => item.to !== paths.eJournal)
-    }
-    return list
-  }, [profile, attendanceEnabled, pulseEnabled, previewEnabled])
+    if (isAttendanceNavVisible(profile, attendanceEnabled)) return [...allItems]
+    return allItems.filter((item) => item.to !== paths.attendance)
+  }, [profile, attendanceEnabled])
 
   return (
     <>

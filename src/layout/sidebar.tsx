@@ -18,8 +18,6 @@ export function Sidebar() {
   const load = useStudentProfile((s) => s.load)
   const attendanceEnabled = useAppFeatures((s) => s.features?.attendanceEnabled === true)
   const startShowInLk = useAppFeatures((s) => s.features?.startShowInLk === true)
-  const pulseEnabled = useAppFeatures((s) => s.features?.pulseEnabled === true)
-  const previewEnabled = useAppFeatures((s) => s.features?.previewEnabled === true)
   const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
 
@@ -36,7 +34,6 @@ export function Sidebar() {
     events: isEventsNavVisible(profile),
     passPhoto: isPassPhotoNavVisible(profile),
     start: startShowInLk,
-    eJournal: pulseEnabled || previewEnabled,
   }
   const topItems = getSidebarTop(navOptions)
   const groups = getSidebarGroups(navOptions)
