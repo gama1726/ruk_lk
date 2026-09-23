@@ -4,6 +4,7 @@ package ru.ruc.lk.ruk_lk_api.api.features;
 public record FeaturesDto(
     boolean attendanceEnabled,
     boolean startEnabled,
-    boolean startShowInLk
+    boolean startShowInLk,
+    /** Разделы «в разработке» доступны текущей сессии (тестовая зачётка). */
+    boolean previewEnabled
 ) {}
-

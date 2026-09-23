@@ -58,6 +58,10 @@ app.lk-admin.full-name=Супер-администратор ЛК
 # app.absence-report.auto-enabled=true
 # app.absence-report.auto-cron=0 0 21 * * *
 
+# Тестовые зачётки: разделы «в разработке» без ComingSoon (через GET /api/features.previewEnabled).
+# Пусто / не задано — у всех ComingSoon. Через запятую можно несколько:
+# app.preview.student-ids=831857,123456
+
 # CORS — только если фронт и API на разных origin (обычно не нужно за nginx)
 # app.cors.allowed-origins=https://lk.example.com
 

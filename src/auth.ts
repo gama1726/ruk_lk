@@ -5,6 +5,7 @@
 
 import { create } from 'zustand'
 import { ApiError, apiGet, apiPost, apiRequest, isApiConfigured } from '@/apiClient'
+import { useAppFeatures } from '@/features'
 import { maskPhone } from '@/mocks/format'
 import { useRecordBook } from '@/record-book-store'
 import { useSchedule } from '@/schedule-store'
@@ -133,6 +134,7 @@ export const useAuth = create<AuthState>((set) => ({
       const me = await apiGet<MeResponseDto>('/api/auth/me')
       set({ session: toSession(me), pendingIdentification: null, pendingLogin: null })
       await useStudentProfile.getState().load()
+      void useAppFeatures.getState().load(true)
       set({ status: 'ready' })
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -330,6 +332,7 @@ export const useAuth = create<AuthState>((set) => ({
           pendingIdentification: null,
         })
         await useStudentProfile.getState().load()
+        void useAppFeatures.getState().load(true)
         return null
       } catch (error) {
         if (error instanceof ApiError) {
@@ -376,6 +379,7 @@ export const useAuth = create<AuthState>((set) => ({
     useStudentProfile.getState().reset()
     useRecordBook.getState().reset()
     useSchedule.getState().reset()
+    useAppFeatures.getState().reset()
   },
 }))
 

@@ -4,6 +4,7 @@
 
 import { create } from 'zustand'
 import { ApiError, apiGet, apiPost, apiRequest, isApiConfigured } from '@/apiClient'
+import { useAppFeatures } from '@/features'
 import { PARENT_CONSENT_MESSAGE } from '@/parent-consent'
 import type { LoginCodeChannel } from '@/auth'
 
@@ -98,6 +99,7 @@ export const useParentAuth = create<ParentAuthState>((set, get) => ({
     try {
       const me = await apiGet<ParentMeResponseDto>('/api/auth/parent/me')
       set({ session: toSession(me), pendingFamily: null, pendingDelivery: null, pendingChallenge: null, status: 'ready' })
+      void useAppFeatures.getState().load(true)
       return
     } catch (error) {
       if (!(error instanceof ApiError && error.status === 401)) {
@@ -276,6 +278,7 @@ export const useParentAuth = create<ParentAuthState>((set, get) => ({
     try {
       const me = await apiPost<ParentMeResponseDto>('/api/auth/parent/verify-code', { code: digits })
       set({ session: toSession(me), pendingChallenge: null, pendingFamily: null, pendingDelivery: null })
+      void useAppFeatures.getState().load(true)
       return null
     } catch (error) {
       if (error instanceof ApiError) return error.message || 'Неверный код'
@@ -292,5 +295,6 @@ export const useParentAuth = create<ParentAuthState>((set, get) => ({
       }
     }
     set({ session: null, pendingChallenge: null, pendingFamily: null, pendingDelivery: null })
+    useAppFeatures.getState().reset()
   },
 }))

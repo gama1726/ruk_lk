@@ -9,12 +9,12 @@ import { ParentTopbar } from './parent-topbar'
 import styles from './cabinet.module.css'
 
 export function ParentCabinetShell() {
-  const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
 
   useEffect(() => {
-    if (featuresStatus === 'idle') void loadFeatures()
-  }, [featuresStatus, loadFeatures])
+    // После логина флаги зависят от зачётки ребёнка — всегда перечитываем.
+    void loadFeatures(true)
+  }, [loadFeatures])
 
   return (
     <div className={styles.wrap}>

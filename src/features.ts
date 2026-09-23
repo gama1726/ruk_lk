@@ -10,18 +10,22 @@ export type AppFeatures = {
   startEnabled: boolean
   /** Показывать Start в меню/сервисах (мост может быть включён отдельно). */
   startShowInLk: boolean
+  /** Тестовая зачётка: разделы «в разработке» без ComingSoon. */
+  previewEnabled: boolean
 }
 
 type FeaturesState = {
   features: AppFeatures | null
   status: 'idle' | 'loading' | 'ready'
-  load: () => Promise<void>
+  load: (force?: boolean) => Promise<void>
+  reset: () => void
 }
 
 const offlineDefaults: AppFeatures = {
   attendanceEnabled: true,
   startEnabled: false,
   startShowInLk: false,
+  previewEnabled: false,
 }
 
 let loadPromise: Promise<void> | null = null
@@ -30,13 +34,22 @@ export const useAppFeatures = create<FeaturesState>((set, get) => ({
   features: isApiConfigured() ? null : offlineDefaults,
   status: isApiConfigured() ? 'idle' : 'ready',
 
-  async load() {
+  reset() {
+    loadPromise = null
+    set({
+      features: isApiConfigured() ? null : offlineDefaults,
+      status: isApiConfigured() ? 'idle' : 'ready',
+    })
+  },
+
+  async load(force = false) {
     if (!isApiConfigured()) {
       set({ features: offlineDefaults, status: 'ready' })
       return
     }
-    if (get().status === 'ready' && get().features) return
-    if (loadPromise) return loadPromise
+    if (!force && get().status === 'ready' && get().features) return
+    if (!force && loadPromise) return loadPromise
+    if (force) loadPromise = null
 
     set({ status: 'loading' })
     loadPromise = (async () => {
@@ -47,13 +60,18 @@ export const useAppFeatures = create<FeaturesState>((set, get) => ({
             attendanceEnabled: raw.attendanceEnabled === true,
             startEnabled: raw.startEnabled === true,
             startShowInLk: raw.startShowInLk === true,
+            previewEnabled: raw.previewEnabled === true,
           },
           status: 'ready',
         })
       } catch {
-        // Старый backend без /api/features — посещаемость не прячем, Start выкл.
         set({
-          features: { attendanceEnabled: true, startEnabled: false, startShowInLk: false },
+          features: {
+            attendanceEnabled: true,
+            startEnabled: false,
+            startShowInLk: false,
+            previewEnabled: false,
+          },
           status: 'ready',
         })
       } finally {
@@ -80,3 +98,7 @@ export function isStartShownInLk(): boolean {
   return useAppFeatures.getState().features?.startShowInLk === true
 }
 
+/** Разделы в разработке доступны текущей сессии. */
+export function isPreviewFeaturesEnabled(): boolean {
+  return useAppFeatures.getState().features?.previewEnabled === true
+}

@@ -10,12 +10,12 @@ import { MobileNav } from './mobile-nav'
 import styles from './cabinet.module.css'
 
 export function CabinetShell() {
-  const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
 
   useEffect(() => {
-    if (featuresStatus === 'idle') void loadFeatures()
-  }, [featuresStatus, loadFeatures])
+    // После логина флаги зависят от зачётки — всегда перечитываем.
+    void loadFeatures(true)
+  }, [loadFeatures])
 
   return (
     <div className={styles.wrap}>
