@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -15,6 +16,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -85,6 +88,13 @@ public class LkAbsenceReportService {
     private final ExecutorService reportExecutor = Executors.newFixedThreadPool(2);
     private final AtomicReference<EmployeesCache> employeesCache = new AtomicReference<>();
     private final TransactionTemplate transactionTemplate;
+    private final Set<UUID> cancelRequested = ConcurrentHashMap.newKeySet();
+
+    private static final class ReportCancelledException extends RuntimeException {
+        ReportCancelledException() {
+            super("Отчёт отменён");
+        }
+    }
 
     public LkAbsenceReportService(
         ScheduleClient scheduleClient,
@@ -111,23 +121,74 @@ public class LkAbsenceReportService {
         reportExecutor.shutdownNow();
     }
 
-    /** Старт асинхронного построения; сразу возвращает RUNNING. */
+    /** Старт асинхронного построения; сразу возвращает RUNNING. Только супер-админ. */
     @Transactional
     public AbsenceReportResponse start(HttpSession session, AbsenceReportRequest body) {
         LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminAuthService.requireSuperAdmin(session);
         requireEnabled();
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
         }
-        LocalDate date = parseDate(body.date());
+        return enqueue(parseDate(body.date()), LkAbsenceReportOrigin.MANUAL);
+    }
+
+    /**
+     * Автозапуск на сегодня (МСК): если уже есть AUTO RUNNING/DONE на эту дату — пропуск.
+     * Ручные отчёты за ту же дату не мешают.
+     */
+    @Transactional
+    public Optional<UUID> startAutoForToday() {
+        if (!attendanceEnabled || !zkbioClient.isEnabled()) {
+            log.info("Автоотчёт отсутствующих пропущен: attendance/ZKBio выключены");
+            return Optional.empty();
+        }
+        LocalDate today = LocalDate.now(ZoneId.of("Europe/Moscow"));
+        boolean alreadyAuto = reportRepository.findByReportDate(today).stream()
+            .filter(e -> e.getOrigin() == LkAbsenceReportOrigin.AUTO)
+            .anyMatch(e -> e.getStatus() == LkAbsenceReportStatus.RUNNING
+                || e.getStatus() == LkAbsenceReportStatus.DONE);
+        if (alreadyAuto) {
+            log.info("Автоотчёт отсутствующих пропущен: на {} уже есть AUTO RUNNING/DONE", today);
+            return Optional.empty();
+        }
+        AbsenceReportResponse started = enqueue(today, LkAbsenceReportOrigin.AUTO);
+        log.info("Автоотчёт отсутствующих запущен: id={} date={}", started.id(), today);
+        return Optional.of(UUID.fromString(started.id()));
+    }
+
+    @Transactional
+    public AbsenceReportResponse cancel(HttpSession session, UUID id) {
+        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminAuthService.requireSuperAdmin(session);
+        LkAbsenceReportEntity entity = reportRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден"));
+        if (entity.getStatus() != LkAbsenceReportStatus.RUNNING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Отчёт уже не строится");
+        }
+        cancelRequested.add(id);
+        entity.setStatus(LkAbsenceReportStatus.CANCELLED);
+        entity.setErrorMessage("Отменено пользователем");
+        entity.setProgressPhase("cancelled");
+        entity.setProgressLabel("Отменено");
+        entity.setFinishedAt(Instant.now());
+        reportRepository.save(entity);
+        return toResponse(entity, List.of(), splitWarnings(entity.getWarningsText()));
+    }
+
+    private AbsenceReportResponse enqueue(LocalDate date, LkAbsenceReportOrigin origin) {
         UUID id = UUID.randomUUID();
-        LkAbsenceReportEntity entity = new LkAbsenceReportEntity(id, date);
+        LkAbsenceReportEntity entity = new LkAbsenceReportEntity(id, date, origin);
         entity.setProgressPhase("queued");
-        entity.setProgressLabel("Отчёт в очереди…");
+        entity.setProgressLabel(
+            origin == LkAbsenceReportOrigin.AUTO ? "Автоотчёт в очереди…" : "Отчёт в очереди…"
+        );
         entity.setProgressPercent(1);
         reportRepository.save(entity);
         reportExecutor.execute(() -> runBuild(id, date));
-        return toResponse(entity, List.of(), List.of("Отчёт строится…"));
+        return toResponse(entity, List.of(), List.of(
+            origin == LkAbsenceReportOrigin.AUTO ? "Автоотчёт строится…" : "Отчёт строится…"
+        ));
     }
 
     @Transactional(readOnly = true)
@@ -181,6 +242,7 @@ public class LkAbsenceReportService {
                 e.getId().toString(),
                 e.getReportDate().toString(),
                 e.getStatus().name(),
+                e.getOrigin().name(),
                 e.getCheckedCount(),
                 e.getAbsentCount(),
                 e.getCreatedAt() == null ? "" : e.getCreatedAt().toString(),
@@ -235,10 +297,15 @@ public class LkAbsenceReportService {
 
     private void runBuild(UUID reportId, LocalDate date) {
         try {
+            ensureNotCancelled(reportId);
             BuildResult result = buildInternal(reportId, date);
+            ensureNotCancelled(reportId);
             transactionTemplate.executeWithoutResult(status -> {
                 LkAbsenceReportEntity entity = reportRepository.findById(reportId)
                     .orElseThrow(() -> new IllegalStateException("Отчёт исчез: " + reportId));
+                if (entity.getStatus() != LkAbsenceReportStatus.RUNNING) {
+                    return;
+                }
                 entity.setStatus(LkAbsenceReportStatus.DONE);
                 entity.setZkbioTotal(result.zkbioTotal());
                 entity.setCandidateCount(result.candidateCount());
@@ -276,24 +343,44 @@ public class LkAbsenceReportService {
                 result.rows().size(),
                 result.punchEmpCodes()
             );
+        } catch (ReportCancelledException e) {
+            log.info("Absence report {}: CANCELLED", reportId);
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof ReportCancelledException) {
+                log.info("Absence report {}: CANCELLED", reportId);
+            } else {
+                log.warn("Absence report {} FAILED: {}", reportId, e.toString());
+                markFailed(reportId, e.getCause() != null ? e.getCause() : e);
+            }
         } catch (Exception e) {
             log.warn("Absence report {} FAILED: {}", reportId, e.toString());
-            transactionTemplate.executeWithoutResult(status ->
-                reportRepository.findById(reportId).ifPresent(entity -> {
-                    entity.setStatus(LkAbsenceReportStatus.FAILED);
-                    entity.setErrorMessage(shortMessage(e));
-                    entity.setProgressPhase("failed");
-                    entity.setProgressLabel("Ошибка построения");
-                    entity.setFinishedAt(Instant.now());
-                    reportRepository.save(entity);
-                })
-            );
+            markFailed(reportId, e);
+        } finally {
+            cancelRequested.remove(reportId);
         }
+    }
+
+    private void markFailed(UUID reportId, Throwable e) {
+        String message = e instanceof Exception ex ? shortMessage(ex) : String.valueOf(e);
+        transactionTemplate.executeWithoutResult(status ->
+            reportRepository.findById(reportId).ifPresent(entity -> {
+                if (entity.getStatus() != LkAbsenceReportStatus.RUNNING) {
+                    return;
+                }
+                entity.setStatus(LkAbsenceReportStatus.FAILED);
+                entity.setErrorMessage(message);
+                entity.setProgressPhase("failed");
+                entity.setProgressLabel("Ошибка построения");
+                entity.setFinishedAt(Instant.now());
+                reportRepository.save(entity);
+            })
+        );
     }
 
     private BuildResult buildInternal(UUID reportId, LocalDate date) throws ZKBioException {
         List<String> warnings = new ArrayList<>();
 
+        ensureNotCancelled(reportId);
         updateProgress(reportId, "employees", "Загрузка сотрудников ZKBio…", 5, 0, 0);
         List<ZKBioEmployee> employees = loadEmployeesCached();
         List<ZKBioEmployee> allUnique = uniqueByEmpCode(employees);
@@ -318,6 +405,7 @@ public class LkAbsenceReportService {
             );
         }
 
+        ensureNotCancelled(reportId);
         updateProgress(reportId, "punches", "Загрузка проходов ZKBio за день…", 12, 0, 0);
         Map<String, List<SkudAccessEvent>> punchesByEmp;
         try {
@@ -331,6 +419,7 @@ public class LkAbsenceReportService {
         warnings.add("Проходов ZKBio за день: emp_code=" + punchesByEmp.size());
 
         EnrichStats enrichStats = new EnrichStats();
+        ensureNotCancelled(reportId);
         updateProgress(
             reportId,
             "profiles",
@@ -356,9 +445,13 @@ public class LkAbsenceReportService {
         Map<String, List<CampusLesson>> lessonsByGroup =
             loadLessonsByGroup(reportId, enriched, date, warnings);
 
+        ensureNotCancelled(reportId);
         updateProgress(reportId, "matching", "Сверка проходов с расписанием…", 92, 0, enriched.size());
         List<AbsenceReportRowDto> rows = new ArrayList<>();
+        int matched = 0;
         for (EnrichedStudent student : enriched.values()) {
+            ensureNotCancelled(reportId);
+            matched++;
             try {
                 AbsenceReportRowDto row = buildRow(date, student, lessonsByGroup, punchesByEmp);
                 if (row != null) {
@@ -366,6 +459,16 @@ public class LkAbsenceReportService {
                 }
             } catch (Exception e) {
                 warnings.add(student.studentId() + ": " + shortMessage(e));
+            }
+            if (matched == enriched.size() || matched % 50 == 0) {
+                updateProgress(
+                    reportId,
+                    "matching",
+                    "Сверка проходов с расписанием… " + matched + " / " + enriched.size(),
+                    92 + (int) Math.round(7.0 * matched / Math.max(1, enriched.size())),
+                    matched,
+                    enriched.size()
+                );
             }
         }
         rows.sort(Comparator
@@ -409,6 +512,7 @@ public class LkAbsenceReportService {
             List<CompletableFuture<EnrichOutcome>> futures = new ArrayList<>();
             for (RosterCandidate candidate : roster) {
                 futures.add(CompletableFuture.supplyAsync(() -> {
+                    ensureNotCancelled(reportId);
                     EnrichOutcome outcome = enrichOne(candidate);
                     int finished = done.incrementAndGet();
                     if (finished == total || finished % 100 == 0) {
@@ -426,6 +530,7 @@ public class LkAbsenceReportService {
                 }, pool));
             }
             for (CompletableFuture<EnrichOutcome> future : futures) {
+                ensureNotCancelled(reportId);
                 EnrichOutcome outcome = future.join();
                 if (outcome == null) {
                     continue;
@@ -520,6 +625,7 @@ public class LkAbsenceReportService {
         int total = groups.size();
         int index = 0;
         for (String group : groups) {
+            ensureNotCancelled(reportId);
             index++;
             int pct = 60 + (int) Math.round(30.0 * index / Math.max(1, total));
             updateProgress(
@@ -686,6 +792,7 @@ public class LkAbsenceReportService {
             entity.getCheckedCount() > 0 ? entity.getCheckedCount() : entity.getCandidateCount(),
             entity.getAbsentCount(),
             entity.getSource(),
+            entity.getOrigin().name(),
             rows,
             warnings,
             blank(entity.getErrorMessage()),
@@ -697,6 +804,20 @@ public class LkAbsenceReportService {
         );
     }
 
+    private void ensureNotCancelled(UUID reportId) {
+        if (cancelRequested.contains(reportId)) {
+            throw new ReportCancelledException();
+        }
+        Boolean cancelled = transactionTemplate.execute(status ->
+            reportRepository.findById(reportId)
+                .map(e -> e.getStatus() == LkAbsenceReportStatus.CANCELLED)
+                .orElse(true)
+        );
+        if (Boolean.TRUE.equals(cancelled)) {
+            throw new ReportCancelledException();
+        }
+    }
+
     private void updateProgress(
         UUID reportId,
         String phase,
@@ -705,6 +826,7 @@ public class LkAbsenceReportService {
         int current,
         int total
     ) {
+        ensureNotCancelled(reportId);
         transactionTemplate.executeWithoutResult(status ->
             reportRepository.findById(reportId).ifPresent(entity -> {
                 if (entity.getStatus() != LkAbsenceReportStatus.RUNNING) {

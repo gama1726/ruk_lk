@@ -4,6 +4,8 @@ public record AbsenceReportSummaryDto(
     String id,
     String date,
     String status,
+    /** MANUAL | AUTO */
+    String origin,
     int rosterSize,
     int absentCount,
     String createdAt,

@@ -108,6 +108,11 @@ public class LkAdminController {
         return absenceReportService.start(session, body);
     }
 
+    @PostMapping("/absence-report/{id}/cancel")
+    public AbsenceReportResponse cancelAbsenceReport(HttpSession session, @PathVariable UUID id) {
+        return absenceReportService.cancel(session, id);
+    }
+
     @GetMapping("/absence-report/{id}")
     public AbsenceReportResponse getAbsenceReport(HttpSession session, @PathVariable UUID id) {
         return absenceReportService.get(session, id);

@@ -11,6 +11,8 @@ public record AbsenceReportResponse(
     int rosterSize,
     int absentCount,
     String source,
+    /** MANUAL | AUTO */
+    String origin,
     List<AbsenceReportRowDto> rows,
     List<String> warnings,
     String error,

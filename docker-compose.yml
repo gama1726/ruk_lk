@@ -31,6 +31,7 @@ services:
       # Truststore с CA Минцифры для HTTPS к platform-api2.max.ru (см. certs/README.md)
       - ./certs/cacerts-with-mincifry:/app/certs/cacerts-with-mincifry:ro
     environment:
+      TZ: Europe/Moscow
       SPRING_PROFILES_ACTIVE: onec,prod,docker
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-ruk_lk}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-ruk_lk}

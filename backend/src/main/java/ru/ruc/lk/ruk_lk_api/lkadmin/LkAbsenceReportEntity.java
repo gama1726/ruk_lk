@@ -32,6 +32,11 @@ public class LkAbsenceReportEntity {
     @Column(nullable = false, length = 16)
     private LkAbsenceReportStatus status = LkAbsenceReportStatus.RUNNING;
 
+    /** MANUAL | AUTO — ручной или автоматический запуск. Null у старых записей = MANUAL. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private LkAbsenceReportOrigin origin = LkAbsenceReportOrigin.MANUAL;
+
     @Column(nullable = false, length = 32)
     private String source = "zkbio";
 
@@ -84,9 +89,10 @@ public class LkAbsenceReportEntity {
 
     protected LkAbsenceReportEntity() {}
 
-    public LkAbsenceReportEntity(UUID id, LocalDate reportDate) {
+    public LkAbsenceReportEntity(UUID id, LocalDate reportDate, LkAbsenceReportOrigin origin) {
         this.id = id;
         this.reportDate = reportDate;
+        this.origin = origin == null ? LkAbsenceReportOrigin.MANUAL : origin;
         this.status = LkAbsenceReportStatus.RUNNING;
         this.createdAt = Instant.now();
     }
@@ -105,6 +111,14 @@ public class LkAbsenceReportEntity {
 
     public void setStatus(LkAbsenceReportStatus status) {
         this.status = status;
+    }
+
+    public LkAbsenceReportOrigin getOrigin() {
+        return origin == null ? LkAbsenceReportOrigin.MANUAL : origin;
+    }
+
+    public void setOrigin(LkAbsenceReportOrigin origin) {
+        this.origin = origin == null ? LkAbsenceReportOrigin.MANUAL : origin;
     }
 
     public String getSource() {

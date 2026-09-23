@@ -110,6 +110,13 @@ public class LkAdminAuthService {
         }
     }
 
+    public static void requireSuperAdmin(HttpSession session) {
+        LkAdminSession admin = require(session);
+        if (!admin.superAdmin()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Действие доступно только супер-администратору");
+        }
+    }
+
     static Set<LkAdminSection> effectiveSections(LkAdminUser user) {
         if (user.isSuperAdmin()) {
             return EnumSet.allOf(LkAdminSection.class);

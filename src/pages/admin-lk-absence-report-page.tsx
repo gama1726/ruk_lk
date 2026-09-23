@@ -7,6 +7,7 @@ import { useOutletContext } from 'react-router-dom'
 import { groupAbsenceWarnings } from '@/absence-report-warnings'
 import { ApiError } from '@/apiClient'
 import {
+  cancelAbsenceReport,
   downloadAbsenceReportExcel,
   fetchAbsenceReport,
   getAbsenceReport,
@@ -17,7 +18,7 @@ import {
   type AbsenceReportSummary,
   type LkAdminMe,
 } from '@/lk-admin'
-import { Button, Input } from '@/ui'
+import { Button, Input, Modal } from '@/ui'
 import styles from './admin-events.module.css'
 
 const PROGRESS_STEPS = [
@@ -42,7 +43,13 @@ function statusLabel(status: string): string {
   if (status === 'RUNNING') return 'строится'
   if (status === 'DONE') return 'готов'
   if (status === 'FAILED') return 'ошибка'
+  if (status === 'CANCELLED') return 'отменён'
   return status
+}
+
+function originLabel(origin: string | undefined): string {
+  if (origin === 'AUTO') return 'Автоматический'
+  return 'Ручной'
 }
 
 function stepIndex(phase: string | undefined): number {
@@ -83,7 +90,17 @@ function AbsenceWarningSections({
   )
 }
 
-function AbsenceBuildProgress({ report }: { report: AbsenceReport }) {
+function AbsenceBuildProgress({
+  report,
+  canCancel,
+  onCancelClick,
+  cancelBusy,
+}: {
+  report: AbsenceReport
+  canCancel: boolean
+  onCancelClick: () => void
+  cancelBusy: boolean
+}) {
   const percent = Math.max(0, Math.min(100, report.progressPercent ?? 0))
   const active = stepIndex(report.progressPhase)
   const label = report.progressLabel?.trim() || 'Строим отчёт…'
@@ -91,7 +108,24 @@ function AbsenceBuildProgress({ report }: { report: AbsenceReport }) {
 
   return (
     <div className={styles.progressCard} aria-live="polite">
-      <p className={styles.progressTitle}>{label}</p>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.75rem',
+        }}
+      >
+        <p className={styles.progressTitle} style={{ margin: 0 }}>
+          {originLabel(report.origin)} · {label}
+        </p>
+        {canCancel ? (
+          <Button type="button" variant="secondary" disabled={cancelBusy} onClick={onCancelClick}>
+            {cancelBusy ? 'Отмена…' : 'Прервать'}
+          </Button>
+        ) : null}
+      </div>
       <div
         className={styles.progressTrack}
         role="progressbar"
@@ -125,15 +159,32 @@ function AbsenceBuildProgress({ report }: { report: AbsenceReport }) {
   )
 }
 
+/** Предпочитаем готовый авто, затем готовый ручной, затем любой по дате. */
+function pickReportForDate(items: AbsenceReportSummary[], date: string): AbsenceReportSummary | null {
+  const forDate = items.filter((item) => item.date === date)
+  if (forDate.length === 0) return null
+  const doneAuto = forDate.find((item) => item.status === 'DONE' && item.origin === 'AUTO')
+  if (doneAuto) return doneAuto
+  const doneManual = forDate.find((item) => item.status === 'DONE' && item.origin !== 'AUTO')
+  if (doneManual) return doneManual
+  const anyDone = forDate.find((item) => item.status === 'DONE')
+  if (anyDone) return anyDone
+  return forDate[0] ?? null
+}
+
 export function AdminLkAbsenceReportPage() {
   const { me } = useOutletContext<{ me?: LkAdminMe }>()
-  const includeSummary = me?.superAdmin === true
+  const isSuperAdmin = me?.superAdmin === true
+  const includeSummary = isSuperAdmin
   const [date, setDate] = useState(todayIso)
   const [report, setReport] = useState<AbsenceReport | null>(null)
   const [saved, setSaved] = useState<AbsenceReportSummary[]>([])
+  const [found, setFound] = useState<AbsenceReportSummary[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [downloadBusy, setDownloadBusy] = useState(false)
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [cancelBusy, setCancelBusy] = useState(false)
 
   const loadSaved = useCallback(async () => {
     try {
@@ -167,8 +218,10 @@ export function AdminLkAbsenceReportPage() {
 
   const onBuild = async (e: FormEvent) => {
     e.preventDefault()
+    if (!isSuperAdmin) return
     setBusy(true)
     setError(null)
+    setFound(null)
     setReport(null)
     try {
       const started = await fetchAbsenceReport({ date })
@@ -176,6 +229,31 @@ export function AdminLkAbsenceReportPage() {
       await loadSaved()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось запустить отчёт')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const onFind = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    setReport(null)
+    try {
+      const list = await listAbsenceReports()
+      setSaved(list)
+      const matches = list.filter((item) => item.date === date)
+      setFound(matches)
+      if (matches.length === 0) {
+        setError(`Отчётов за ${date} нет`)
+        return
+      }
+      const pick = pickReportForDate(list, date)
+      if (pick) {
+        setReport(await getAbsenceReport(pick.id))
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось найти отчёт')
     } finally {
       setBusy(false)
     }
@@ -190,6 +268,22 @@ export function AdminLkAbsenceReportPage() {
       setError(err instanceof ApiError ? err.message : 'Не удалось открыть отчёт')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const onConfirmCancel = async () => {
+    if (!report?.id || !isSuperAdmin) return
+    setCancelBusy(true)
+    setError(null)
+    try {
+      const next = await cancelAbsenceReport(report.id)
+      setReport(next)
+      setCancelConfirmOpen(false)
+      await loadSaved()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось прервать отчёт')
+    } finally {
+      setCancelBusy(false)
     }
   }
 
@@ -223,6 +317,7 @@ export function AdminLkAbsenceReportPage() {
   }
 
   const building = report?.status === 'RUNNING'
+  const listForTable = found ?? saved
 
   return (
     <section aria-label="Отчёт отсутствующих">
@@ -233,11 +328,20 @@ export function AdminLkAbsenceReportPage() {
         <p className={styles.statsHint}>
           Казань (ZKBio): массовые проходы за день + зачётка (emp_code или nickname длины 6) +
           профиль/группа из 1С + очные пары. В колонке контактов — телефоны родителей из 1С.
-          Отчёт строится в фоне и сохраняется — можно открыть из списка ниже.
+          Ручной отчёт может запускать только супер-админ. В 21:00 МСК — автоматический отчёт.
         </p>
-      ) : null}
+      ) : (
+        <p className={styles.statsHint}>
+          Выберите дату и найдите сохранённый отчёт. Построение отчётов выполняет система или
+          супер-администратор.
+        </p>
+      )}
 
-      <form className={styles.card} style={{ marginBottom: '1.25rem' }} onSubmit={onBuild}>
+      <form
+        className={styles.card}
+        style={{ marginBottom: '1.25rem' }}
+        onSubmit={isSuperAdmin ? onBuild : onFind}
+      >
         <div className={styles.formGrid}>
           <div className={styles.formRow}>
             <Input
@@ -245,27 +349,52 @@ export function AdminLkAbsenceReportPage() {
               name="date"
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                setDate(e.target.value)
+                setFound(null)
+              }}
               required
             />
           </div>
           {error ? <p className={styles.error}>{error}</p> : null}
           <div className={styles.footerActions}>
-            <Button type="submit" disabled={busy || building}>
-              {building ? 'Строим…' : busy ? 'Запуск…' : 'Построить отчёт'}
-            </Button>
+            {isSuperAdmin ? (
+              <Button type="submit" disabled={busy}>
+                {busy ? 'Запуск…' : 'Построить отчёт'}
+              </Button>
+            ) : (
+              <Button type="submit" disabled={busy}>
+                {busy ? 'Поиск…' : 'Найти отчёт'}
+              </Button>
+            )}
+            {found !== null && !isSuperAdmin ? (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => {
+                  setFound(null)
+                  setError(null)
+                }}
+              >
+                Показать все
+              </Button>
+            ) : null}
           </div>
         </div>
       </form>
 
-      {saved.length > 0 ? (
+      {listForTable.length > 0 ? (
         <div className={styles.usersCard} style={{ marginBottom: '1.25rem' }}>
-          <h2 className={styles.chartTitle}>Сохранённые отчёты</h2>
+          <h2 className={styles.chartTitle}>
+            {found !== null ? `Отчёты за ${date}` : 'Сохранённые отчёты'}
+          </h2>
           <div className={styles.usersTableWrap}>
             <table className={styles.usersTable}>
               <thead>
                 <tr>
                   <th>Дата</th>
+                  <th>Тип</th>
                   <th>Статус</th>
                   <th>Проверено</th>
                   <th>Отсутствий</th>
@@ -273,9 +402,10 @@ export function AdminLkAbsenceReportPage() {
                 </tr>
               </thead>
               <tbody>
-                {saved.map((item) => (
+                {listForTable.map((item) => (
                   <tr key={item.id}>
                     <td>{item.date}</td>
+                    <td>{originLabel(item.origin)}</td>
                     <td>{statusLabel(item.status)}</td>
                     <td>{item.rosterSize}</td>
                     <td>{item.absentCount}</td>
@@ -292,10 +422,26 @@ export function AdminLkAbsenceReportPage() {
         </div>
       ) : null}
 
-      {building && report ? <AbsenceBuildProgress report={report} /> : null}
+      {building && report ? (
+        <AbsenceBuildProgress
+          report={report}
+          canCancel={isSuperAdmin}
+          cancelBusy={cancelBusy}
+          onCancelClick={() => setCancelConfirmOpen(true)}
+        />
+      ) : null}
 
       {report && report.status === 'FAILED' ? (
-        <p className={styles.error}>{report.error || 'Не удалось построить отчёт'}</p>
+        <p className={styles.error}>
+          {originLabel(report.origin)}: {report.error || 'Не удалось построить отчёт'}
+        </p>
+      ) : null}
+
+      {report && report.status === 'CANCELLED' ? (
+        <p className={styles.statsHint}>
+          {originLabel(report.origin)} отменён
+          {report.error ? `: ${report.error}` : ''}.
+        </p>
       ) : null}
 
       {report && report.status === 'DONE' ? (
@@ -311,7 +457,7 @@ export function AdminLkAbsenceReportPage() {
             }}
           >
             <h2 className={styles.chartTitle} style={{ margin: 0 }}>
-              {report.date} · {report.group}
+              {originLabel(report.origin)} · {report.date} · {report.group}
               {report.scheduleRange ? ` · пары ${report.scheduleRange}` : ''} · проверено{' '}
               {report.rosterSize}, отсутствий {report.absentCount}
             </h2>
@@ -336,7 +482,7 @@ export function AdminLkAbsenceReportPage() {
               <tbody>
                 {report.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>Нет отсутствий по очным парам за выбранную дату</td>
+                    <td colSpan={7}>Нет отсутствий по очным парам за указанную дату</td>
                   </tr>
                 ) : (
                   report.rows.map((row) => (
@@ -376,6 +522,36 @@ export function AdminLkAbsenceReportPage() {
 
       {report && report.status === 'RUNNING' && report.warnings.length > 0 ? (
         <AbsenceWarningSections warnings={report.warnings} includeSummary={includeSummary} />
+      ) : null}
+
+      {isSuperAdmin ? (
+        <Modal
+          open={cancelConfirmOpen}
+          title="Прервать построение?"
+          onClose={() => {
+            if (!cancelBusy) setCancelConfirmOpen(false)
+          }}
+          footer={
+            <div className={styles.footerActions}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={cancelBusy}
+                onClick={() => setCancelConfirmOpen(false)}
+              >
+                Нет, продолжить
+              </Button>
+              <Button type="button" disabled={cancelBusy} onClick={() => void onConfirmCancel()}>
+                {cancelBusy ? 'Отмена…' : 'Да, прервать'}
+              </Button>
+            </div>
+          }
+        >
+          <p style={{ margin: 0 }}>
+            Построение {report?.origin === 'AUTO' ? 'автоматического' : 'ручного'} отчёта за{' '}
+            {report?.date} будет остановлено. Уже выполненные шаги не сохранятся как готовый отчёт.
+          </p>
+        </Modal>
       ) : null}
     </section>
   )

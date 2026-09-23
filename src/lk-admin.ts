@@ -68,13 +68,15 @@ export type AbsenceReportRow = {
 
 export type AbsenceReport = {
   id: string
-  status: 'RUNNING' | 'DONE' | 'FAILED' | string
+  status: 'RUNNING' | 'DONE' | 'FAILED' | 'CANCELLED' | string
   date: string
   group: string
   scheduleRange: string
   rosterSize: number
   absentCount: number
   source: string
+  /** MANUAL | AUTO */
+  origin?: string
   rows: AbsenceReportRow[]
   warnings: string[]
   error?: string
@@ -89,6 +91,8 @@ export type AbsenceReportSummary = {
   id: string
   date: string
   status: string
+  /** MANUAL | AUTO */
+  origin?: string
   rosterSize: number
   absentCount: number
   createdAt: string
@@ -140,6 +144,10 @@ export async function fetchLkAdminAttendance(
 
 export async function fetchAbsenceReport(body: { date: string }): Promise<AbsenceReport> {
   return apiPost<AbsenceReport>('/api/admin/lk/absence-report', body)
+}
+
+export async function cancelAbsenceReport(id: string): Promise<AbsenceReport> {
+  return apiPost<AbsenceReport>(`/api/admin/lk/absence-report/${id}/cancel`, {})
 }
 
 export async function getAbsenceReport(id: string): Promise<AbsenceReport> {
