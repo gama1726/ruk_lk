@@ -197,6 +197,9 @@ public class LkAbsenceReportService {
         LkAdminSession admin = LkAdminAuthService.require(session);
         LkAbsenceReportEntity entity = reportRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден"));
+        if (!admin.superAdmin()) {
+            requireVisibleDoneForViewer(entity);
+        }
         List<AbsenceReportRowDto> rows = entity.getStatus() == LkAbsenceReportStatus.DONE
             ? mapRows(entity)
             : List.of();
@@ -214,8 +217,12 @@ public class LkAbsenceReportService {
     @Transactional(readOnly = true)
     public AbsenceReportExcelFile exportExcel(HttpSession session, UUID id) {
         LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminSession admin = LkAdminAuthService.require(session);
         LkAbsenceReportEntity entity = reportRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден"));
+        if (!admin.superAdmin()) {
+            requireVisibleDoneForViewer(entity);
+        }
         if (entity.getStatus() != LkAbsenceReportStatus.DONE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Отчёт ещё не готов");
         }
@@ -237,19 +244,78 @@ public class LkAbsenceReportService {
     @Transactional(readOnly = true)
     public List<AbsenceReportSummaryDto> list(HttpSession session) {
         LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminSession admin = LkAdminAuthService.require(session);
+        if (!admin.superAdmin()) {
+            return visibleDoneOnePerDate().stream()
+                .sorted(Comparator
+                    .comparing(LkAbsenceReportEntity::getReportDate, Comparator.reverseOrder())
+                    .thenComparing(this::finishInstant, Comparator.reverseOrder()))
+                .map(this::toSummary)
+                .toList();
+        }
         return reportRepository.findAllByOrderByCreatedAtDesc().stream()
-            .map(e -> new AbsenceReportSummaryDto(
-                e.getId().toString(),
-                e.getReportDate().toString(),
-                e.getStatus().name(),
-                e.getOrigin().name(),
-                e.getCheckedCount(),
-                e.getAbsentCount(),
-                e.getCreatedAt() == null ? "" : e.getCreatedAt().toString(),
-                e.getFinishedAt() == null ? "" : e.getFinishedAt().toString(),
-                blank(e.getErrorMessage())
-            ))
+            .map(this::toSummary)
             .toList();
+    }
+
+    /** Для обычных админов: только DONE, одна запись на дату (AUTO предпочтительнее). */
+    private List<LkAbsenceReportEntity> visibleDoneOnePerDate() {
+        Map<LocalDate, LkAbsenceReportEntity> best = new LinkedHashMap<>();
+        for (LkAbsenceReportEntity entity : reportRepository.findByStatus(LkAbsenceReportStatus.DONE)) {
+            LocalDate day = entity.getReportDate();
+            LkAbsenceReportEntity current = best.get(day);
+            if (current == null || isBetterDoneForViewer(entity, current)) {
+                best.put(day, entity);
+            }
+        }
+        return new ArrayList<>(best.values());
+    }
+
+    /**
+     * AUTO важнее MANUAL; при равном типе — более поздний finishedAt/createdAt.
+     */
+    private boolean isBetterDoneForViewer(LkAbsenceReportEntity candidate, LkAbsenceReportEntity current) {
+        boolean candAuto = candidate.getOrigin() == LkAbsenceReportOrigin.AUTO;
+        boolean curAuto = current.getOrigin() == LkAbsenceReportOrigin.AUTO;
+        if (candAuto != curAuto) {
+            return candAuto;
+        }
+        return finishInstant(candidate).isAfter(finishInstant(current));
+    }
+
+    private Instant finishInstant(LkAbsenceReportEntity entity) {
+        if (entity.getFinishedAt() != null) {
+            return entity.getFinishedAt();
+        }
+        if (entity.getCreatedAt() != null) {
+            return entity.getCreatedAt();
+        }
+        return Instant.EPOCH;
+    }
+
+    private void requireVisibleDoneForViewer(LkAbsenceReportEntity entity) {
+        if (entity.getStatus() != LkAbsenceReportStatus.DONE) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден");
+        }
+        boolean allowed = visibleDoneOnePerDate().stream()
+            .anyMatch(e -> e.getId().equals(entity.getId()));
+        if (!allowed) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден");
+        }
+    }
+
+    private AbsenceReportSummaryDto toSummary(LkAbsenceReportEntity e) {
+        return new AbsenceReportSummaryDto(
+            e.getId().toString(),
+            e.getReportDate().toString(),
+            e.getStatus().name(),
+            e.getOrigin().name(),
+            e.getCheckedCount(),
+            e.getAbsentCount(),
+            e.getCreatedAt() == null ? "" : e.getCreatedAt().toString(),
+            e.getFinishedAt() == null ? "" : e.getFinishedAt().toString(),
+            blank(e.getErrorMessage())
+        );
     }
 
     public List<GroupRosterDto> listRosters(HttpSession session) {

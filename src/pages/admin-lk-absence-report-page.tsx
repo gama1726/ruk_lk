@@ -159,7 +159,7 @@ function AbsenceBuildProgress({
   )
 }
 
-/** Предпочитаем готовый авто, затем готовый ручной, затем любой по дате. */
+/** Для супер-админа при поиске: предпочитаем DONE AUTO, затем DONE MANUAL. */
 function pickReportForDate(items: AbsenceReportSummary[], date: string): AbsenceReportSummary | null {
   const forDate = items.filter((item) => item.date === date)
   if (forDate.length === 0) return null
@@ -199,6 +199,7 @@ export function AdminLkAbsenceReportPage() {
   }, [loadSaved])
 
   useEffect(() => {
+    if (!isSuperAdmin) return
     if (!report || report.status !== 'RUNNING' || !report.id) return
     const timer = window.setInterval(() => {
       void (async () => {
@@ -214,7 +215,7 @@ export function AdminLkAbsenceReportPage() {
       })()
     }, 1500)
     return () => window.clearInterval(timer)
-  }, [report?.id, report?.status, loadSaved])
+  }, [isSuperAdmin, report?.id, report?.status, loadSaved])
 
   const onBuild = async (e: FormEvent) => {
     e.preventDefault()
@@ -245,10 +246,10 @@ export function AdminLkAbsenceReportPage() {
       const matches = list.filter((item) => item.date === date)
       setFound(matches)
       if (matches.length === 0) {
-        setError(`Отчётов за ${date} нет`)
+        setError(`Готового отчёта за ${date} нет`)
         return
       }
-      const pick = pickReportForDate(list, date)
+      const pick = pickReportForDate(list, date) ?? matches[0]
       if (pick) {
         setReport(await getAbsenceReport(pick.id))
       }
@@ -332,8 +333,8 @@ export function AdminLkAbsenceReportPage() {
         </p>
       ) : (
         <p className={styles.statsHint}>
-          Выберите дату и найдите сохранённый отчёт. Построение отчётов выполняет система или
-          супер-администратор.
+          Выберите дату и найдите готовый отчёт. В списке — по одному успешному отчёту на день
+          (если есть и авто, и ручной — показывается автоматический).
         </p>
       )}
 
