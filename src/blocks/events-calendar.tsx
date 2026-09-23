@@ -229,13 +229,25 @@ export function EventsCalendar({ subtitle }: Props) {
             }
             return (
               <div key={`w-${weekIndex}`} className={styles.week}>
-                {week.map((cell) => {
-                  if (!cell.inMonth) return <div key={cell.key} className={styles.pad} />
+                {week.map((cell, col) => {
+                  // Явная колонка: иначе eventTile с grid-column «занимает» слот раньше
+                  // auto-placement и сдвигает дни на следующую строку.
+                  const cellStyle = { gridColumn: col + 1, gridRow: 1 } as const
+                  if (!cell.inMonth) {
+                    return <div key={cell.key} className={styles.pad} style={cellStyle} />
+                  }
                   if (covered.has(cell.iso)) {
-                    return <div key={cell.key} className={styles.slotOccupied} aria-hidden="true" />
+                    return (
+                      <div
+                        key={cell.key}
+                        className={styles.slotOccupied}
+                        style={cellStyle}
+                        aria-hidden="true"
+                      />
+                    )
                   }
                   return (
-                    <div key={cell.key} className={styles.dayEmpty}>
+                    <div key={cell.key} className={styles.dayEmpty} style={cellStyle}>
                       <span className={styles.dayNum}>{cell.day}</span>
                     </div>
                   )
@@ -245,7 +257,7 @@ export function EventsCalendar({ subtitle }: Props) {
                     key={seg.key}
                     type="button"
                     className={styles.eventTile}
-                    style={{ gridColumn: `${seg.startCol + 1} / span ${seg.span}` }}
+                    style={{ gridColumn: `${seg.startCol + 1} / span ${seg.span}`, gridRow: 1 }}
                     onClick={() => setSelected(seg.event)}
                   >
                     <span className={styles.eventTitle}>{seg.label}</span>
