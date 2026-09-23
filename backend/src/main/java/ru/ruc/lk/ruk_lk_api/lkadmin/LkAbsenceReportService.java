@@ -161,12 +161,18 @@ public class LkAbsenceReportService {
     public AbsenceReportResponse cancel(HttpSession session, UUID id) {
         LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
         LkAdminAuthService.requireSuperAdmin(session);
+        // Сразу стопаем build-поток; запись в БД — следом.
+        cancelRequested.add(id);
         LkAbsenceReportEntity entity = reportRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден"));
-        if (entity.getStatus() != LkAbsenceReportStatus.RUNNING) {
+        if (entity.getStatus() != LkAbsenceReportStatus.RUNNING
+            && entity.getStatus() != LkAbsenceReportStatus.CANCELLED) {
+            cancelRequested.remove(id);
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Отчёт уже не строится");
         }
-        cancelRequested.add(id);
+        if (entity.getStatus() == LkAbsenceReportStatus.CANCELLED) {
+            return toResponse(entity, List.of(), splitWarnings(entity.getWarningsText()));
+        }
         entity.setStatus(LkAbsenceReportStatus.CANCELLED);
         entity.setErrorMessage("Отменено пользователем");
         entity.setProgressPhase("cancelled");
