@@ -31,6 +31,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -191,10 +193,26 @@ public class LkAbsenceReportService {
         );
         entity.setProgressPercent(1);
         reportRepository.save(entity);
-        reportExecutor.execute(() -> runBuild(id, date));
+        // Важно: runBuild только после commit, иначе другой поток не видит запись
+        // и ensureNotCancelled ошибочно считает отчёт отменённым (RUNNING зависает на 1%).
+        scheduleBuildAfterCommit(id, date);
         return toResponse(entity, List.of(), List.of(
             origin == LkAbsenceReportOrigin.AUTO ? "Автоотчёт строится…" : "Отчёт строится…"
         ));
+    }
+
+    private void scheduleBuildAfterCommit(UUID id, LocalDate date) {
+        Runnable job = () -> runBuild(id, date);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    reportExecutor.execute(job);
+                }
+            });
+        } else {
+            reportExecutor.execute(job);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -417,9 +435,11 @@ public class LkAbsenceReportService {
             );
         } catch (ReportCancelledException e) {
             log.info("Absence report {}: CANCELLED", reportId);
+            markCancelledIfRunning(reportId, "Отменено");
         } catch (CompletionException e) {
             if (e.getCause() instanceof ReportCancelledException) {
                 log.info("Absence report {}: CANCELLED", reportId);
+                markCancelledIfRunning(reportId, "Отменено");
             } else {
                 log.warn("Absence report {} FAILED: {}", reportId, e.toString());
                 markFailed(reportId, e.getCause() != null ? e.getCause() : e);
@@ -430,6 +450,22 @@ public class LkAbsenceReportService {
         } finally {
             cancelRequested.remove(reportId);
         }
+    }
+
+    private void markCancelledIfRunning(UUID reportId, String label) {
+        transactionTemplate.executeWithoutResult(status ->
+            reportRepository.findById(reportId).ifPresent(entity -> {
+                if (entity.getStatus() != LkAbsenceReportStatus.RUNNING) {
+                    return;
+                }
+                entity.setStatus(LkAbsenceReportStatus.CANCELLED);
+                entity.setErrorMessage("Отменено");
+                entity.setProgressPhase("cancelled");
+                entity.setProgressLabel(label == null || label.isBlank() ? "Отменено" : label);
+                entity.setFinishedAt(Instant.now());
+                reportRepository.save(entity);
+            })
+        );
     }
 
     private void markFailed(UUID reportId, Throwable e) {
@@ -880,14 +916,34 @@ public class LkAbsenceReportService {
         if (cancelRequested.contains(reportId)) {
             throw new ReportCancelledException();
         }
-        Boolean cancelled = transactionTemplate.execute(status ->
-            reportRepository.findById(reportId)
-                .map(e -> e.getStatus() == LkAbsenceReportStatus.CANCELLED)
-                .orElse(true)
-        );
+        Boolean cancelled = readCancelledFlag(reportId);
+        if (cancelled == null) {
+            // Редкая гонка до commit: подождём появления строки, не считаем отменой.
+            for (int i = 0; i < 40 && cancelled == null; i++) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new ReportCancelledException();
+                }
+                cancelled = readCancelledFlag(reportId);
+            }
+        }
+        if (cancelled == null) {
+            throw new IllegalStateException("Отчёт не найден после ожидания: " + reportId);
+        }
         if (Boolean.TRUE.equals(cancelled)) {
             throw new ReportCancelledException();
         }
+    }
+
+    /** null — записи ещё нет; true/false — статус CANCELLED или нет. */
+    private Boolean readCancelledFlag(UUID reportId) {
+        return transactionTemplate.execute(status ->
+            reportRepository.findById(reportId)
+                .map(e -> e.getStatus() == LkAbsenceReportStatus.CANCELLED)
+                .orElse(null)
+        );
     }
 
     private void updateProgress(
