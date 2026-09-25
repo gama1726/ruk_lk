@@ -609,6 +609,79 @@
   font-weight: 600;
 }
 
+/* Отчёт отсутствующих: все 7 колонок на экране */
+.absencePage {
+  width: min(100vw - 2rem, 1480px);
+  max-width: none;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.absenceTableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.absenceTable {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.absenceTable th,
+.absenceTable td {
+  text-align: left;
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.absenceTable th {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.absenceColDate {
+  width: 5.5rem;
+  white-space: nowrap !important;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.absenceColGroup {
+  width: 16%;
+}
+
+.absenceColName {
+  width: 18%;
+}
+
+.absenceColPhone {
+  width: 7.5rem;
+}
+
+.absenceColSchedule {
+  width: 12%;
+}
+
+.absenceColVisit {
+  width: 14%;
+}
+
+.absenceColNotice {
+  width: 7rem;
+  white-space: nowrap !important;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 .loadPath {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.78rem;

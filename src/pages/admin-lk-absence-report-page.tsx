@@ -321,7 +321,7 @@ export function AdminLkAbsenceReportPage() {
   const listForTable = found ?? saved
 
   return (
-    <section aria-label="Отчёт отсутствующих">
+    <section className={styles.absencePage} aria-label="Отчёт отсутствующих">
       <div className={styles.toolbar}>
         <h1 className={styles.pageTitle}>Отчёт отсутствующих</h1>
       </div>
@@ -467,17 +467,17 @@ export function AdminLkAbsenceReportPage() {
             </Button>
           </div>
           <AbsenceWarningSections warnings={report.warnings} includeSummary={includeSummary} />
-          <div className={styles.usersTableWrap}>
-            <table className={styles.usersTable}>
+          <div className={styles.absenceTableWrap}>
+            <table className={styles.absenceTable}>
               <thead>
                 <tr>
-                  <th>Дата</th>
-                  <th>Номер группы</th>
-                  <th>ФИО</th>
-                  <th>Телефон родителя</th>
-                  <th>Расписание</th>
-                  <th>Посещение по парам</th>
-                  <th>Уведомление родителям</th>
+                  <th className={styles.absenceColDate}>Дата</th>
+                  <th className={styles.absenceColGroup}>Номер группы</th>
+                  <th className={styles.absenceColName}>ФИО</th>
+                  <th className={styles.absenceColPhone}>Телефон родителя</th>
+                  <th className={styles.absenceColSchedule}>Расписание</th>
+                  <th className={styles.absenceColVisit}>Посещение по парам</th>
+                  <th className={styles.absenceColNotice}>Уведомление</th>
                 </tr>
               </thead>
               <tbody>
@@ -488,28 +488,28 @@ export function AdminLkAbsenceReportPage() {
                 ) : (
                   report.rows.map((row) => (
                     <tr key={row.studentId}>
-                      <td>{row.date}</td>
-                      <td>{row.group}</td>
-                      <td>
+                      <td className={styles.absenceColDate}>{row.date}</td>
+                      <td className={styles.absenceColGroup}>{row.group}</td>
+                      <td className={styles.absenceColName}>
                         {row.fullName}
                         <div className={styles.cardMeta}>{row.studentId}</div>
                       </td>
-                      <td>{row.phone || '—'}</td>
-                      <td>{row.scheduleRange || '—'}</td>
-                      <td>
+                      <td className={styles.absenceColPhone}>{row.phone || '—'}</td>
+                      <td className={styles.absenceColSchedule}>{row.scheduleRange || '—'}</td>
+                      <td className={styles.absenceColVisit}>
                         {row.absenceRange || '—'}
                         {row.kind === 'full' ? (
                           <div className={styles.cardMeta}>неявка на все пары</div>
                         ) : null}
                       </td>
-                      <td>
+                      <td className={styles.absenceColNotice}>
                         <label className={styles.checkRow}>
                           <input
                             type="checkbox"
                             checked={row.parentNotified}
                             onChange={() => void onToggleNotice(row)}
                           />
-                          {row.parentNotified ? 'отправлено' : 'нет'}
+                          {row.parentNotified ? 'да' : 'нет'}
                         </label>
                       </td>
                     </tr>
