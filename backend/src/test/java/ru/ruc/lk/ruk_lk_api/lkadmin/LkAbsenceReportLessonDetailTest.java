@@ -1,6 +1,7 @@
 package ru.ruc.lk.ruk_lk_api.lkadmin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -24,6 +25,8 @@ class LkAbsenceReportLessonDetailTest {
         assertTrue(text.contains("2. 10:40–12:10 — Неявка"), text);
         assertTrue(text.contains("3. 12:20–13:50 — Без выхода"), text);
         assertTrue(text.contains("4. 14:00–15:30 — Опоздание · 12 мин · вход 14:12"), text);
+        assertTrue(text.contains("\n"), "пары с новой строки: " + text);
+        assertFalse(text.contains("; "), text);
     }
 
     @Test

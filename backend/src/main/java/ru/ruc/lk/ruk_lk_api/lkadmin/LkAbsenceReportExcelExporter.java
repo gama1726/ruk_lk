@@ -79,7 +79,7 @@ final class LkAbsenceReportExcelExporter {
                     write(excelRow, 3, row.studentId(), wrapStyle);
                     write(excelRow, 4, blank(row.phone()) ? "—" : row.phone(), wrapStyle);
                     write(excelRow, 5, blank(row.scheduleRange()) ? "—" : row.scheduleRange(), wrapStyle);
-                    write(excelRow, 6, blank(row.absenceRange()) ? "—" : row.absenceRange(), wrapStyle);
+                    write(excelRow, 6, formatVisitCell(row), wrapStyle);
                     write(excelRow, 7, kindLabel(row.kind()), wrapStyle);
                     write(excelRow, 8, row.parentNotified() ? "отправлено" : "нет", wrapStyle);
                 }
@@ -106,6 +106,24 @@ final class LkAbsenceReportExcelExporter {
         Cell cell = row.createCell(col);
         cell.setCellValue(value == null ? "" : value);
         cell.setCellStyle(style);
+    }
+
+    /**
+     * Полная неявка — одна фраза; иначе пары с новой строки
+     * (в т.ч. старые отчёты с разделителем {@code ; }).
+     */
+    private static String formatVisitCell(AbsenceReportRowDto row) {
+        if (row == null) {
+            return "—";
+        }
+        if ("full".equalsIgnoreCase(row.kind())) {
+            return "неявка на все пары";
+        }
+        String range = row.absenceRange();
+        if (blank(range)) {
+            return "—";
+        }
+        return range.replace("; ", "\n");
     }
 
     private static String kindLabel(String kind) {

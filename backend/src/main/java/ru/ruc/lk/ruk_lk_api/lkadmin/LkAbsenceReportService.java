@@ -790,9 +790,11 @@ public class LkAbsenceReportService {
             .sorted(Comparator.comparing(StudentAttendanceLessonResponse::startTime))
             .toList();
         String scheduleRange = formatScheduleRange(dayLessons);
-        String absenceRange = formatLessonAttendanceDetail(ordered);
         boolean fullDay = absent.size() >= dayLessons.size();
         String kind = fullDay ? "full" : "partial";
+        String absenceRange = fullDay
+            ? "неявка на все пары"
+            : formatLessonAttendanceDetail(ordered);
         boolean notified = noticeRepository
             .findByReportDateAndStudentId(date, student.studentId())
             .map(LkAbsenceParentNotice::isNotified)
@@ -1023,7 +1025,7 @@ public class LkAbsenceReportService {
 
     /**
      * Разбор дня по парам в тех же формулировках, что раздел посещаемости.
-     * В отчёт попадает только если была хотя бы одна неявка ({@code absent}).
+     * Каждая пара — с новой строки (для частичных неявок).
      */
     static String formatLessonAttendanceDetail(List<StudentAttendanceLessonResponse> lessons) {
         if (lessons == null || lessons.isEmpty()) {
@@ -1042,8 +1044,8 @@ public class LkAbsenceReportService {
             String status = attendanceStatusLabel(lesson.status(), lesson.lateMinutes(), lesson.arrivedAt());
             parts.add(index + ". " + time + " — " + status);
         }
-        String text = String.join("; ", parts);
-        return text.length() > 1000 ? text.substring(0, 997) + "…" : text;
+        String text = String.join("\n", parts);
+        return text.length() > 2000 ? text.substring(0, 1997) + "…" : text;
     }
 
     static String attendanceStatusLabel(String status, Integer lateMinutes, String arrivedAt) {

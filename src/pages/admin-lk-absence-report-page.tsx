@@ -497,10 +497,13 @@ export function AdminLkAbsenceReportPage() {
                       <td className={styles.absenceColPhone}>{row.phone || '—'}</td>
                       <td className={styles.absenceColSchedule}>{row.scheduleRange || '—'}</td>
                       <td className={styles.absenceColVisit}>
-                        {row.absenceRange || '—'}
                         {row.kind === 'full' ? (
-                          <div className={styles.cardMeta}>неявка на все пары</div>
-                        ) : null}
+                          'неявка на все пары'
+                        ) : (
+                          <span className={styles.absenceVisitLines}>
+                            {(row.absenceRange || '—').split(/\n|; /).join('\n')}
+                          </span>
+                        )}
                       </td>
                       <td className={styles.absenceColNotice}>
                         <label className={styles.checkRow}>

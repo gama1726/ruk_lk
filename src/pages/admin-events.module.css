@@ -675,6 +675,11 @@
   width: 14%;
 }
 
+.absenceVisitLines {
+  display: block;
+  white-space: pre-line;
+}
+
 .absenceColNotice {
   width: 7rem;
   white-space: nowrap !important;
