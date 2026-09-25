@@ -21,12 +21,11 @@ import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRowDto;
 final class LkAbsenceReportExcelExporter {
 
     private static final String[] HEADERS = {
-        "Дата",
+        "Зачётка",
         "Номер группы",
         "ФИО",
-        "ID студента",
         "Телефон родителя",
-        "Расписание",
+        "Время занятий",
         "Посещение по парам",
         "Тип неявки",
         "Уведомление родителям"
@@ -73,15 +72,14 @@ final class LkAbsenceReportExcelExporter {
             if (rows != null) {
                 for (AbsenceReportRowDto row : rows) {
                     Row excelRow = sheet.createRow(rowIdx++);
-                    write(excelRow, 0, row.date(), wrapStyle);
+                    write(excelRow, 0, row.studentId(), wrapStyle);
                     write(excelRow, 1, row.group(), wrapStyle);
                     write(excelRow, 2, row.fullName(), wrapStyle);
-                    write(excelRow, 3, row.studentId(), wrapStyle);
-                    write(excelRow, 4, blank(row.phone()) ? "—" : row.phone(), wrapStyle);
-                    write(excelRow, 5, blank(row.scheduleRange()) ? "—" : row.scheduleRange(), wrapStyle);
-                    write(excelRow, 6, formatVisitCell(row), wrapStyle);
-                    write(excelRow, 7, kindLabel(row.kind()), wrapStyle);
-                    write(excelRow, 8, row.parentNotified() ? "отправлено" : "нет", wrapStyle);
+                    write(excelRow, 3, blank(row.phone()) ? "—" : row.phone(), wrapStyle);
+                    write(excelRow, 4, blank(row.scheduleRange()) ? "—" : row.scheduleRange(), wrapStyle);
+                    write(excelRow, 5, formatVisitCell(row), wrapStyle);
+                    write(excelRow, 6, kindLabel(row.kind()), wrapStyle);
+                    write(excelRow, 7, row.parentNotified() ? "отправлено" : "нет", wrapStyle);
                 }
             }
 
@@ -123,7 +121,18 @@ final class LkAbsenceReportExcelExporter {
         if (blank(range)) {
             return "—";
         }
-        return range.replace("; ", "\n");
+        StringBuilder out = new StringBuilder();
+        for (String part : range.split("\\n|; ")) {
+            String line = part == null ? "" : part.trim();
+            if (line.isEmpty() || line.contains("— Вовремя")) {
+                continue;
+            }
+            if (out.length() > 0) {
+                out.append('\n');
+            }
+            out.append(line);
+        }
+        return out.isEmpty() ? "—" : out.toString();
     }
 
     private static String kindLabel(String kind) {

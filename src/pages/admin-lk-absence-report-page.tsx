@@ -471,11 +471,11 @@ export function AdminLkAbsenceReportPage() {
             <table className={styles.absenceTable}>
               <thead>
                 <tr>
-                  <th className={styles.absenceColDate}>Дата</th>
+                  <th className={styles.absenceColDate}>Зачётка</th>
                   <th className={styles.absenceColGroup}>Номер группы</th>
                   <th className={styles.absenceColName}>ФИО</th>
                   <th className={styles.absenceColPhone}>Телефон родителя</th>
-                  <th className={styles.absenceColSchedule}>Расписание</th>
+                  <th className={styles.absenceColSchedule}>Время занятий</th>
                   <th className={styles.absenceColVisit}>Посещение по парам</th>
                   <th className={styles.absenceColNotice}>Уведомление</th>
                 </tr>
@@ -488,12 +488,9 @@ export function AdminLkAbsenceReportPage() {
                 ) : (
                   report.rows.map((row) => (
                     <tr key={row.studentId}>
-                      <td className={styles.absenceColDate}>{row.date}</td>
+                      <td className={styles.absenceColDate}>{row.studentId}</td>
                       <td className={styles.absenceColGroup}>{row.group}</td>
-                      <td className={styles.absenceColName}>
-                        {row.fullName}
-                        <div className={styles.cardMeta}>{row.studentId}</div>
-                      </td>
+                      <td className={styles.absenceColName}>{row.fullName}</td>
                       <td className={styles.absenceColPhone}>{row.phone || '—'}</td>
                       <td className={styles.absenceColSchedule}>{row.scheduleRange || '—'}</td>
                       <td className={styles.absenceColVisit}>
@@ -501,7 +498,11 @@ export function AdminLkAbsenceReportPage() {
                           'неявка на все пары'
                         ) : (
                           <span className={styles.absenceVisitLines}>
-                            {(row.absenceRange || '—').split(/\n|; /).join('\n')}
+                            {(row.absenceRange || '')
+                              .split(/\n|; /)
+                              .map((line) => line.trim())
+                              .filter((line) => line && !/— Вовремя\b/.test(line))
+                              .join('\n') || '—'}
                           </span>
                         )}
                       </td>

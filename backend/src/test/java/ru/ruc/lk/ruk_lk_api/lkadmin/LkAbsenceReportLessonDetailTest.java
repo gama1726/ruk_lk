@@ -21,10 +21,11 @@ class LkAbsenceReportLessonDetailTest {
             lesson("12:20", "13:50", AttendanceMapper.STATUS_UNCONFIRMED, "12:15", null),
             lesson("14:00", "15:30", AttendanceMapper.STATUS_LATE, "14:12", 12)
         ));
-        assertTrue(text.contains("1. 09:00–10:30 — Вовремя"), text);
-        assertTrue(text.contains("2. 10:40–12:10 — Неявка"), text);
-        assertTrue(text.contains("3. 12:20–13:50 — Без выхода"), text);
-        assertTrue(text.contains("4. 14:00–15:30 — Опоздание · 12 мин · вход 14:12"), text);
+        assertFalse(text.contains("Вовремя"), text);
+        assertFalse(text.contains("09:00"), text);
+        assertTrue(text.contains("1. 10:40–12:10 — Неявка"), text);
+        assertTrue(text.contains("2. 12:20–13:50 — Без выхода"), text);
+        assertTrue(text.contains("3. 14:00–15:30 — Опоздание · 12 мин · вход 14:12"), text);
         assertTrue(text.contains("\n"), "пары с новой строки: " + text);
         assertFalse(text.contains("; "), text);
     }

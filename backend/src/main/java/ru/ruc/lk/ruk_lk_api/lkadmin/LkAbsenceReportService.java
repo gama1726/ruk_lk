@@ -1025,7 +1025,7 @@ public class LkAbsenceReportService {
 
     /**
      * Разбор дня по парам в тех же формулировках, что раздел посещаемости.
-     * Каждая пара — с новой строки (для частичных неявок).
+     * Каждая пара — с новой строки. Пары «Вовремя» не включаем.
      */
     static String formatLessonAttendanceDetail(List<StudentAttendanceLessonResponse> lessons) {
         if (lessons == null || lessons.isEmpty()) {
@@ -1035,6 +1035,9 @@ public class LkAbsenceReportService {
         int index = 0;
         for (StudentAttendanceLessonResponse lesson : lessons) {
             if (lesson == null) {
+                continue;
+            }
+            if (AttendanceMapper.STATUS_PRESENT.equals(lesson.status())) {
                 continue;
             }
             index++;
