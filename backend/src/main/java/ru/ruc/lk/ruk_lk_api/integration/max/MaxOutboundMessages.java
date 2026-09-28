@@ -3,6 +3,8 @@ package ru.ruc.lk.ruk_lk_api.integration.max;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
@@ -22,6 +24,10 @@ import ru.ruc.lk.ruk_lk_api.metrics.OutboundRestClients;
 @Component
 @ConditionalOnProperty(name = "app.max.enabled", havingValue = "true")
 public class MaxOutboundMessages {
+
+    private static final Logger log = LoggerFactory.getLogger(MaxOutboundMessages.class);
+    private static final int FILE_SEND_MAX_ATTEMPTS = 5;
+    private static final long FILE_SEND_RETRY_MS = 800L;
 
     private final RestClient restClient;
     private final RestClient uploadRestClient;
@@ -46,6 +52,7 @@ public class MaxOutboundMessages {
 
     /**
      * Загрузка файла ({@code POST /uploads?type=file}) и отправка сообщением с вложением.
+     * При {@code attachment.not.ready} — несколько повторов с паузой.
      */
     public void sendFile(long maxUserId, String text, byte[] fileBytes, String fileName) {
         OutboundOperationContext.call("send-file", () -> {
@@ -59,7 +66,7 @@ public class MaxOutboundMessages {
                     )
                 )
             );
-            postMessage(maxUserId, body);
+            postMessageWithAttachmentRetry(maxUserId, body);
         });
     }
 
@@ -79,6 +86,7 @@ public class MaxOutboundMessages {
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
         } catch (RestClientResponseException e) {
+            log.warn("MAX /uploads HTTP {} body={}", e.getStatusCode(), truncateBody(e.getResponseBodyAsString()));
             throw new MaxSendException("MAX /uploads HTTP " + e.getStatusCode(), e);
         } catch (RestClientException e) {
             throw new MaxSendException("MAX /uploads: " + e.getMessage(), e);
@@ -109,6 +117,7 @@ public class MaxOutboundMessages {
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
         } catch (RestClientResponseException e) {
+            log.warn("MAX upload HTTP {} body={}", e.getStatusCode(), truncateBody(e.getResponseBodyAsString()));
             throw new MaxSendException("MAX upload HTTP " + e.getStatusCode(), e);
         } catch (RestClientException e) {
             throw new MaxSendException("MAX upload: " + e.getMessage(), e);
@@ -167,6 +176,45 @@ public class MaxOutboundMessages {
         );
     }
 
+    private void postMessageWithAttachmentRetry(long maxUserId, Map<String, Object> body) {
+        RestClientResponseException lastHttp = null;
+        for (int attempt = 1; attempt <= FILE_SEND_MAX_ATTEMPTS; attempt++) {
+            try {
+                postMessage(maxUserId, body);
+                return;
+            } catch (MaxSendException e) {
+                if (!(e.getCause() instanceof RestClientResponseException http)) {
+                    throw e;
+                }
+                lastHttp = http;
+                String responseBody = http.getResponseBodyAsString();
+                log.warn(
+                    "MAX messages HTTP {} user_id={} attempt={}/{} body={}",
+                    http.getStatusCode(),
+                    maxUserId,
+                    attempt,
+                    FILE_SEND_MAX_ATTEMPTS,
+                    truncateBody(responseBody)
+                );
+                if (!isAttachmentNotReady(responseBody) || attempt == FILE_SEND_MAX_ATTEMPTS) {
+                    throw e;
+                }
+                try {
+                    Thread.sleep(FILE_SEND_RETRY_MS * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            }
+        }
+        if (lastHttp != null) {
+            throw new MaxSendException(
+                "Не удалось отправить сообщение в MAX: HTTP " + lastHttp.getStatusCode(),
+                lastHttp
+            );
+        }
+    }
+
     private void postMessage(long maxUserId, Map<String, Object> body) {
         if (!isConfigured()) {
             throw new MaxSendException("MAX не настроен: укажите app.max.bot-token");
@@ -179,9 +227,33 @@ public class MaxOutboundMessages {
                 .retrieve()
                 .toBodilessEntity();
         } catch (RestClientResponseException e) {
+            log.warn(
+                "MAX messages HTTP {} user_id={} body={}",
+                e.getStatusCode(),
+                maxUserId,
+                truncateBody(e.getResponseBodyAsString())
+            );
             throw new MaxSendException("Не удалось отправить сообщение в MAX: HTTP " + e.getStatusCode(), e);
         } catch (RestClientException e) {
             throw new MaxSendException("Не удалось отправить сообщение в MAX: " + e.getMessage(), e);
         }
+    }
+
+    private static boolean isAttachmentNotReady(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return false;
+        }
+        String lower = responseBody.toLowerCase();
+        return lower.contains("attachment.not.ready")
+            || lower.contains("attachment_not_ready")
+            || lower.contains("not ready");
+    }
+
+    private static String truncateBody(String body) {
+        if (body == null) {
+            return "";
+        }
+        String trimmed = body.trim();
+        return trimmed.length() <= 800 ? trimmed : trimmed.substring(0, 800) + "…";
     }
 }
