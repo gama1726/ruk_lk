@@ -86,6 +86,7 @@ public class LkAbsenceReportService {
     private final LkGroupRosterRepository rosterRepository;
     private final LkAbsenceParentNoticeRepository noticeRepository;
     private final LkAbsenceReportRepository reportRepository;
+    private final LkAbsenceNoticeService absenceNoticeService;
     private final boolean attendanceEnabled;
     private final ExecutorService reportExecutor = Executors.newFixedThreadPool(2);
     private final AtomicReference<EmployeesCache> employeesCache = new AtomicReference<>();
@@ -105,6 +106,7 @@ public class LkAbsenceReportService {
         LkGroupRosterRepository rosterRepository,
         LkAbsenceParentNoticeRepository noticeRepository,
         LkAbsenceReportRepository reportRepository,
+        LkAbsenceNoticeService absenceNoticeService,
         PlatformTransactionManager transactionManager,
         @Value("${app.attendance.enabled:false}") boolean attendanceEnabled
     ) {
@@ -114,6 +116,7 @@ public class LkAbsenceReportService {
         this.rosterRepository = rosterRepository;
         this.noticeRepository = noticeRepository;
         this.reportRepository = reportRepository;
+        this.absenceNoticeService = absenceNoticeService;
         this.attendanceEnabled = attendanceEnabled;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -433,6 +436,15 @@ public class LkAbsenceReportService {
                 result.rows().size(),
                 result.punchEmpCodes()
             );
+            try {
+                absenceNoticeService.notifyAfterReport(date, result.rows());
+            } catch (RuntimeException notifyError) {
+                log.warn(
+                    "Absence report {}: рассылка уведомлений завершилась с ошибкой: {}",
+                    reportId,
+                    notifyError.toString()
+                );
+            }
         } catch (ReportCancelledException e) {
             log.info("Absence report {}: CANCELLED", reportId);
             markCancelledIfRunning(reportId, "Отменено");

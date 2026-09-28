@@ -28,7 +28,7 @@ final class LkAbsenceReportExcelExporter {
         "Время занятий",
         "Посещение по парам",
         "Тип неявки",
-        "Уведомление родителям"
+        "Уведомление"
     };
 
     private LkAbsenceReportExcelExporter() {}
