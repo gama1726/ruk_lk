@@ -393,6 +393,7 @@ public class LkAbsenceReportService {
     /**
      * Ручная отправка PDF-уведомления по одной строке (только супер-админ).
      * Переотправка разрешена; галочка ставится только при успешной доставке.
+     * ФИО берём из запроса (не грузим отчёт из БД — иначе LOB warnings вне транзакции).
      */
     public Map<String, Object> sendAbsenceNoticeOne(HttpSession session, AbsenceNoticeSendRequest body) {
         LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
@@ -402,8 +403,10 @@ public class LkAbsenceReportService {
         }
         LocalDate date = parseDate(body.date());
         String studentId = requireText(body.studentId(), "Укажите зачетную книжку");
+        String fullName = body.fullName() == null || body.fullName().isBlank()
+            ? studentId
+            : body.fullName().trim();
 
-        String fullName = findStudentFullNameInReports(date, studentId).orElse(studentId);
         LkAbsenceNoticeService.NotifyOutcome outcome =
             absenceNoticeService.notifyOneForced(date, studentId, fullName);
 
@@ -423,21 +426,6 @@ public class LkAbsenceReportService {
                 "Не удалось отправить уведомление (MAX/email). Галочка не поставлена."
             );
         };
-    }
-
-    private Optional<String> findStudentFullNameInReports(LocalDate date, String studentId) {
-        for (LkAbsenceReportEntity entity : reportRepository.findByReportDate(date)) {
-            if (entity.getStatus() != LkAbsenceReportStatus.DONE || entity.getRows() == null) {
-                continue;
-            }
-            for (LkAbsenceReportRowEntity row : entity.getRows()) {
-                if (row.getStudentId() != null && studentId.equals(row.getStudentId().trim())
-                    && row.getFullName() != null && !row.getFullName().isBlank()) {
-                    return Optional.of(row.getFullName().trim());
-                }
-            }
-        }
-        return Optional.empty();
     }
 
     private void runBuild(UUID reportId, LocalDate date) {

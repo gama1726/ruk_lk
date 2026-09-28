@@ -315,7 +315,7 @@ export function AdminLkAbsenceReportPage() {
     setNotifyStudentId(row.studentId)
     setError(null)
     try {
-      await sendAbsenceNoticeOne(report.date, row.studentId)
+      await sendAbsenceNoticeOne(report.date, row.studentId, row.fullName)
       setReport({
         ...report,
         rows: report.rows.map((r) =>
