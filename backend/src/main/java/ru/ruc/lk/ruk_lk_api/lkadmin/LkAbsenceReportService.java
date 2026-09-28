@@ -56,6 +56,7 @@ import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioClient;
 import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioEmpCodeResolver;
 import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioEmployee;
 import ru.ruc.lk.ruk_lk_api.integration.zkbio.ZKBioException;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceNoticeSendRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRowDto;
@@ -375,6 +376,7 @@ public class LkAbsenceReportService {
 
     public Map<String, Object> setParentNotice(HttpSession session, ParentNoticeRequest body) {
         LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminAuthService.requireSuperAdmin(session);
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
         }
@@ -386,6 +388,56 @@ public class LkAbsenceReportService {
         row.setNotified(body.notified());
         noticeRepository.save(row);
         return Map.of("ok", true, "date", date.toString(), "studentId", studentId, "notified", body.notified());
+    }
+
+    /**
+     * Ручная отправка PDF-уведомления по одной строке (только супер-админ).
+     * Переотправка разрешена; галочка ставится только при успешной доставке.
+     */
+    public Map<String, Object> sendAbsenceNoticeOne(HttpSession session, AbsenceNoticeSendRequest body) {
+        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminAuthService.requireSuperAdmin(session);
+        if (body == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
+        }
+        LocalDate date = parseDate(body.date());
+        String studentId = requireText(body.studentId(), "Укажите зачетную книжку");
+
+        String fullName = findStudentFullNameInReports(date, studentId).orElse(studentId);
+        LkAbsenceNoticeService.NotifyOutcome outcome =
+            absenceNoticeService.notifyOneForced(date, studentId, fullName);
+
+        return switch (outcome) {
+            case SENT -> Map.of(
+                "ok", true,
+                "date", date.toString(),
+                "studentId", studentId,
+                "notified", true
+            );
+            case NO_RECIPIENTS -> throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Не найден канал доставки: нет привязки MAX и email у получателя"
+            );
+            case DELIVERY_FAILED -> throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Не удалось отправить уведомление (MAX/email). Галочка не поставлена."
+            );
+        };
+    }
+
+    private Optional<String> findStudentFullNameInReports(LocalDate date, String studentId) {
+        for (LkAbsenceReportEntity entity : reportRepository.findByReportDate(date)) {
+            if (entity.getStatus() != LkAbsenceReportStatus.DONE || entity.getRows() == null) {
+                continue;
+            }
+            for (LkAbsenceReportRowEntity row : entity.getRows()) {
+                if (row.getStudentId() != null && studentId.equals(row.getStudentId().trim())
+                    && row.getFullName() != null && !row.getFullName().isBlank()) {
+                    return Optional.of(row.getFullName().trim());
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private void runBuild(UUID reportId, LocalDate date) {

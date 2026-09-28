@@ -86,12 +86,14 @@ public class LkAbsenceNoticeService {
                 continue;
             }
             try {
-                boolean ok = notifyStudent(reportDate, row);
-                if (ok) {
+                NotifyOutcome outcome = notifyStudent(reportDate, row);
+                if (outcome == NotifyOutcome.SENT) {
                     markNotified(reportDate, studentId);
                     sent++;
-                } else {
+                } else if (outcome == NotifyOutcome.NO_RECIPIENTS) {
                     skipped++;
+                } else {
+                    failed++;
                 }
             } catch (RuntimeException e) {
                 failed++;
@@ -113,7 +115,35 @@ public class LkAbsenceNoticeService {
         );
     }
 
-    private boolean notifyStudent(LocalDate reportDate, AbsenceReportRowDto row) {
+    /**
+     * Принудительная отправка по одному студенту (в т.ч. переотправка).
+     * При успехе ставит {@code parentNotified=true}.
+     */
+    public NotifyOutcome notifyOneForced(LocalDate reportDate, String studentId, String fullNameHint) {
+        if (studentId == null || studentId.isBlank()) {
+            return NotifyOutcome.NO_RECIPIENTS;
+        }
+        String id = studentId.trim();
+        String dateRu = reportDate.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        AbsenceReportRowDto row = new AbsenceReportRowDto(
+            dateRu,
+            "",
+            id,
+            fullNameHint == null || fullNameHint.isBlank() ? id : fullNameHint.trim(),
+            "",
+            "",
+            "",
+            alreadyNotified(reportDate, id),
+            "full"
+        );
+        NotifyOutcome outcome = notifyStudent(reportDate, row);
+        if (outcome == NotifyOutcome.SENT) {
+            markNotified(reportDate, id);
+        }
+        return outcome;
+    }
+
+    private NotifyOutcome notifyStudent(LocalDate reportDate, AbsenceReportRowDto row) {
         String studentId = row.studentId().trim();
         String fullName = row.fullName() == null || row.fullName().isBlank() ? studentId : row.fullName().trim();
         String dateRu = row.date() == null || row.date().isBlank()
@@ -124,7 +154,7 @@ public class LkAbsenceNoticeService {
         List<NoticeRecipient> recipients = resolveRecipients(studentId, fullName, family);
         if (recipients.isEmpty()) {
             log.info("Нет получателей уведомления о непосещаемости для studentId={}", studentId);
-            return false;
+            return NotifyOutcome.NO_RECIPIENTS;
         }
 
         byte[] pdf = pdfGenerator.generate(fullName, dateRu);
@@ -140,7 +170,7 @@ public class LkAbsenceNoticeService {
                 anySent = true;
             }
         }
-        return anySent;
+        return anySent ? NotifyOutcome.SENT : NotifyOutcome.DELIVERY_FAILED;
     }
 
     private List<NoticeRecipient> resolveRecipients(
@@ -286,4 +316,10 @@ public class LkAbsenceNoticeService {
     }
 
     private record NoticeRecipient(String name, String email, Long maxUserId) {}
+
+    public enum NotifyOutcome {
+        SENT,
+        NO_RECIPIENTS,
+        DELIVERY_FAILED
+    }
 }
