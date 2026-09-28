@@ -354,8 +354,7 @@ export function AdminLkAbsenceReportPage() {
         </p>
       ) : (
         <p className={styles.statsHint}>
-          Выберите дату и найдите готовый отчёт. В списке — по одному успешному отчёту на день
-          (если есть и авто, и ручной — показывается автоматический).
+          Выберите дату и найдите готовый отчёт. В списке — по одному отчёту на день.
         </p>
       )}
 
@@ -416,7 +415,7 @@ export function AdminLkAbsenceReportPage() {
               <thead>
                 <tr>
                   <th>Дата</th>
-                  <th>Тип</th>
+                  {isSuperAdmin ? <th>Тип</th> : null}
                   <th>Статус</th>
                   <th>Проверено</th>
                   <th>Отсутствий</th>
@@ -427,7 +426,7 @@ export function AdminLkAbsenceReportPage() {
                 {listForTable.map((item) => (
                   <tr key={item.id}>
                     <td>{item.date}</td>
-                    <td>{originLabel(item.origin)}</td>
+                    {isSuperAdmin ? <td>{originLabel(item.origin)}</td> : null}
                     <td>{statusLabel(item.status)}</td>
                     <td>{item.rosterSize}</td>
                     <td>{item.absentCount}</td>
