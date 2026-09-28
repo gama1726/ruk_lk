@@ -287,6 +287,12 @@ public class LkAbsenceNoticeService {
                     recipient.maxUserId(),
                     e.getMessage()
                 );
+            } catch (Throwable e) {
+                log.warn(
+                    "MAX-доставка уведомления упала user_id={}: {} — пробуем email",
+                    recipient.maxUserId(),
+                    e.toString()
+                );
             }
         } else if (recipient.maxUserId() != null && (outbound == null || !outbound.isConfigured())) {
             log.debug("MAX привязан, но исходящий клиент недоступен — fallback на email");

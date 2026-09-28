@@ -6,9 +6,12 @@ import java.util.Map;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
@@ -85,20 +88,24 @@ public class MaxOutboundMessages {
         }
         String uploadUrl = String.valueOf(init.get("url"));
 
-        MultipartBodyBuilder multipart = new MultipartBodyBuilder();
-        multipart.part("data", new ByteArrayResource(fileBytes) {
+        // Servlet multipart без MultipartBodyBuilder — иначе нужен org.reactivestreams.Publisher
+        HttpHeaders fileHeaders = new HttpHeaders();
+        fileHeaders.setContentType(MediaType.APPLICATION_PDF);
+        ByteArrayResource resource = new ByteArrayResource(fileBytes) {
             @Override
             public String getFilename() {
                 return safeName;
             }
-        }).contentType(MediaType.APPLICATION_PDF);
+        };
+        MultiValueMap<String, Object> multipart = new LinkedMultiValueMap<>();
+        multipart.add("data", new HttpEntity<>(resource, fileHeaders));
 
         Map<String, Object> uploaded;
         try {
             uploaded = uploadRestClient.post()
                 .uri(uploadUrl)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(multipart.build())
+                .body(multipart)
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
         } catch (RestClientResponseException e) {
