@@ -408,7 +408,13 @@ public class LkAbsenceReportService {
             : body.fullName().trim();
 
         LkAbsenceNoticeService.NotifyOutcome outcome =
-            absenceNoticeService.notifyOneForced(date, studentId, fullName);
+            absenceNoticeService.notifyOneForced(
+                date,
+                studentId,
+                fullName,
+                body.kind(),
+                body.absenceRange()
+            );
 
         return switch (outcome) {
             case SENT -> Map.of(

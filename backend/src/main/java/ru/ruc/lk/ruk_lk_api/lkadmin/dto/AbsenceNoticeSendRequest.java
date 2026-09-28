@@ -4,5 +4,7 @@ package ru.ruc.lk.ruk_lk_api.lkadmin.dto;
 public record AbsenceNoticeSendRequest(
     String date,
     String studentId,
-    String fullName
+    String fullName,
+    String kind,
+    String absenceRange
 ) {}

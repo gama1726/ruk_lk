@@ -17,15 +17,17 @@ public class LoggingAbsenceNoticeEmailSender implements AbsenceNoticeEmailSender
         String recipientName,
         String studentFullName,
         String absenceDateRu,
+        String violationsDetail,
         byte[] pdfBytes,
         String pdfFileName
     ) {
         log.info(
-            "DEV: уведомление о непосещаемости на email={} recipient={} student={} date={} pdf={} ({} bytes)",
+            "DEV: уведомление о непосещаемости на email={} recipient={} student={} date={} violations={} pdf={} ({} bytes)",
             toEmail,
             recipientName,
             studentFullName,
             absenceDateRu,
+            violationsDetail,
             pdfFileName,
             pdfBytes == null ? 0 : pdfBytes.length
         );

@@ -49,6 +49,7 @@ public class UnisenderAbsenceNoticeEmailSender implements AbsenceNoticeEmailSend
         String recipientName,
         String studentFullName,
         String absenceDateRu,
+        String violationsDetail,
         byte[] pdfBytes,
         String pdfFileName
     ) {
@@ -57,6 +58,7 @@ public class UnisenderAbsenceNoticeEmailSender implements AbsenceNoticeEmailSend
             recipientName,
             studentFullName,
             absenceDateRu,
+            violationsDetail,
             pdfBytes,
             pdfFileName
         ));
@@ -67,26 +69,38 @@ public class UnisenderAbsenceNoticeEmailSender implements AbsenceNoticeEmailSend
         String recipientName,
         String studentFullName,
         String absenceDateRu,
+        String violationsDetail,
         byte[] pdfBytes,
         String pdfFileName
     ) {
         String safeName = recipientName == null || recipientName.isBlank() ? "получатель" : recipientName.trim();
         String student = studentFullName == null || studentFullName.isBlank() ? "обучающийся" : studentFullName.trim();
         String date = absenceDateRu == null || absenceDateRu.isBlank() ? "—" : absenceDateRu.trim();
+        String violations = violationsDetail == null ? "" : violationsDetail.trim();
         String fileName = pdfFileName == null || pdfFileName.isBlank()
             ? "Uvedomlenie_o_neposeshchaemosti.pdf"
             : pdfFileName.replace('/', '_');
 
         String subject = "Уведомление об отсутствии обучающегося на занятиях";
+        String violationsHtml = "";
+        String violationsPlain = "";
+        if (!violations.isBlank()) {
+            String htmlLines = escape(violations).replace("\n", "<br>");
+            violationsHtml = "<p><strong>Сведения о нарушениях:</strong><br>" + htmlLines + "</p>";
+            violationsPlain = "\nСведения о нарушениях:\n" + violations + "\n";
+        }
         String html = """
             <p>Здравствуйте!</p>
             <p>Направляем уведомление об отсутствии обучающегося <strong>%s</strong>
             на учебных занятиях <strong>%s</strong>.</p>
+            %s
             <p>Документ во вложении.</p>
             <p>Казанский кооперативный институт (филиал) РУК</p>
-            """.formatted(escape(student), escape(date));
+            """.formatted(escape(student), escape(date), violationsHtml);
         String plaintext = "Здравствуйте!\n\nУведомление об отсутствии обучающегося "
-            + student + " на учебных занятиях " + date + ".\nДокумент во вложении.";
+            + student + " на учебных занятиях " + date + ".\n"
+            + violationsPlain
+            + "Документ во вложении.";
 
         var attachment = new UnisenderSendRequest.Attachment(
             "application/pdf",

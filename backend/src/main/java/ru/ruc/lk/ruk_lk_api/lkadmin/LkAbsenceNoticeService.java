@@ -119,12 +119,20 @@ public class LkAbsenceNoticeService {
      * Принудительная отправка по одному студенту (в т.ч. переотправка).
      * При успехе ставит {@code parentNotified=true}.
      */
-    public NotifyOutcome notifyOneForced(LocalDate reportDate, String studentId, String fullNameHint) {
+    public NotifyOutcome notifyOneForced(
+        LocalDate reportDate,
+        String studentId,
+        String fullNameHint,
+        String kind,
+        String absenceRange
+    ) {
         if (studentId == null || studentId.isBlank()) {
             return NotifyOutcome.NO_RECIPIENTS;
         }
         String id = studentId.trim();
         String dateRu = reportDate.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        String resolvedKind = kind == null || kind.isBlank() ? "full" : kind.trim();
+        String resolvedRange = absenceRange == null ? "" : absenceRange;
         AbsenceReportRowDto row = new AbsenceReportRowDto(
             dateRu,
             "",
@@ -132,9 +140,9 @@ public class LkAbsenceNoticeService {
             fullNameHint == null || fullNameHint.isBlank() ? id : fullNameHint.trim(),
             "",
             "",
-            "",
+            resolvedRange,
             alreadyNotified(reportDate, id),
-            "full"
+            resolvedKind
         );
         NotifyOutcome outcome = notifyStudent(reportDate, row);
         if (outcome == NotifyOutcome.SENT) {
@@ -149,6 +157,7 @@ public class LkAbsenceNoticeService {
         String dateRu = row.date() == null || row.date().isBlank()
             ? reportDate.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"))
             : row.date().trim();
+        String violations = AbsenceNoticePdfGenerator.resolveViolationsText(row.kind(), row.absenceRange());
 
         OneCFamilyResponse family = onecClient.checkParent(studentId, null).orElse(null);
         List<NoticeRecipient> recipients = resolveRecipients(studentId, fullName, family);
@@ -157,16 +166,20 @@ public class LkAbsenceNoticeService {
             return NotifyOutcome.NO_RECIPIENTS;
         }
 
-        byte[] pdf = pdfGenerator.generate(fullName, dateRu);
+        byte[] pdf = pdfGenerator.generate(fullName, dateRu, violations);
         String fileName = "Uvedomlenie_o_neposeshchaemosti_" + studentId + ".pdf";
-        String messageText =
-            "Уведомление об отсутствии обучающегося " + fullName
-                + " на учебных занятиях " + dateRu
-                + ".\nКазанский кооперативный институт (филиал) РУК. Документ во вложении.";
+        StringBuilder message = new StringBuilder();
+        message.append("Уведомление об отсутствии обучающегося ").append(fullName)
+            .append(" на учебных занятиях ").append(dateRu).append(".\n");
+        if (!violations.isBlank()) {
+            message.append("Сведения о нарушениях:\n").append(violations).append("\n");
+        }
+        message.append("Казанский кооперативный институт (филиал) РУК. Документ во вложении.");
+        String messageText = message.toString();
 
         boolean anySent = false;
         for (NoticeRecipient recipient : recipients) {
-            if (deliver(recipient, fullName, dateRu, pdf, fileName, messageText)) {
+            if (deliver(recipient, fullName, dateRu, violations, pdf, fileName, messageText)) {
                 anySent = true;
             }
         }
@@ -253,6 +266,7 @@ public class LkAbsenceNoticeService {
         NoticeRecipient recipient,
         String studentFullName,
         String dateRu,
+        String violationsDetail,
         byte[] pdf,
         String fileName,
         String maxText
@@ -285,6 +299,7 @@ public class LkAbsenceNoticeService {
                     recipient.name(),
                     studentFullName,
                     dateRu,
+                    violationsDetail,
                     pdf,
                     fileName
                 );

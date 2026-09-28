@@ -8,6 +8,7 @@ public interface AbsenceNoticeEmailSender {
         String recipientName,
         String studentFullName,
         String absenceDateRu,
+        String violationsDetail,
         byte[] pdfBytes,
         String pdfFileName
     );

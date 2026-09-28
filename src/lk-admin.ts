@@ -186,11 +186,15 @@ export async function sendAbsenceNoticeOne(
   date: string,
   studentId: string,
   fullName: string,
+  kind: string,
+  absenceRange: string,
 ): Promise<{ ok: boolean; notified: boolean }> {
   return apiPost<{ ok: boolean; notified: boolean }>('/api/admin/lk/absence-report/notify-one', {
     date,
     studentId,
     fullName,
+    kind,
+    absenceRange,
   })
 }
 

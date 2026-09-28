@@ -34,8 +34,16 @@ public class AbsenceNoticePdfGenerator {
     }
 
     public byte[] generate(String studentFullName, String absenceDateRu) {
+        return generate(studentFullName, absenceDateRu, null);
+    }
+
+    /**
+     * @param violationsDetail текст нарушений: «неявка на все пары» или список по парам
+     */
+    public byte[] generate(String studentFullName, String absenceDateRu, String violationsDetail) {
         String fio = blankToDash(studentFullName);
         String date = blankToDash(absenceDateRu);
+        String violations = normalizeViolations(violationsDetail);
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4, 56, 56, 48, 48);
@@ -82,6 +90,15 @@ public class AbsenceNoticePdfGenerator {
             main.setSpacingAfter(14);
             document.add(main);
 
+            if (!violations.isBlank()) {
+                Paragraph vTitle = new Paragraph("Сведения о нарушениях:", bodyBold);
+                vTitle.setSpacingAfter(4);
+                document.add(vTitle);
+                Paragraph vBody = new Paragraph(violations, body);
+                vBody.setSpacingAfter(14);
+                document.add(vBody);
+            }
+
             document.add(new Paragraph("Контактные лица:", bodyBold));
             document.add(new Paragraph(
                 "Гатина Альбина Рифкатовна, декан факультета среднего профессионального образования",
@@ -109,9 +126,30 @@ public class AbsenceNoticePdfGenerator {
             document.close();
             return out.toByteArray();
         } catch (DocumentException | IOException e) {
-            throw new UncheckedIOException("Не удалось сформировать PDF уведомления", 
+            throw new UncheckedIOException("Не удалось сформировать PDF уведомления",
                 e instanceof IOException io ? io : new IOException(e));
         }
+    }
+
+    /** Для PDF/сообщения: full → «неявка на все пары», иначе список без «Вовремя». */
+    public static String resolveViolationsText(String kind, String absenceRange) {
+        if (kind != null && "full".equalsIgnoreCase(kind.trim())) {
+            return "неявка на все пары";
+        }
+        return normalizeViolations(absenceRange);
+    }
+
+    private static String normalizeViolations(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value.trim()
+            .lines()
+            .map(String::trim)
+            .filter(line -> !line.isEmpty())
+            .filter(line -> !line.contains("Вовремя"))
+            .reduce((a, b) -> a + "\n" + b)
+            .orElse("");
     }
 
     private static void addCentered(Document document, String text, Font font) throws DocumentException {
