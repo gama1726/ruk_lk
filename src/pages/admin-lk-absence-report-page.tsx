@@ -52,6 +52,27 @@ function originLabel(origin: string | undefined): string {
   return 'Ручной'
 }
 
+/** ISO yyyy-MM-dd → дд.мм.гггг */
+function formatReportDateRu(iso: string | undefined): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso?.trim() || ''
+  const [y, m, d] = iso.split('-')
+  return `${d}.${m}.${y}`
+}
+
+function campusLabelFriendly(raw: string | undefined): string {
+  if (!raw?.trim()) return 'Казани'
+  const cleaned = raw.replace(/\s*\(ZKBio\)\s*/gi, '').trim()
+  if (!cleaned || /^казань$/i.test(cleaned)) return 'Казани'
+  return cleaned
+}
+
+/** Заголовок готового отчёта для UI. */
+function doneReportTitle(report: AbsenceReport): string {
+  const date = formatReportDateRu(report.date)
+  const campus = campusLabelFriendly(report.group)
+  return `Отчёт отсутствующих за ${date} в ${campus}`
+}
+
 function stepIndex(phase: string | undefined): number {
   const idx = PROGRESS_STEPS.findIndex((s) => s.id === phase)
   return idx >= 0 ? idx : 0
@@ -59,14 +80,14 @@ function stepIndex(phase: string | undefined): number {
 
 function AbsenceWarningSections({
   warnings,
-  includeSummary,
+  includeTechSections,
 }: {
   warnings: string[]
-  includeSummary: boolean
+  includeTechSections: boolean
 }) {
   const sections = useMemo(
-    () => groupAbsenceWarnings(warnings, { includeSummary }),
-    [warnings, includeSummary],
+    () => groupAbsenceWarnings(warnings, { includeTechSections }),
+    [warnings, includeTechSections],
   )
   if (sections.length === 0) return null
 
@@ -175,7 +196,7 @@ function pickReportForDate(items: AbsenceReportSummary[], date: string): Absence
 export function AdminLkAbsenceReportPage() {
   const { me } = useOutletContext<{ me?: LkAdminMe }>()
   const isSuperAdmin = me?.superAdmin === true
-  const includeSummary = isSuperAdmin
+  const includeTechSections = isSuperAdmin
   const [date, setDate] = useState(todayIso)
   const [report, setReport] = useState<AbsenceReport | null>(null)
   const [saved, setSaved] = useState<AbsenceReportSummary[]>([])
@@ -325,7 +346,7 @@ export function AdminLkAbsenceReportPage() {
       <div className={styles.toolbar}>
         <h1 className={styles.pageTitle}>Отчёт отсутствующих</h1>
       </div>
-      {includeSummary ? (
+      {includeTechSections ? (
         <p className={styles.statsHint}>
           Казань (ZKBio): массовые проходы за день + зачётка (emp_code или nickname длины 6) +
           профиль/группа из 1С + очные пары. В колонке контактов — телефоны родителей из 1С.
@@ -458,15 +479,13 @@ export function AdminLkAbsenceReportPage() {
             }}
           >
             <h2 className={styles.chartTitle} style={{ margin: 0 }}>
-              {originLabel(report.origin)} · {report.date} · {report.group}
-              {report.scheduleRange ? ` · пары ${report.scheduleRange}` : ''} · проверено{' '}
-              {report.rosterSize}, отсутствий {report.absentCount}
+              {doneReportTitle(report)}
             </h2>
             <Button type="button" disabled={downloadBusy || busy} onClick={() => void onDownloadExcel()}>
               {downloadBusy ? 'Скачивание…' : 'Скачать Excel'}
             </Button>
           </div>
-          <AbsenceWarningSections warnings={report.warnings} includeSummary={includeSummary} />
+          <AbsenceWarningSections warnings={report.warnings} includeTechSections={includeTechSections} />
           <div className={styles.absenceTableWrap}>
             <table className={styles.absenceTable}>
               <thead>
@@ -526,7 +545,7 @@ export function AdminLkAbsenceReportPage() {
       ) : null}
 
       {report && report.status === 'RUNNING' && report.warnings.length > 0 ? (
-        <AbsenceWarningSections warnings={report.warnings} includeSummary={includeSummary} />
+        <AbsenceWarningSections warnings={report.warnings} includeTechSections={includeTechSections} />
       ) : null}
 
       {isSuperAdmin ? (

@@ -52,9 +52,7 @@ final class LkAbsenceReportExcelExporter {
             CellStyle wrapStyle = workbook.createCellStyle();
             wrapStyle.setWrapText(true);
 
-            String title = "Отчёт отсутствующих · " + nullToEmpty(reportDate)
-                + (blank(campusLabel) ? "" : " · " + campusLabel.trim())
-                + " · проверено " + checked + ", отсутствий " + absent;
+            String title = friendlyExcelTitle(reportDate, campusLabel);
             Row titleRow = sheet.createRow(0);
             Cell titleCell = titleRow.createCell(0);
             titleCell.setCellValue(title);
@@ -98,6 +96,25 @@ final class LkAbsenceReportExcelExporter {
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Не удалось сформировать Excel");
         }
+    }
+
+    private static String friendlyExcelTitle(String reportDate, String campusLabel) {
+        String date = formatDateRu(reportDate);
+        String campus = blank(campusLabel)
+            ? "Казани"
+            : campusLabel.replaceAll("(?i)\\s*\\(ZKBio\\)\\s*", "").trim();
+        if (campus.isEmpty() || campus.equalsIgnoreCase("Казань")) {
+            campus = "Казани";
+        }
+        return "Отчёт отсутствующих за " + date + " в " + campus;
+    }
+
+    private static String formatDateRu(String iso) {
+        if (iso == null || !iso.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            return nullToEmpty(iso);
+        }
+        String[] p = iso.split("-");
+        return p[2] + "." + p[1] + "." + p[0];
     }
 
     private static void write(Row row, int col, String value, CellStyle style) {
