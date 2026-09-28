@@ -25,6 +25,7 @@ import ru.ruc.lk.ruk_lk_api.api.student.StudentService;
 import ru.ruc.lk.ruk_lk_api.events.dto.AdminAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.LkAbsenceReportService.AbsenceReportExcelFile;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceNoticeSendRequest;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceNoticeSendRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportSummaryDto;

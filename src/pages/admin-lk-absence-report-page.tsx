@@ -12,7 +12,7 @@ import {
   fetchAbsenceReport,
   getAbsenceReport,
   listAbsenceReports,
-  setAbsenceParentNotice,
+  sendAbsenceNoticeOne,
   type AbsenceReport,
   type AbsenceReportRow,
   type AbsenceReportSummary,
@@ -206,6 +206,7 @@ export function AdminLkAbsenceReportPage() {
   const [downloadBusy, setDownloadBusy] = useState(false)
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
   const [cancelBusy, setCancelBusy] = useState(false)
+  const [notifyStudentId, setNotifyStudentId] = useState<string | null>(null)
 
   const loadSaved = useCallback(async () => {
     try {
@@ -309,19 +310,22 @@ export function AdminLkAbsenceReportPage() {
     }
   }
 
-  const onToggleNotice = async (row: AbsenceReportRow) => {
-    if (!report) return
-    const next = !row.parentNotified
+  const onSendNotice = async (row: AbsenceReportRow) => {
+    if (!report || !isSuperAdmin) return
+    setNotifyStudentId(row.studentId)
+    setError(null)
     try {
-      await setAbsenceParentNotice(report.date, row.studentId, next)
+      await sendAbsenceNoticeOne(report.date, row.studentId)
       setReport({
         ...report,
         rows: report.rows.map((r) =>
-          r.studentId === row.studentId ? { ...r, parentNotified: next } : r,
+          r.studentId === row.studentId ? { ...r, parentNotified: true } : r,
         ),
       })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось сохранить отметку')
+      setError(err instanceof ApiError ? err.message : 'Не удалось отправить уведомление')
+    } finally {
+      setNotifyStudentId(null)
     }
   }
 
@@ -350,9 +354,9 @@ export function AdminLkAbsenceReportPage() {
         <p className={styles.statsHint}>
           Казань (ZKBio): массовые проходы за день + зачётка (emp_code или nickname длины 6) +
           профиль/группа из 1С + очные пары. В колонке контактов — телефоны родителей из 1С.
-          После построения отчёта уведомления (PDF) уходят автоматически: несовершеннолетним —
-          родителям, совершеннолетним — себе или родителю с доступом в ЛК; канал MAX, иначе email.
-          Ручной отчёт может запускать только супер-админ. В 21:00 МСК — автоматический отчёт.
+          После построения отчёта уведомления (PDF) уходят автоматически. Супер-админ может
+          отправить или переотправить уведомление по кнопке в строке; галочка — факт успешной
+          отправки (видна всем админам). Канал: MAX, иначе email.
         </p>
       ) : (
         <p className={styles.statsHint}>
@@ -527,14 +531,23 @@ export function AdminLkAbsenceReportPage() {
                         )}
                       </td>
                       <td className={styles.absenceColNotice}>
-                        <label className={styles.checkRow}>
-                          <input
-                            type="checkbox"
-                            checked={row.parentNotified}
-                            onChange={() => void onToggleNotice(row)}
-                          />
-                          {row.parentNotified ? 'да' : 'нет'}
-                        </label>
+                        <div className={styles.checkRow}>
+                          <input type="checkbox" checked={row.parentNotified} disabled readOnly />
+                          <span>{row.parentNotified ? 'да' : 'нет'}</span>
+                          {isSuperAdmin ? (
+                            <Button
+                              type="button"
+                              disabled={busy || notifyStudentId === row.studentId}
+                              onClick={() => void onSendNotice(row)}
+                            >
+                              {notifyStudentId === row.studentId
+                                ? 'Отправка…'
+                                : row.parentNotified
+                                  ? 'Переотправить'
+                                  : 'Отправить'}
+                            </Button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))
