@@ -192,16 +192,6 @@ export async function sendAbsenceNoticeOne(
   })
 }
 
-export async function sendAbsenceNoticeOne(
-  date: string,
-  studentId: string,
-): Promise<{ ok: boolean; notified: boolean }> {
-  return apiPost<{ ok: boolean; notified: boolean }>('/api/admin/lk/absence-report/notify-one', {
-    date,
-    studentId,
-  })
-}
-
 export function hasLkSection(me: LkAdminMe | undefined, section: LkAdminSection): boolean {
   if (!me) return false
   if (me.superAdmin) return true
