@@ -53,6 +53,8 @@ nano backend/application-local.properties
 не работает; `/start` и `/api/student/start/redirect` остаются заглушкой.
 `app.start.show-in-lk=true` — показать пункт Start в меню и «Сервисах» (по умолчанию скрыт;
 кнопку на Start можно вести на `https://my.ruc.su/api/student/start/redirect`).
+Временный костыль: `app.start.first-month-only=true` — в exchange для Start учитывать только
+оплату первого платежа графика (остальные долги игнор); `false` или отсутствие флага — как раньше.
 
 ### Админ-панель фото для пропуска
 

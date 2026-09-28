@@ -79,6 +79,8 @@ app.lk-admin.full-name=Супер-администратор ЛК
 # app.start.exchange-secret=CHANGE_ME
 # app.start.exchange-path=/api/internal/lk/exchange
 # app.start.callback-path=/account/lk/callback
+# Временно: Start смотрит только 1-й платёж графика (false = обычная проверка долга)
+# app.start.first-month-only=
 
 # pulse.ruc.su — электронный журнал (тот же контракт exchange, без полей оплаты)
 # app.pulse.enabled=true

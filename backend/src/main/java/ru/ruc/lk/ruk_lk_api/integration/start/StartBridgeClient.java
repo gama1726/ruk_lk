@@ -37,6 +37,8 @@ public class StartBridgeClient {
     private final String callbackPath;
     private final boolean enabled;
     private final boolean configured;
+    /** Временный костыль: для Start смотреть только оплату 1-го платежа графика. */
+    private final boolean firstMonthOnly;
 
     public StartBridgeClient(
         @Value("${app.start.enabled:false}") boolean enabled,
@@ -45,11 +47,13 @@ public class StartBridgeClient {
         @Value("${app.start.exchange-secret:}") String exchangeSecret,
         @Value("${app.start.exchange-path:/api/internal/lk/exchange}") String exchangePath,
         @Value("${app.start.callback-path:/account/lk/callback}") String callbackPath,
+        @Value("${app.start.first-month-only:false}") boolean firstMonthOnly,
         StudentService studentService,
         OutboundRestClients outboundRestClients
     ) {
         this.studentService = studentService;
         this.enabled = enabled;
+        this.firstMonthOnly = firstMonthOnly;
         this.exchangeSecret = exchangeSecret == null ? "" : exchangeSecret.trim();
         this.frontendUrl = trimSlash(frontendUrl);
         this.exchangePath = exchangePath == null || exchangePath.isBlank()
@@ -156,6 +160,9 @@ public class StartBridgeClient {
         try {
             StudentPaymentsResponse payments = studentService.getPaymentsForStudentId(studentId, LocalDate.now());
             String status = blank(payments.status()) ? "unknown" : payments.status().trim();
+            if (firstMonthOnly) {
+                status = statusByFirstMonthOnly(payments, studentId);
+            }
             String contractNumber = payments.contract() == null ? "" : blankToEmpty(payments.contract().number());
             String contractDate = payments.contract() == null ? "" : blankToEmpty(payments.contract().date());
             return new PaymentSnapshot(
@@ -170,6 +177,35 @@ public class StartBridgeClient {
             log.info("start exchange: оплата недоступна для {}: {}", studentId, e.getMessage());
             return new PaymentSnapshot(false, "not_found", "", "", "", null);
         }
+    }
+
+    /**
+     * Временный костыль ({@code app.start.first-month-only}): для Start учитываем только
+     * первый платёж графика; остальные долги игнорируем. Раздел «Оплаты» в ЛК не затрагивается.
+     */
+    private String statusByFirstMonthOnly(StudentPaymentsResponse payments, String studentId) {
+        var schedule = payments.schedule();
+        if (schedule == null || schedule.isEmpty()) {
+            log.info(
+                "start first-month-only: пустой график для {}, status={}",
+                studentId,
+                blank(payments.status()) ? "unknown" : payments.status()
+            );
+            return "overdue";
+        }
+        var first = schedule.stream()
+            .min(java.util.Comparator.comparingInt(s -> s.number() <= 0 ? Integer.MAX_VALUE : s.number()))
+            .orElse(schedule.getFirst());
+        boolean paid = "paid".equalsIgnoreCase(blankToEmpty(first.status()));
+        String status = paid ? "ok" : "overdue";
+        log.info(
+            "start first-month-only: studentId={} payment#{} statusIn={} → exchange={}",
+            studentId,
+            first.number(),
+            first.status(),
+            status
+        );
+        return status;
     }
 
     private static String emailOrFallback(StudentProfileResponse profile) {
