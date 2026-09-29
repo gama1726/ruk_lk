@@ -13,6 +13,10 @@ public record AbsenceReportResponse(
     String source,
     /** MANUAL | AUTO */
     String origin,
+    /** CAMPUS | GROUP */
+    String scope,
+    /** Имя группы при scope=GROUP */
+    String filterGroup,
     List<AbsenceReportRowDto> rows,
     List<String> warnings,
     String error,

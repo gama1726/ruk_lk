@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -147,12 +148,23 @@ public class LkAbsenceReportService {
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
         }
-        return enqueue(parseDate(body.date()), LkAbsenceReportOrigin.MANUAL);
+        LocalDate date = parseDate(body.date());
+        LocalDate today = LocalDate.now(ZoneId.of("Europe/Moscow"));
+        if (date.isAfter(today)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Нельзя строить отчёт на будущую дату");
+        }
+        LkAbsenceReportScope scope = parseScope(body.scope());
+        String filterGroup = "";
+        if (scope == LkAbsenceReportScope.GROUP) {
+            filterGroup = requireText(body.group(), "Укажите группу");
+            precheckGroupSchedule(filterGroup, date);
+        }
+        return enqueue(date, LkAbsenceReportOrigin.MANUAL, scope, filterGroup);
     }
 
     /**
      * Автозапуск на сегодня (МСК): если уже есть AUTO RUNNING/DONE на эту дату — пропуск.
-     * Ручные отчёты за ту же дату не мешают.
+     * Ручные отчёты за ту же дату не мешают. Только CAMPUS.
      */
     @Transactional
     public Optional<UUID> startAutoForToday() {
@@ -162,6 +174,7 @@ public class LkAbsenceReportService {
         }
         LocalDate today = LocalDate.now(ZoneId.of("Europe/Moscow"));
         boolean alreadyAuto = reportRepository.findByReportDate(today).stream()
+            .filter(e -> e.getScope() == LkAbsenceReportScope.CAMPUS)
             .filter(e -> e.getOrigin() == LkAbsenceReportOrigin.AUTO)
             .anyMatch(e -> e.getStatus() == LkAbsenceReportStatus.RUNNING
                 || e.getStatus() == LkAbsenceReportStatus.DONE);
@@ -169,7 +182,12 @@ public class LkAbsenceReportService {
             log.info("Автоотчёт отсутствующих пропущен: на {} уже есть AUTO RUNNING/DONE", today);
             return Optional.empty();
         }
-        AbsenceReportResponse started = enqueue(today, LkAbsenceReportOrigin.AUTO);
+        AbsenceReportResponse started = enqueue(
+            today,
+            LkAbsenceReportOrigin.AUTO,
+            LkAbsenceReportScope.CAMPUS,
+            ""
+        );
         log.info("Автоотчёт отсутствующих запущен: id={} date={}", started.id(), today);
         return Optional.of(UUID.fromString(started.id()));
     }
@@ -199,21 +217,37 @@ public class LkAbsenceReportService {
         return toResponse(entity, List.of(), splitWarnings(entity.getWarningsText()));
     }
 
-    private AbsenceReportResponse enqueue(LocalDate date, LkAbsenceReportOrigin origin) {
+    private AbsenceReportResponse enqueue(
+        LocalDate date,
+        LkAbsenceReportOrigin origin,
+        LkAbsenceReportScope scope,
+        String filterGroup
+    ) {
         UUID id = UUID.randomUUID();
         LkAbsenceReportEntity entity = new LkAbsenceReportEntity(id, date, origin);
+        entity.setScope(scope == null ? LkAbsenceReportScope.CAMPUS : scope);
+        entity.setFilterGroup(filterGroup == null ? "" : filterGroup.trim());
         entity.setProgressPhase("queued");
-        entity.setProgressLabel(
-            origin == LkAbsenceReportOrigin.AUTO ? "Автоотчёт в очереди…" : "Отчёт в очереди…"
-        );
+        String queueLabel;
+        if (origin == LkAbsenceReportOrigin.AUTO) {
+            queueLabel = "Автоотчёт в очереди…";
+        } else if (entity.getScope() == LkAbsenceReportScope.GROUP) {
+            queueLabel = "Отчёт по группе в очереди…";
+        } else {
+            queueLabel = "Отчёт в очереди…";
+        }
+        entity.setProgressLabel(queueLabel);
         entity.setProgressPercent(1);
         reportRepository.save(entity);
         // Важно: runBuild только после commit, иначе другой поток не видит запись
         // и ensureNotCancelled ошибочно считает отчёт отменённым (RUNNING зависает на 1%).
         scheduleBuildAfterCommit(id, date);
-        return toResponse(entity, List.of(), List.of(
-            origin == LkAbsenceReportOrigin.AUTO ? "Автоотчёт строится…" : "Отчёт строится…"
-        ));
+        String runningLabel = origin == LkAbsenceReportOrigin.AUTO
+            ? "Автоотчёт строится…"
+            : entity.getScope() == LkAbsenceReportScope.GROUP
+                ? "Отчёт по группе строится…"
+                : "Отчёт строится…";
+        return toResponse(entity, List.of(), List.of(runningLabel));
     }
 
     private void scheduleBuildAfterCommit(UUID id, LocalDate date) {
@@ -274,7 +308,11 @@ public class LkAbsenceReportService {
             entity.getAbsentCount(),
             rows
         );
-        String filename = "absence-report-" + entity.getReportDate() + ".xlsx";
+        String filename = entity.getScope() == LkAbsenceReportScope.GROUP
+            && !entity.getFilterGroup().isBlank()
+            ? "absence-report-" + entity.getReportDate() + "-"
+                + entity.getFilterGroup().replaceAll("[\\\\/:*?\"<>|]+", "_") + ".xlsx"
+            : "absence-report-" + entity.getReportDate() + ".xlsx";
         return new AbsenceReportExcelFile(filename, bytes);
     }
 
@@ -293,14 +331,29 @@ public class LkAbsenceReportService {
                 .toList();
         }
         return reportRepository.findAllByOrderByCreatedAtDesc().stream()
+            .filter(e -> e.getScope() == LkAbsenceReportScope.CAMPUS)
             .map(this::toSummary)
             .toList();
     }
 
-    /** Для обычных админов: только DONE, одна запись на дату (AUTO предпочтительнее). */
+    /** Отчёты по одной группе — только супер-админ. */
+    @Transactional(readOnly = true)
+    public List<AbsenceReportSummaryDto> listGroupReports(HttpSession session) {
+        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminAuthService.requireSuperAdmin(session);
+        return reportRepository.findAllByOrderByCreatedAtDesc().stream()
+            .filter(e -> e.getScope() == LkAbsenceReportScope.GROUP)
+            .map(this::toSummary)
+            .toList();
+    }
+
+    /** Для обычных админов: только DONE CAMPUS, одна запись на дату (AUTO предпочтительнее). */
     private List<LkAbsenceReportEntity> visibleDoneOnePerDate() {
         Map<LocalDate, LkAbsenceReportEntity> best = new LinkedHashMap<>();
         for (LkAbsenceReportEntity entity : reportRepository.findByStatus(LkAbsenceReportStatus.DONE)) {
+            if (entity.getScope() == LkAbsenceReportScope.GROUP) {
+                continue;
+            }
             LocalDate day = entity.getReportDate();
             LkAbsenceReportEntity current = best.get(day);
             if (current == null || isBetterDoneForViewer(entity, current)) {
@@ -333,6 +386,9 @@ public class LkAbsenceReportService {
     }
 
     private void requireVisibleDoneForViewer(LkAbsenceReportEntity entity) {
+        if (entity.getScope() == LkAbsenceReportScope.GROUP) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден");
+        }
         if (entity.getStatus() != LkAbsenceReportStatus.DONE) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден");
         }
@@ -349,6 +405,8 @@ public class LkAbsenceReportService {
             e.getReportDate().toString(),
             e.getStatus().name(),
             e.getOrigin().name(),
+            e.getScope().name(),
+            e.getFilterGroup(),
             e.getCheckedCount(),
             e.getAbsentCount(),
             e.getCreatedAt() == null ? "" : e.getCreatedAt().toString(),
@@ -447,9 +505,18 @@ public class LkAbsenceReportService {
     }
 
     private void runBuild(UUID reportId, LocalDate date) {
+        LkAbsenceReportScope scope = LkAbsenceReportScope.CAMPUS;
+        String filterGroup = "";
         try {
+            LkAbsenceReportEntity meta = transactionTemplate.execute(status ->
+                reportRepository.findById(reportId).orElse(null)
+            );
+            if (meta != null) {
+                scope = meta.getScope();
+                filterGroup = meta.getFilterGroup();
+            }
             ensureNotCancelled(reportId);
-            BuildResult result = buildInternal(reportId, date);
+            BuildResult result = buildInternal(reportId, date, filterGroup);
             ensureNotCancelled(reportId);
             transactionTemplate.executeWithoutResult(status -> {
                 LkAbsenceReportEntity entity = reportRepository.findById(reportId)
@@ -489,20 +556,27 @@ public class LkAbsenceReportService {
                 reportRepository.save(entity);
             });
             log.info(
-                "Absence report {}: DONE checked={} absent={} punchesEmp={}",
+                "Absence report {}: DONE scope={} group={} checked={} absent={} punchesEmp={}",
                 reportId,
+                scope,
+                filterGroup,
                 result.checkedCount(),
                 result.rows().size(),
                 result.punchEmpCodes()
             );
-            try {
-                absenceNoticeService.notifyAfterReport(date, result.rows());
-            } catch (RuntimeException notifyError) {
-                log.warn(
-                    "Absence report {}: рассылка уведомлений завершилась с ошибкой: {}",
-                    reportId,
-                    notifyError.toString()
-                );
+            // Авторассылка только для полного отчёта по кампусу.
+            if (scope == LkAbsenceReportScope.CAMPUS) {
+                try {
+                    absenceNoticeService.notifyAfterReport(date, result.rows());
+                } catch (RuntimeException notifyError) {
+                    log.warn(
+                        "Absence report {}: рассылка уведомлений завершилась с ошибкой: {}",
+                        reportId,
+                        notifyError.toString()
+                    );
+                }
+            } else {
+                log.info("Absence report {}: групповой отчёт — авторассылка пропущена", reportId);
             }
         } catch (ReportCancelledException e) {
             log.info("Absence report {}: CANCELLED", reportId);
@@ -559,8 +633,13 @@ public class LkAbsenceReportService {
         );
     }
 
-    private BuildResult buildInternal(UUID reportId, LocalDate date) throws ZKBioException {
+    private BuildResult buildInternal(UUID reportId, LocalDate date, String filterGroup)
+        throws ZKBioException {
         List<String> warnings = new ArrayList<>();
+        boolean groupOnly = filterGroup != null && !filterGroup.isBlank();
+        if (groupOnly) {
+            warnings.add("Отчёт по группе: " + filterGroup.trim());
+        }
 
         ensureNotCancelled(reportId);
         updateProgress(reportId, "employees", "Загрузка сотрудников ZKBio…", 5, 0, 0);
@@ -618,8 +697,22 @@ public class LkAbsenceReportService {
         if (enrichStats.noGroup > 0) {
             warnings.add("Нет группы в 1С — пропуск: " + enrichStats.noGroup);
         }
+        if (groupOnly) {
+            String filter = filterGroup.trim();
+            Map<String, EnrichedStudent> filtered = new LinkedHashMap<>();
+            for (Map.Entry<String, EnrichedStudent> entry : enriched.entrySet()) {
+                if (groupMatches(entry.getValue().group(), filter)) {
+                    filtered.put(entry.getKey(), entry.getValue());
+                }
+            }
+            warnings.add("После фильтра по группе «" + filter + "»: студентов=" + filtered.size()
+                + " (из " + enriched.size() + " с профилем)");
+            enriched = filtered;
+        }
         if (enriched.isEmpty()) {
-            warnings.add("После фильтрации не осталось студентов с профилем и группой в 1С");
+            warnings.add(groupOnly
+                ? "В СКУД/1С не найдено студентов этой группы с профилем"
+                : "После фильтрации не осталось студентов с профилем и группой в 1С");
             warnings.add(0, "Проверено студентов: 0 (кандидаты зачётки длины " + EMP_CODE_LENGTH
                 + ": " + roster.size() + ")");
             return new BuildResult(allUnique.size(), roster.size(), 0, punchesByEmp.size(), List.of(), warnings);
@@ -1082,6 +1175,8 @@ public class LkAbsenceReportService {
             entity.getAbsentCount(),
             entity.getSource(),
             entity.getOrigin().name(),
+            entity.getScope().name(),
+            entity.getFilterGroup(),
             rows,
             warnings,
             blank(entity.getErrorMessage()),
@@ -1599,9 +1694,92 @@ public class LkAbsenceReportService {
             || line.startsWith("Пропущено без зачётки")
             || line.startsWith("Проходов ZKBio")
             || line.startsWith("Догрузка проходов ZKBio")
+            || line.startsWith("Отчёт по группе:")
+            || line.startsWith("После фильтра по группе")
             || line.startsWith("Нет профиля в 1С")
             || line.startsWith("Нет группы в 1С")
-            || line.startsWith("После фильтрации");
+            || line.startsWith("После фильтрации")
+            || line.startsWith("В СКУД/1С не найдено");
+    }
+
+    /**
+     * До старта GROUP-отчёта: группа есть в расписании и на дату есть очные пары.
+     */
+    private void precheckGroupSchedule(String groupName, LocalDate date) {
+        Optional<ScheduleGroupLookupResponse> lookup;
+        try {
+            lookup = lookupGroup(groupName);
+        } catch (Exception e) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Не удалось проверить расписание: " + shortMessage(e)
+            );
+        }
+        if (lookup.isEmpty()) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Группа не найдена в расписании"
+            );
+        }
+        List<CampusLesson> lessons;
+        try {
+            lessons = loadCampusLessons(groupName, date);
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Не удалось загрузить расписание группы: " + shortMessage(e)
+            );
+        }
+        if (lessons.isEmpty()) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "На эту дату нет очных занятий у группы"
+            );
+        }
+    }
+
+    private static LkAbsenceReportScope parseScope(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return LkAbsenceReportScope.CAMPUS;
+        }
+        String value = raw.trim().toUpperCase(Locale.ROOT);
+        if ("GROUP".equals(value) || "GROUP_ONLY".equals(value) || "ONE".equals(value)) {
+            return LkAbsenceReportScope.GROUP;
+        }
+        if ("CAMPUS".equals(value) || "ALL".equals(value) || "ALL_GROUPS".equals(value)) {
+            return LkAbsenceReportScope.CAMPUS;
+        }
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Некорректный вид отчёта (ожидается CAMPUS или GROUP)"
+        );
+    }
+
+    /** Сопоставление группы из 1С с фильтром (с учётом нормализатора расписания). */
+    static boolean groupMatches(String studentGroup, String filterGroup) {
+        if (studentGroup == null || filterGroup == null) {
+            return false;
+        }
+        String student = studentGroup.trim();
+        String filter = filterGroup.trim();
+        if (student.isEmpty() || filter.isEmpty()) {
+            return false;
+        }
+        if (student.equalsIgnoreCase(filter)) {
+            return true;
+        }
+        List<String> studentCandidates = ScheduleGroupNameNormalizer.lookupCandidates(student);
+        List<String> filterCandidates = ScheduleGroupNameNormalizer.lookupCandidates(filter);
+        for (String sc : studentCandidates) {
+            for (String fc : filterCandidates) {
+                if (sc != null && fc != null && sc.equalsIgnoreCase(fc)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static LocalDate parseDate(String raw) {

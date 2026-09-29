@@ -139,6 +139,12 @@ public class LkAdminController {
         return absenceReportService.list(session);
     }
 
+    /** Только супер-админ: отчёты по одной группе. */
+    @GetMapping("/absence-reports/groups")
+    public List<AbsenceReportSummaryDto> listGroupAbsenceReports(HttpSession session) {
+        return absenceReportService.listGroupReports(session);
+    }
+
     @GetMapping("/group-rosters")
     public List<GroupRosterDto> listGroupRosters(HttpSession session) {
         return absenceReportService.listRosters(session);

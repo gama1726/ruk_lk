@@ -6,6 +6,10 @@ public record AbsenceReportSummaryDto(
     String status,
     /** MANUAL | AUTO */
     String origin,
+    /** CAMPUS | GROUP */
+    String scope,
+    /** Имя группы при scope=GROUP */
+    String filterGroup,
     int rosterSize,
     int absentCount,
     String createdAt,

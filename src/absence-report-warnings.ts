@@ -65,9 +65,12 @@ export function groupAbsenceWarnings(
       line.startsWith('Пропущено без зачётки') ||
       line.startsWith('Проходов ZKBio') ||
       line.startsWith('Догрузка проходов ZKBio') ||
+      line.startsWith('Отчёт по группе:') ||
+      line.startsWith('После фильтра по группе') ||
       line.startsWith('Нет профиля в 1С') ||
       line.startsWith('Нет группы в 1С') ||
-      line.startsWith('После фильтрации')
+      line.startsWith('После фильтрации') ||
+      line.startsWith('В СКУД/1С не найдено')
     ) {
       summary.push(line)
       continue

@@ -37,6 +37,15 @@ public class LkAbsenceReportEntity {
     @Column(length = 16)
     private LkAbsenceReportOrigin origin = LkAbsenceReportOrigin.MANUAL;
 
+    /** CAMPUS | GROUP. Null у старых записей = CAMPUS. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private LkAbsenceReportScope scope = LkAbsenceReportScope.CAMPUS;
+
+    /** Имя группы при {@link LkAbsenceReportScope#GROUP}; иначе пусто. */
+    @Column(length = 240)
+    private String filterGroup = "";
+
     @Column(nullable = false, length = 32)
     private String source = "zkbio";
 
@@ -130,6 +139,22 @@ public class LkAbsenceReportEntity {
 
     public void setOrigin(LkAbsenceReportOrigin origin) {
         this.origin = origin == null ? LkAbsenceReportOrigin.MANUAL : origin;
+    }
+
+    public LkAbsenceReportScope getScope() {
+        return scope == null ? LkAbsenceReportScope.CAMPUS : scope;
+    }
+
+    public void setScope(LkAbsenceReportScope scope) {
+        this.scope = scope == null ? LkAbsenceReportScope.CAMPUS : scope;
+    }
+
+    public String getFilterGroup() {
+        return filterGroup == null ? "" : filterGroup;
+    }
+
+    public void setFilterGroup(String filterGroup) {
+        this.filterGroup = filterGroup == null ? "" : filterGroup.trim();
     }
 
     public String getSource() {
