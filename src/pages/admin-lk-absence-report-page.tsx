@@ -12,6 +12,7 @@ import {
   fetchAbsenceReport,
   getAbsenceReport,
   listAbsenceReports,
+  listGroupAbsenceReports,
   sendAbsenceNoticeOne,
   type AbsenceReport,
   type AbsenceReportRow,
@@ -96,6 +97,9 @@ function campusLabelFriendly(raw: string | undefined): string {
 /** Заголовок готового отчёта для UI. */
 function doneReportTitle(report: AbsenceReport): string {
   const date = formatReportDateRu(report.date)
+  if (report.scope === 'GROUP' && report.filterGroup?.trim()) {
+    return `Отчёт отсутствующих за ${date} · группа ${report.filterGroup.trim()}`
+  }
   const campus = campusLabelFriendly(report.group)
   return `Отчёт отсутствующих за ${date} в ${campus}`
 }
@@ -258,8 +262,11 @@ export function AdminLkAbsenceReportPage() {
   const isSuperAdmin = me?.superAdmin === true
   const includeTechSections = isSuperAdmin
   const [date, setDate] = useState(todayIso)
+  const [reportMode, setReportMode] = useState<'CAMPUS' | 'GROUP'>('CAMPUS')
+  const [groupName, setGroupName] = useState('')
   const [report, setReport] = useState<AbsenceReport | null>(null)
   const [saved, setSaved] = useState<AbsenceReportSummary[]>([])
+  const [groupSaved, setGroupSaved] = useState<AbsenceReportSummary[]>([])
   const [found, setFound] = useState<AbsenceReportSummary[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -270,11 +277,21 @@ export function AdminLkAbsenceReportPage() {
 
   const loadSaved = useCallback(async () => {
     try {
-      setSaved(await listAbsenceReports())
+      const campusList = await listAbsenceReports()
+      setSaved(campusList)
+      if (isSuperAdmin) {
+        try {
+          setGroupSaved(await listGroupAbsenceReports())
+        } catch {
+          setGroupSaved([])
+        }
+      } else {
+        setGroupSaved([])
+      }
     } catch {
       /* ignore */
     }
-  }, [])
+  }, [isSuperAdmin])
 
   useEffect(() => {
     void loadSaved()
@@ -302,12 +319,20 @@ export function AdminLkAbsenceReportPage() {
   const onBuild = async (e: FormEvent) => {
     e.preventDefault()
     if (!isSuperAdmin) return
+    if (reportMode === 'GROUP' && !groupName.trim()) {
+      setError('Укажите группу')
+      return
+    }
     setBusy(true)
     setError(null)
     setFound(null)
     setReport(null)
     try {
-      const started = await fetchAbsenceReport({ date })
+      const started = await fetchAbsenceReport({
+        date,
+        scope: reportMode,
+        group: reportMode === 'GROUP' ? groupName.trim() : undefined,
+      })
       setReport(started)
       await loadSaved()
     } catch (err) {
@@ -410,6 +435,14 @@ export function AdminLkAbsenceReportPage() {
 
   const building = report?.status === 'RUNNING'
   const listForTable = found ?? saved
+  const buildButtonLabel =
+    reportMode === 'GROUP'
+      ? busy
+        ? 'Проверка…'
+        : 'Построить по группе'
+      : busy
+        ? 'Запуск…'
+        : 'Построить отчёт'
 
   return (
     <section className={styles.absencePage} aria-label="Отчёт отсутствующих">
@@ -420,9 +453,9 @@ export function AdminLkAbsenceReportPage() {
         <p className={styles.statsHint}>
           Казань (ZKBio): массовые проходы за день + зачётка (emp_code или nickname длины 6) +
           профиль/группа из 1С + очные пары. В колонке контактов — телефоны родителей из 1С.
-          После построения отчёта уведомления (PDF) уходят автоматически. Супер-админ может
-          отправить или переотправить уведомление по кнопке в строке; галочка — факт успешной
-          отправки (видна всем админам). Канал: MAX, иначе email.
+          Полный отчёт по всем группам после построения шлёт уведомления (PDF) автоматически.
+          Отчёт по одной группе — без авторассылки; супер-админ шлёт вручную кнопкой в строке.
+          Галочка — факт успешной отправки. Канал: MAX, иначе email.
         </p>
       ) : (
         <p className={styles.statsHint}>
@@ -449,11 +482,56 @@ export function AdminLkAbsenceReportPage() {
               required
             />
           </div>
+          {isSuperAdmin ? (
+            <fieldset
+              style={{
+                border: 'none',
+                margin: 0,
+                padding: 0,
+                display: 'grid',
+                gap: '0.5rem',
+              }}
+            >
+              <legend className={styles.statsHint} style={{ margin: 0, padding: 0 }}>
+                Вид отчёта
+              </legend>
+              <label className={styles.checkRow} style={{ gap: '0.5rem' }}>
+                <input
+                  type="radio"
+                  name="reportMode"
+                  checked={reportMode === 'CAMPUS'}
+                  onChange={() => setReportMode('CAMPUS')}
+                />
+                <span>По всем группам</span>
+              </label>
+              <label className={styles.checkRow} style={{ gap: '0.5rem' }}>
+                <input
+                  type="radio"
+                  name="reportMode"
+                  checked={reportMode === 'GROUP'}
+                  onChange={() => setReportMode('GROUP')}
+                />
+                <span>По одной группе</span>
+              </label>
+            </fieldset>
+          ) : null}
+          {isSuperAdmin && reportMode === 'GROUP' ? (
+            <div className={styles.formRow}>
+              <Input
+                label="Группа"
+                name="group"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="Например ТД(ТД)3-О/Сп/К326"
+                required
+              />
+            </div>
+          ) : null}
           {error ? <p className={styles.error}>{error}</p> : null}
           <div className={styles.footerActions}>
             {isSuperAdmin ? (
               <Button type="submit" disabled={busy}>
-                {busy ? 'Запуск…' : 'Построить отчёт'}
+                {buildButtonLabel}
               </Button>
             ) : (
               <Button type="submit" disabled={busy}>
@@ -517,6 +595,54 @@ export function AdminLkAbsenceReportPage() {
         </div>
       ) : null}
 
+      {isSuperAdmin ? (
+        <div className={styles.usersCard} style={{ marginBottom: '1.25rem' }}>
+          <h2 className={styles.chartTitle}>Отчёты по группам</h2>
+          {groupSaved.length === 0 ? (
+            <p className={styles.statsHint} style={{ margin: 0 }}>
+              Пока нет отчётов по отдельным группам.
+            </p>
+          ) : (
+            <div className={styles.usersTableWrap}>
+              <table className={styles.usersTable}>
+                <thead>
+                  <tr>
+                    <th>Дата</th>
+                    <th>Группа</th>
+                    <th>Статус</th>
+                    <th>Проверено</th>
+                    <th>Отсутствий</th>
+                    <th>Время сборки</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupSaved.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.date}</td>
+                      <td>{item.filterGroup || '—'}</td>
+                      <td>{statusLabel(item.status)}</td>
+                      <td>{item.rosterSize}</td>
+                      <td>{item.absentCount}</td>
+                      <td>{formatDurationMs(item.buildDurationMs)}</td>
+                      <td>
+                        <Button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void onOpenSaved(item.id)}
+                        >
+                          Открыть
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {building && report ? (
         <AbsenceBuildProgress
           report={report}
@@ -559,6 +685,12 @@ export function AdminLkAbsenceReportPage() {
               {downloadBusy ? 'Скачивание…' : 'Скачать Excel'}
             </Button>
           </div>
+          {report.scope === 'GROUP' ? (
+            <p className={styles.statsHint} style={{ marginTop: 0 }}>
+              Групповой отчёт: авторассылка не выполнялась. Отправку уведомлений — вручную по
+              строкам.
+            </p>
+          ) : null}
           {isSuperAdmin ? <AbsenceBuildTimings report={report} /> : null}
           <AbsenceWarningSections warnings={report.warnings} includeTechSections={includeTechSections} />
           <div className={styles.absenceTableWrap}>
@@ -656,8 +788,10 @@ export function AdminLkAbsenceReportPage() {
           }
         >
           <p style={{ margin: 0 }}>
-            Построение {report?.origin === 'AUTO' ? 'автоматического' : 'ручного'} отчёта за{' '}
-            {report?.date} будет остановлено. Уже выполненные шаги не сохранятся как готовый отчёт.
+            Построение {report?.scope === 'GROUP' ? 'группового' : report?.origin === 'AUTO' ? 'автоматического' : 'ручного'}{' '}
+            отчёта за {report?.date}
+            {report?.scope === 'GROUP' && report.filterGroup ? ` (${report.filterGroup})` : ''} будет
+            остановлено. Уже выполненные шаги не сохранятся как готовый отчёт.
           </p>
         </Modal>
       ) : null}

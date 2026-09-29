@@ -83,6 +83,10 @@ export type AbsenceReport = {
   source: string
   /** MANUAL | AUTO */
   origin?: string
+  /** CAMPUS | GROUP */
+  scope?: string
+  /** Имя группы при scope=GROUP */
+  filterGroup?: string
   rows: AbsenceReportRow[]
   warnings: string[]
   error?: string
@@ -102,6 +106,9 @@ export type AbsenceReportSummary = {
   status: string
   /** MANUAL | AUTO */
   origin?: string
+  /** CAMPUS | GROUP */
+  scope?: string
+  filterGroup?: string
   rosterSize: number
   absentCount: number
   createdAt: string
@@ -152,7 +159,11 @@ export async function fetchLkAdminAttendance(
   return apiGet<AdminAttendanceDto>(`/api/admin/lk/attendance?${params}`)
 }
 
-export async function fetchAbsenceReport(body: { date: string }): Promise<AbsenceReport> {
+export async function fetchAbsenceReport(body: {
+  date: string
+  scope?: 'CAMPUS' | 'GROUP' | string
+  group?: string
+}): Promise<AbsenceReport> {
   return apiPost<AbsenceReport>('/api/admin/lk/absence-report', body)
 }
 
@@ -166,6 +177,11 @@ export async function getAbsenceReport(id: string): Promise<AbsenceReport> {
 
 export async function listAbsenceReports(): Promise<AbsenceReportSummary[]> {
   return apiGet<AbsenceReportSummary[]>('/api/admin/lk/absence-reports')
+}
+
+/** Только супер-админ: отчёты по одной группе. */
+export async function listGroupAbsenceReports(): Promise<AbsenceReportSummary[]> {
+  return apiGet<AbsenceReportSummary[]>('/api/admin/lk/absence-reports/groups')
 }
 
 export async function downloadAbsenceReportExcel(id: string): Promise<void> {
