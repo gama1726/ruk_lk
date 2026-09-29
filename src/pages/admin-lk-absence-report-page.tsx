@@ -218,7 +218,7 @@ function AbsenceBuildTimings({ report }: { report: AbsenceReport }) {
   const stages = report.stageTimings ?? []
   if (report.buildDurationMs == null && stages.length === 0) return null
 
-  const labelByPhase = new Map(PROGRESS_STEPS.map((s) => [s.id, s.label]))
+  const labelByPhase = new Map<string, string>(PROGRESS_STEPS.map((s) => [s.id, s.label]))
 
   return (
     <div className={styles.statsHint} style={{ marginBottom: '0.75rem' }}>
