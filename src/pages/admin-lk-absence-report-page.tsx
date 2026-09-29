@@ -27,6 +27,7 @@ const PROGRESS_STEPS = [
   { id: 'punches', label: 'Проходы за день' },
   { id: 'profiles', label: 'Профили 1С' },
   { id: 'schedule', label: 'Расписание групп' },
+  { id: 'recheck', label: 'Догрузка проходов' },
   { id: 'matching', label: 'Сверка отсутствий' },
   { id: 'done', label: 'Готово' },
 ] as const

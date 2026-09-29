@@ -591,7 +591,8 @@ public class LkAbsenceReportService {
         updateProgress(reportId, "punches", "Загрузка проходов ZKBio за день…", 12, 0, 0);
         Map<String, List<SkudAccessEvent>> punchesByEmp;
         try {
-            punchesByEmp = zkbioClient.fetchDayAccessEventsByEmpCode(date);
+            // ConcurrentHashMap: параллельная догрузка по emp_code ниже.
+            punchesByEmp = new ConcurrentHashMap<>(zkbioClient.fetchDayAccessEventsByEmpCode(date));
         } catch (ZKBioException e) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY,
@@ -627,8 +628,11 @@ public class LkAbsenceReportService {
         Map<String, List<CampusLesson>> lessonsByGroup =
             loadLessonsByGroup(reportId, enriched, date, warnings);
 
+        // Day-list ZKBio бывает неполным: перепроверяем тех, кого bulk пометил отсутствующими.
+        recheckPunchesForAbsentees(reportId, date, enriched, lessonsByGroup, punchesByEmp, warnings);
+
         ensureNotCancelled(reportId);
-        updateProgress(reportId, "matching", "Сверка проходов с расписанием…", 92, 0, enriched.size());
+        updateProgress(reportId, "matching", "Сверка проходов с расписанием…", 93, 0, enriched.size());
         List<AbsenceReportRowDto> rows = new ArrayList<>();
         int matched = 0;
         for (EnrichedStudent student : enriched.values()) {
@@ -647,7 +651,7 @@ public class LkAbsenceReportService {
                     reportId,
                     "matching",
                     "Сверка проходов с расписанием… " + matched + " / " + enriched.size(),
-                    92 + (int) Math.round(7.0 * matched / Math.max(1, enriched.size())),
+                    93 + (int) Math.round(6.0 * matched / Math.max(1, enriched.size())),
                     matched,
                     enriched.size()
                 );
@@ -680,6 +684,107 @@ public class LkAbsenceReportService {
         List<ZKBioEmployee> fresh = zkbioClient.fetchEmployees();
         employeesCache.set(new EmployeesCache(List.copyOf(fresh), now));
         return fresh;
+    }
+
+    /**
+     * Day-list без emp_code у ZKBio бывает дырявым. Кандидатов на отсутствие
+     * (по bulk) перезапрашиваем по emp_code и подменяем проходы.
+     */
+    private void recheckPunchesForAbsentees(
+        UUID reportId,
+        LocalDate date,
+        Map<String, EnrichedStudent> enriched,
+        Map<String, List<CampusLesson>> lessonsByGroup,
+        Map<String, List<SkudAccessEvent>> punchesByEmp,
+        List<String> warnings
+    ) {
+        LinkedHashSet<String> empCodes = new LinkedHashSet<>();
+        for (EnrichedStudent student : enriched.values()) {
+            String emp = student.skudEmpCode();
+            if (emp == null || emp.isBlank()) {
+                continue;
+            }
+            try {
+                if (buildRow(date, student, lessonsByGroup, punchesByEmp) != null) {
+                    empCodes.add(emp.trim());
+                }
+            } catch (Exception e) {
+                empCodes.add(emp.trim());
+            }
+        }
+        if (empCodes.isEmpty()) {
+            warnings.add("Догрузка проходов ZKBio по emp_code: кандидатов=0");
+            return;
+        }
+
+        List<String> codes = List.copyOf(empCodes);
+        ensureNotCancelled(reportId);
+        updateProgress(
+            reportId,
+            "recheck",
+            "Догрузка проходов: 0 / " + codes.size(),
+            88,
+            0,
+            codes.size()
+        );
+
+        AtomicInteger done = new AtomicInteger();
+        AtomicInteger updated = new AtomicInteger();
+        AtomicInteger failed = new AtomicInteger();
+        try (ExecutorService pool = Executors.newFixedThreadPool(
+            Math.min(MAX_PARALLEL, Math.max(1, codes.size()))
+        )) {
+            List<CompletableFuture<Void>> futures = new ArrayList<>(codes.size());
+            for (String empCode : codes) {
+                futures.add(CompletableFuture.runAsync(() -> {
+                    ensureNotCancelled(reportId);
+                    try {
+                        List<SkudAccessEvent> fresh =
+                            zkbioClient.fetchAccessEventsByEmpCode(empCode, date, date);
+                        punchesByEmp.put(empCode, fresh == null ? List.of() : List.copyOf(fresh));
+                        updated.incrementAndGet();
+                    } catch (ReportCancelledException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        failed.incrementAndGet();
+                        log.info("absence recheck emp_code={}: {}", empCode, e.getMessage());
+                    } finally {
+                        int n = done.incrementAndGet();
+                        if (n == codes.size() || n % 25 == 0) {
+                            int pct = 88 + (int) Math.round(4.0 * n / Math.max(1, codes.size()));
+                            updateProgress(
+                                reportId,
+                                "recheck",
+                                "Догрузка проходов: " + n + " / " + codes.size(),
+                                pct,
+                                n,
+                                codes.size()
+                            );
+                        }
+                    }
+                }, pool));
+            }
+            try {
+                CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+            } catch (CompletionException e) {
+                Throwable cause = e.getCause() != null ? e.getCause() : e;
+                if (cause instanceof ReportCancelledException cancelled) {
+                    throw cancelled;
+                }
+                if (cause instanceof RuntimeException runtime) {
+                    throw runtime;
+                }
+                throw e;
+            }
+        }
+
+        String line = "Догрузка проходов ZKBio по emp_code: кандидатов=" + codes.size()
+            + ", обновлено=" + updated.get();
+        if (failed.get() > 0) {
+            line += ", ошибок=" + failed.get();
+        }
+        warnings.add(line);
+        log.info("Absence report {}: {}", reportId, line);
     }
 
     private Map<String, EnrichedStudent> enrichStudents(
@@ -1493,6 +1598,7 @@ public class LkAbsenceReportService {
             || line.startsWith("Пропущено по длине emp_code")
             || line.startsWith("Пропущено без зачётки")
             || line.startsWith("Проходов ZKBio")
+            || line.startsWith("Догрузка проходов ZKBio")
             || line.startsWith("Нет профиля в 1С")
             || line.startsWith("Нет группы в 1С")
             || line.startsWith("После фильтрации");

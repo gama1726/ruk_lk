@@ -55,7 +55,7 @@ public class LkAbsenceReportEntity {
     @Column(nullable = false)
     private int absentCount;
 
-    /** employees | punches | profiles | schedule | matching | done */
+    /** employees | punches | profiles | schedule | recheck | matching | done */
     @Column(nullable = false, length = 32)
     private String progressPhase = "queued";
 

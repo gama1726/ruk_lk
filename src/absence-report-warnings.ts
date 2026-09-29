@@ -64,6 +64,7 @@ export function groupAbsenceWarnings(
       line.startsWith('Пропущено по длине emp_code') ||
       line.startsWith('Пропущено без зачётки') ||
       line.startsWith('Проходов ZKBio') ||
+      line.startsWith('Догрузка проходов ZKBio') ||
       line.startsWith('Нет профиля в 1С') ||
       line.startsWith('Нет группы в 1С') ||
       line.startsWith('После фильтрации')
