@@ -60,6 +60,7 @@ import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceNoticeSendRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRowDto;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportStageTimingDto;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportSummaryDto;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterDto;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterSaveRequest;
@@ -93,11 +94,21 @@ public class LkAbsenceReportService {
     private final AtomicReference<EmployeesCache> employeesCache = new AtomicReference<>();
     private final TransactionTemplate transactionTemplate;
     private final Set<UUID> cancelRequested = ConcurrentHashMap.newKeySet();
+    private final ConcurrentHashMap<UUID, BuildTimingState> timingByReport = new ConcurrentHashMap<>();
 
     private static final class ReportCancelledException extends RuntimeException {
         ReportCancelledException() {
             super("Отчёт отменён");
         }
+    }
+
+    /** Накопление длительностей этапов во время RUNNING. */
+    private static final class BuildTimingState {
+        Instant buildStarted;
+        String currentPhase;
+        String currentLabel;
+        Instant phaseStarted;
+        final List<AbsenceReportStageTimingDto> completed = new ArrayList<>();
     }
 
     public LkAbsenceReportService(
@@ -342,7 +353,8 @@ public class LkAbsenceReportService {
             e.getAbsentCount(),
             e.getCreatedAt() == null ? "" : e.getCreatedAt().toString(),
             e.getFinishedAt() == null ? "" : e.getFinishedAt().toString(),
-            blank(e.getErrorMessage())
+            blank(e.getErrorMessage()),
+            e.getBuildDurationMs()
         );
     }
 
@@ -458,6 +470,7 @@ public class LkAbsenceReportService {
                 entity.setProgressCurrent(result.checkedCount());
                 entity.setProgressTotal(result.checkedCount());
                 entity.setFinishedAt(Instant.now());
+                applyFinalTimings(reportId, entity);
                 List<LkAbsenceReportRowEntity> rowEntities = new ArrayList<>();
                 for (AbsenceReportRowDto row : result.rows()) {
                     rowEntities.add(new LkAbsenceReportRowEntity(
@@ -507,6 +520,7 @@ public class LkAbsenceReportService {
             markFailed(reportId, e);
         } finally {
             cancelRequested.remove(reportId);
+            timingByReport.remove(reportId);
         }
     }
 
@@ -521,6 +535,7 @@ public class LkAbsenceReportService {
                 entity.setProgressPhase("cancelled");
                 entity.setProgressLabel(label == null || label.isBlank() ? "Отменено" : label);
                 entity.setFinishedAt(Instant.now());
+                applyFinalTimings(reportId, entity);
                 reportRepository.save(entity);
             })
         );
@@ -538,6 +553,7 @@ public class LkAbsenceReportService {
                 entity.setProgressPhase("failed");
                 entity.setProgressLabel("Ошибка построения");
                 entity.setFinishedAt(Instant.now());
+                applyFinalTimings(reportId, entity);
                 reportRepository.save(entity);
             })
         );
@@ -968,7 +984,9 @@ public class LkAbsenceReportService {
             entity.getProgressLabel(),
             entity.getProgressPercent(),
             entity.getProgressCurrent(),
-            entity.getProgressTotal()
+            entity.getProgressTotal(),
+            entity.getBuildDurationMs(),
+            parseStageTimings(entity.getTimingsJson())
         );
     }
 
@@ -1025,9 +1043,305 @@ public class LkAbsenceReportService {
                 entity.setProgressPercent(percent);
                 entity.setProgressCurrent(current);
                 entity.setProgressTotal(total);
+                applyProgressTiming(reportId, phase, label, entity);
                 reportRepository.save(entity);
             })
         );
+    }
+
+    /**
+     * При смене phase закрывает предыдущий этап; пишет частичные timings + wall-clock.
+     * Потокобезопасно: profiles обновляется из пула.
+     */
+    private void applyProgressTiming(
+        UUID reportId,
+        String phase,
+        String label,
+        LkAbsenceReportEntity entity
+    ) {
+        if (phase == null || phase.isBlank()) {
+            return;
+        }
+        BuildTimingState state = timingByReport.computeIfAbsent(reportId, ignored -> new BuildTimingState());
+        synchronized (state) {
+            Instant now = Instant.now();
+            if (state.buildStarted == null) {
+                state.buildStarted = now;
+                state.currentPhase = phase;
+                state.currentLabel = blankToPhaseLabel(phase, label);
+                state.phaseStarted = now;
+            } else if (!phase.equals(state.currentPhase)) {
+                closeCurrentPhase(state, now);
+                state.currentPhase = phase;
+                state.currentLabel = blankToPhaseLabel(phase, label);
+                state.phaseStarted = now;
+            } else if (label != null && !label.isBlank()) {
+                state.currentLabel = label.trim();
+            }
+            writeTimingsToEntity(state, entity, now, false);
+        }
+    }
+
+    /** Закрывает текущий этап и фиксирует итог на entity (DONE / FAILED / CANCELLED). */
+    private void applyFinalTimings(UUID reportId, LkAbsenceReportEntity entity) {
+        BuildTimingState state = timingByReport.get(reportId);
+        if (state == null) {
+            return;
+        }
+        synchronized (state) {
+            Instant now = Instant.now();
+            closeCurrentPhase(state, now);
+            writeTimingsToEntity(state, entity, now, true);
+        }
+    }
+
+    private static void closeCurrentPhase(BuildTimingState state, Instant now) {
+        if (state.currentPhase == null || state.phaseStarted == null) {
+            return;
+        }
+        long ms = Math.max(0, Duration.between(state.phaseStarted, now).toMillis());
+        state.completed.add(new AbsenceReportStageTimingDto(
+            state.currentPhase,
+            state.currentLabel == null || state.currentLabel.isBlank()
+                ? state.currentPhase
+                : state.currentLabel,
+            ms
+        ));
+        state.currentPhase = null;
+        state.currentLabel = null;
+        state.phaseStarted = null;
+    }
+
+    private void writeTimingsToEntity(
+        BuildTimingState state,
+        LkAbsenceReportEntity entity,
+        Instant now,
+        boolean finalized
+    ) {
+        List<AbsenceReportStageTimingDto> snapshot = new ArrayList<>(state.completed);
+        if (!finalized && state.currentPhase != null && state.phaseStarted != null) {
+            long runningMs = Math.max(0, Duration.between(state.phaseStarted, now).toMillis());
+            snapshot.add(new AbsenceReportStageTimingDto(
+                state.currentPhase,
+                state.currentLabel == null || state.currentLabel.isBlank()
+                    ? state.currentPhase
+                    : state.currentLabel,
+                runningMs
+            ));
+        }
+        entity.setTimingsJson(serializeStageTimings(snapshot));
+        if (state.buildStarted != null) {
+            entity.setBuildDurationMs(Math.max(0, Duration.between(state.buildStarted, now).toMillis()));
+        }
+    }
+
+    private static String serializeStageTimings(List<AbsenceReportStageTimingDto> stages) {
+        if (stages == null || stages.isEmpty()) {
+            return "[]";
+        }
+        StringBuilder sb = new StringBuilder(stages.size() * 64);
+        sb.append('[');
+        for (int i = 0; i < stages.size(); i++) {
+            AbsenceReportStageTimingDto stage = stages.get(i);
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append("{\"phase\":").append(jsonString(stage.phase()))
+                .append(",\"label\":").append(jsonString(stage.label()))
+                .append(",\"durationMs\":").append(Math.max(0, stage.durationMs()))
+                .append('}');
+        }
+        sb.append(']');
+        return sb.toString();
+    }
+
+    private static String jsonString(String raw) {
+        if (raw == null) {
+            return "\"\"";
+        }
+        StringBuilder sb = new StringBuilder(raw.length() + 8);
+        sb.append('"');
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            switch (c) {
+                case '\\' -> sb.append("\\\\");
+                case '"' -> sb.append("\\\"");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                default -> {
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+                }
+            }
+        }
+        sb.append('"');
+        return sb.toString();
+    }
+
+    private List<AbsenceReportStageTimingDto> parseStageTimings(String json) {
+        if (json == null || json.isBlank() || "[]".equals(json.trim())) {
+            return List.of();
+        }
+        List<AbsenceReportStageTimingDto> out = new ArrayList<>();
+        // Простой разбор массива наших объектов — без Jackson databind (Boot 4).
+        String body = json.trim();
+        if (!body.startsWith("[") || !body.endsWith("]")) {
+            return List.of();
+        }
+        int i = 1;
+        int n = body.length() - 1;
+        while (i < n) {
+            while (i < n && (body.charAt(i) == ',' || Character.isWhitespace(body.charAt(i)))) {
+                i++;
+            }
+            if (i >= n || body.charAt(i) != '{') {
+                break;
+            }
+            int end = findMatchingBrace(body, i);
+            if (end < 0) {
+                break;
+            }
+            String obj = body.substring(i, end + 1);
+            String phase = extractJsonStringField(obj, "phase");
+            String label = extractJsonStringField(obj, "label");
+            Long ms = extractJsonLongField(obj, "durationMs");
+            if (phase != null && ms != null) {
+                out.add(new AbsenceReportStageTimingDto(
+                    phase,
+                    label == null || label.isBlank() ? phase : label,
+                    Math.max(0, ms)
+                ));
+            }
+            i = end + 1;
+        }
+        return List.copyOf(out);
+    }
+
+    private static int findMatchingBrace(String s, int openIdx) {
+        int depth = 0;
+        boolean inString = false;
+        boolean escape = false;
+        for (int i = openIdx; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (inString) {
+                if (escape) {
+                    escape = false;
+                } else if (c == '\\') {
+                    escape = true;
+                } else if (c == '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            if (c == '"') {
+                inString = true;
+            } else if (c == '{') {
+                depth++;
+            } else if (c == '}') {
+                depth--;
+                if (depth == 0) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static String extractJsonStringField(String obj, String field) {
+        String key = "\"" + field + "\"";
+        int keyAt = obj.indexOf(key);
+        if (keyAt < 0) {
+            return null;
+        }
+        int colon = obj.indexOf(':', keyAt + key.length());
+        if (colon < 0) {
+            return null;
+        }
+        int i = colon + 1;
+        while (i < obj.length() && Character.isWhitespace(obj.charAt(i))) {
+            i++;
+        }
+        if (i >= obj.length() || obj.charAt(i) != '"') {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        i++;
+        boolean escape = false;
+        while (i < obj.length()) {
+            char c = obj.charAt(i++);
+            if (escape) {
+                switch (c) {
+                    case 'n' -> sb.append('\n');
+                    case 'r' -> sb.append('\r');
+                    case 't' -> sb.append('\t');
+                    case '"' -> sb.append('"');
+                    case '\\' -> sb.append('\\');
+                    case 'u' -> {
+                        if (i + 4 <= obj.length()) {
+                            try {
+                                sb.append((char) Integer.parseInt(obj.substring(i, i + 4), 16));
+                            } catch (NumberFormatException ignored) {
+                                // skip bad escape
+                            }
+                            i += 4;
+                        }
+                    }
+                    default -> sb.append(c);
+                }
+                escape = false;
+                continue;
+            }
+            if (c == '\\') {
+                escape = true;
+            } else if (c == '"') {
+                return sb.toString();
+            } else {
+                sb.append(c);
+            }
+        }
+        return null;
+    }
+
+    private static Long extractJsonLongField(String obj, String field) {
+        String key = "\"" + field + "\"";
+        int keyAt = obj.indexOf(key);
+        if (keyAt < 0) {
+            return null;
+        }
+        int colon = obj.indexOf(':', keyAt + key.length());
+        if (colon < 0) {
+            return null;
+        }
+        int i = colon + 1;
+        while (i < obj.length() && Character.isWhitespace(obj.charAt(i))) {
+            i++;
+        }
+        int start = i;
+        if (i < obj.length() && obj.charAt(i) == '-') {
+            i++;
+        }
+        while (i < obj.length() && Character.isDigit(obj.charAt(i))) {
+            i++;
+        }
+        if (start == i || (i == start + 1 && obj.charAt(start) == '-')) {
+            return null;
+        }
+        try {
+            return Long.parseLong(obj.substring(start, i));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static String blankToPhaseLabel(String phase, String label) {
+        if (label != null && !label.isBlank()) {
+            return label.trim();
+        }
+        return phase == null ? "" : phase;
     }
 
     private void requireEnabled() {

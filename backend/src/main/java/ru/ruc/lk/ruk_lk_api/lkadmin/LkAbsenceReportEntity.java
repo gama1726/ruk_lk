@@ -83,6 +83,17 @@ public class LkAbsenceReportEntity {
 
     private Instant finishedAt;
 
+    /** Полное время сборки (wall-clock), мс; null у старых отчётов. */
+    private Long buildDurationMs;
+
+    /**
+     * JSON-массив этапов: {@code [{"phase":"employees","label":"...","durationMs":123}, ...]}.
+     * Пусто у старых отчётов.
+     */
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String timingsJson = "";
+
     @OneToMany(mappedBy = "report", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("groupName ASC, fullName ASC")
     private List<LkAbsenceReportRowEntity> rows = new ArrayList<>();
@@ -227,6 +238,22 @@ public class LkAbsenceReportEntity {
 
     public void setFinishedAt(Instant finishedAt) {
         this.finishedAt = finishedAt;
+    }
+
+    public Long getBuildDurationMs() {
+        return buildDurationMs;
+    }
+
+    public void setBuildDurationMs(Long buildDurationMs) {
+        this.buildDurationMs = buildDurationMs;
+    }
+
+    public String getTimingsJson() {
+        return timingsJson == null ? "" : timingsJson;
+    }
+
+    public void setTimingsJson(String timingsJson) {
+        this.timingsJson = timingsJson == null ? "" : timingsJson;
     }
 
     public List<LkAbsenceReportRowEntity> getRows() {

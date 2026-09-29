@@ -10,5 +10,7 @@ public record AbsenceReportSummaryDto(
     int absentCount,
     String createdAt,
     String finishedAt,
-    String error
+    String error,
+    /** Полное время сборки, мс; null у старых отчётов. */
+    Long buildDurationMs
 ) {}

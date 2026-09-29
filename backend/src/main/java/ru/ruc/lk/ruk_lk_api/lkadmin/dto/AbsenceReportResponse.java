@@ -20,5 +20,9 @@ public record AbsenceReportResponse(
     String progressLabel,
     int progressPercent,
     int progressCurrent,
-    int progressTotal
+    int progressTotal,
+    /** Полное время сборки, мс; null если ещё нет / старый отчёт. */
+    Long buildDurationMs,
+    /** Завершённые этапы с длительностями (для супер-админки). */
+    List<AbsenceReportStageTimingDto> stageTimings
 ) {}

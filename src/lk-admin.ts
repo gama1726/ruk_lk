@@ -66,6 +66,12 @@ export type AbsenceReportRow = {
   kind: string
 }
 
+export type AbsenceReportStageTiming = {
+  phase: string
+  label: string
+  durationMs: number
+}
+
 export type AbsenceReport = {
   id: string
   status: 'RUNNING' | 'DONE' | 'FAILED' | 'CANCELLED' | string
@@ -85,6 +91,9 @@ export type AbsenceReport = {
   progressPercent?: number
   progressCurrent?: number
   progressTotal?: number
+  /** Полное время сборки, мс */
+  buildDurationMs?: number | null
+  stageTimings?: AbsenceReportStageTiming[]
 }
 
 export type AbsenceReportSummary = {
@@ -98,6 +107,7 @@ export type AbsenceReportSummary = {
   createdAt: string
   finishedAt: string
   error: string
+  buildDurationMs?: number | null
 }
 
 export const LK_ADMIN_SECTION_LABELS: Record<LkAdminSection, string> = {

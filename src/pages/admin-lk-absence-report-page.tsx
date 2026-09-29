@@ -31,6 +31,32 @@ const PROGRESS_STEPS = [
   { id: 'done', label: 'Готово' },
 ] as const
 
+function formatDurationMs(ms: number | null | undefined): string {
+  if (ms == null || !Number.isFinite(ms) || ms < 0) return '—'
+  if (ms < 1000) return `${Math.round(ms)} мс`
+  const totalSec = Math.round(ms / 1000)
+  if (totalSec < 60) return `${totalSec} с`
+  const minutes = Math.floor(totalSec / 60)
+  const seconds = totalSec % 60
+  if (minutes < 60) {
+    return seconds > 0 ? `${minutes} м ${seconds} с` : `${minutes} м`
+  }
+  const hours = Math.floor(minutes / 60)
+  const remMin = minutes % 60
+  return remMin > 0 ? `${hours} ч ${remMin} м` : `${hours} ч`
+}
+
+function stageDurationByPhase(
+  timings: AbsenceReport['stageTimings'] | undefined,
+): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const stage of timings ?? []) {
+    if (!stage?.phase) continue
+    map.set(stage.phase, (map.get(stage.phase) ?? 0) + (stage.durationMs ?? 0))
+  }
+  return map
+}
+
 function todayIso(): string {
   const d = new Date()
   const y = d.getFullYear()
@@ -116,16 +142,19 @@ function AbsenceBuildProgress({
   canCancel,
   onCancelClick,
   cancelBusy,
+  showTimings,
 }: {
   report: AbsenceReport
   canCancel: boolean
   onCancelClick: () => void
   cancelBusy: boolean
+  showTimings: boolean
 }) {
   const percent = Math.max(0, Math.min(100, report.progressPercent ?? 0))
   const active = stepIndex(report.progressPhase)
   const label = report.progressLabel?.trim() || 'Строим отчёт…'
   const hasCounts = (report.progressTotal ?? 0) > 0
+  const byPhase = stageDurationByPhase(report.stageTimings)
 
   return (
     <div className={styles.progressCard} aria-live="polite">
@@ -159,6 +188,9 @@ function AbsenceBuildProgress({
       <p className={styles.progressMeta}>
         {percent}%
         {hasCounts ? ` · ${report.progressCurrent ?? 0} / ${report.progressTotal}` : null}
+        {showTimings && report.buildDurationMs != null
+          ? ` · прошло ${formatDurationMs(report.buildDurationMs)}`
+          : null}
       </p>
       <ol className={styles.progressSteps}>
         {PROGRESS_STEPS.filter((s) => s.id !== 'done').map((step, i) => {
@@ -168,14 +200,41 @@ function AbsenceBuildProgress({
               : i === active
                 ? `${styles.progressStep} ${styles.progressStepActive}`
                 : styles.progressStep
+          const stageMs = byPhase.get(step.id)
           return (
             <li key={step.id} className={cls}>
               {i < active ? '✓ ' : i === active ? '→ ' : '· '}
               {step.label}
+              {showTimings && stageMs != null ? ` · ${formatDurationMs(stageMs)}` : null}
             </li>
           )
         })}
       </ol>
+    </div>
+  )
+}
+
+function AbsenceBuildTimings({ report }: { report: AbsenceReport }) {
+  const stages = report.stageTimings ?? []
+  if (report.buildDurationMs == null && stages.length === 0) return null
+
+  const labelByPhase = new Map(PROGRESS_STEPS.map((s) => [s.id, s.label]))
+
+  return (
+    <div className={styles.statsHint} style={{ marginBottom: '0.75rem' }}>
+      <p style={{ margin: '0 0 0.35rem' }}>
+        Время сборки: <strong>{formatDurationMs(report.buildDurationMs)}</strong>
+      </p>
+      {stages.length > 0 ? (
+        <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
+          {stages.map((stage, i) => (
+            <li key={`${stage.phase}-${i}`}>
+              {labelByPhase.get(stage.phase) ?? stage.label ?? stage.phase}:{' '}
+              {formatDurationMs(stage.durationMs)}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   )
 }
@@ -431,6 +490,7 @@ export function AdminLkAbsenceReportPage() {
                   <th>Статус</th>
                   <th>Проверено</th>
                   <th>Отсутствий</th>
+                  {isSuperAdmin ? <th>Время сборки</th> : null}
                   <th />
                 </tr>
               </thead>
@@ -442,6 +502,7 @@ export function AdminLkAbsenceReportPage() {
                     <td>{statusLabel(item.status)}</td>
                     <td>{item.rosterSize}</td>
                     <td>{item.absentCount}</td>
+                    {isSuperAdmin ? <td>{formatDurationMs(item.buildDurationMs)}</td> : null}
                     <td>
                       <Button type="button" disabled={busy} onClick={() => void onOpenSaved(item.id)}>
                         Открыть
@@ -460,6 +521,7 @@ export function AdminLkAbsenceReportPage() {
           report={report}
           canCancel={isSuperAdmin}
           cancelBusy={cancelBusy}
+          showTimings={isSuperAdmin}
           onCancelClick={() => setCancelConfirmOpen(true)}
         />
       ) : null}
@@ -496,6 +558,7 @@ export function AdminLkAbsenceReportPage() {
               {downloadBusy ? 'Скачивание…' : 'Скачать Excel'}
             </Button>
           </div>
+          {isSuperAdmin ? <AbsenceBuildTimings report={report} /> : null}
           <AbsenceWarningSections warnings={report.warnings} includeTechSections={includeTechSections} />
           <div className={styles.absenceTableWrap}>
             <table className={styles.absenceTable}>
