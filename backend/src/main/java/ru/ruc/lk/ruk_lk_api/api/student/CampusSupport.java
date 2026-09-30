@@ -56,6 +56,23 @@ public final class CampusSupport {
         return Optional.of(AttendanceCampus.HEAD);
     }
 
+    /** Краснодарский филиал (1С branch/faculty/…); для отчёта отсутствующих Perco. */
+    public static boolean isKrasnodar(OneCProfileResponse profile) {
+        if (profile == null) {
+            return false;
+        }
+        return isKrasnodar(
+            profile.branch(),
+            profile.faculty(),
+            profile.department(),
+            profile.group()
+        );
+    }
+
+    public static boolean isKrasnodar(String... parts) {
+        return joinLower(parts).contains("краснодар");
+    }
+
     private static String joinLower(String... parts) {
         StringBuilder sb = new StringBuilder();
         for (String part : parts) {

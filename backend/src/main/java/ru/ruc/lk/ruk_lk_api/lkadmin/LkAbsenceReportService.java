@@ -41,6 +41,7 @@ import jakarta.annotation.PreDestroy;
 import jakarta.servlet.http.HttpSession;
 import ru.ruc.lk.ruk_lk_api.api.student.AttendanceMapper;
 import ru.ruc.lk.ruk_lk_api.api.student.CampusLesson;
+import ru.ruc.lk.ruk_lk_api.api.student.CampusSupport;
 import ru.ruc.lk.ruk_lk_api.api.student.ScheduleMapper;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.api.student.dto.StudentAttendanceResponse.StudentAttendanceLessonResponse;
@@ -48,6 +49,11 @@ import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCFamilyResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCParentMember;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
+import ru.ruc.lk.ruk_lk_api.integration.perco.PercoAccessEvent;
+import ru.ruc.lk.ruk_lk_api.integration.perco.PercoClient;
+import ru.ruc.lk.ruk_lk_api.integration.perco.PercoException;
+import ru.ruc.lk.ruk_lk_api.integration.perco.PercoKrasnodarZones;
+import ru.ruc.lk.ruk_lk_api.integration.perco.PercoStaffMember;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleClient;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupLookupResponse;
 import ru.ruc.lk.ruk_lk_api.integration.schedule.ScheduleGroupNameNormalizer;
@@ -68,8 +74,8 @@ import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterSaveRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.ParentNoticeRequest;
 
 /**
- * Отчёт отсутствующих (Казань): массовые transactions за день + кэш employees,
- * асинхронное построение с сохранением в БД.
+ * Отчёт отсутствующих: Казань (ZKBio) и Краснодар (Perco, зоны {@code Краснодар-*}).
+ * Асинхронное построение с сохранением в БД.
  */
 @Service
 public class LkAbsenceReportService {
@@ -77,8 +83,8 @@ public class LkAbsenceReportService {
     private static final Logger log = LoggerFactory.getLogger(LkAbsenceReportService.class);
     private static final DateTimeFormatter DATE_RU = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter TIME_DOT = DateTimeFormatter.ofPattern("HH.mm");
-    private static final String SOURCE = "zkbio";
-    private static final String CAMPUS_LABEL = "Казань (ZKBio)";
+    private static final String SOURCE_ZKBIO = "zkbio";
+    private static final String SOURCE_PERCO = "perco";
     private static final int EMP_CODE_LENGTH = 6;
     private static final int MAX_PARALLEL = 16;
     private static final Duration EMPLOYEES_CACHE_TTL = Duration.ofHours(6);
@@ -86,11 +92,14 @@ public class LkAbsenceReportService {
     private final ScheduleClient scheduleClient;
     private final OneCClient onecClient;
     private final ZKBioClient zkbioClient;
+    private final PercoClient percoClient;
     private final LkGroupRosterRepository rosterRepository;
     private final LkAbsenceParentNoticeRepository noticeRepository;
     private final LkAbsenceReportRepository reportRepository;
     private final LkAbsenceNoticeService absenceNoticeService;
     private final boolean attendanceEnabled;
+    private final boolean percoEnabled;
+    private final String percoUncontrolledZone;
     private final ExecutorService reportExecutor = Executors.newFixedThreadPool(2);
     private final AtomicReference<EmployeesCache> employeesCache = new AtomicReference<>();
     private final TransactionTemplate transactionTemplate;
@@ -116,21 +125,29 @@ public class LkAbsenceReportService {
         ScheduleClient scheduleClient,
         OneCClient onecClient,
         ZKBioClient zkbioClient,
+        PercoClient percoClient,
         LkGroupRosterRepository rosterRepository,
         LkAbsenceParentNoticeRepository noticeRepository,
         LkAbsenceReportRepository reportRepository,
         LkAbsenceNoticeService absenceNoticeService,
         PlatformTransactionManager transactionManager,
-        @Value("${app.attendance.enabled:false}") boolean attendanceEnabled
+        @Value("${app.attendance.enabled:false}") boolean attendanceEnabled,
+        @Value("${app.perco.enabled:false}") boolean percoEnabled,
+        @Value("${app.perco.uncontrolled-zone:Неконтролируемая территория}") String percoUncontrolledZone
     ) {
         this.scheduleClient = scheduleClient;
         this.onecClient = onecClient;
         this.zkbioClient = zkbioClient;
+        this.percoClient = percoClient;
         this.rosterRepository = rosterRepository;
         this.noticeRepository = noticeRepository;
         this.reportRepository = reportRepository;
         this.absenceNoticeService = absenceNoticeService;
         this.attendanceEnabled = attendanceEnabled;
+        this.percoEnabled = percoEnabled;
+        this.percoUncontrolledZone = percoUncontrolledZone == null || percoUncontrolledZone.isBlank()
+            ? "Неконтролируемая территория"
+            : percoUncontrolledZone.trim();
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -144,10 +161,11 @@ public class LkAbsenceReportService {
     public AbsenceReportResponse start(HttpSession session, AbsenceReportRequest body) {
         LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
         LkAdminAuthService.requireSuperAdmin(session);
-        requireEnabled();
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
         }
+        LkAbsenceReportCampus campus = LkAbsenceReportCampus.fromRequest(body.campus());
+        requireEnabled(campus);
         LocalDate date = parseDate(body.date());
         LocalDate today = LocalDate.now(ZoneId.of("Europe/Moscow"));
         if (date.isAfter(today)) {
@@ -159,12 +177,12 @@ public class LkAbsenceReportService {
             filterGroup = requireText(body.group(), "Укажите группу");
             precheckGroupSchedule(filterGroup, date);
         }
-        return enqueue(date, LkAbsenceReportOrigin.MANUAL, scope, filterGroup);
+        return enqueue(date, LkAbsenceReportOrigin.MANUAL, scope, filterGroup, campus);
     }
 
     /**
      * Автозапуск на сегодня (МСК): если уже есть AUTO RUNNING/DONE на эту дату — пропуск.
-     * Ручные отчёты за ту же дату не мешают. Только CAMPUS.
+     * Ручные отчёты за ту же дату не мешают. Только CAMPUS, Казань.
      */
     @Transactional
     public Optional<UUID> startAutoForToday() {
@@ -176,6 +194,7 @@ public class LkAbsenceReportService {
         boolean alreadyAuto = reportRepository.findByReportDate(today).stream()
             .filter(e -> e.getScope() == LkAbsenceReportScope.CAMPUS)
             .filter(e -> e.getOrigin() == LkAbsenceReportOrigin.AUTO)
+            .filter(e -> LkAbsenceReportCampus.fromSource(e.getSource()) == LkAbsenceReportCampus.KAZAN)
             .anyMatch(e -> e.getStatus() == LkAbsenceReportStatus.RUNNING
                 || e.getStatus() == LkAbsenceReportStatus.DONE);
         if (alreadyAuto) {
@@ -186,7 +205,8 @@ public class LkAbsenceReportService {
             today,
             LkAbsenceReportOrigin.AUTO,
             LkAbsenceReportScope.CAMPUS,
-            ""
+            "",
+            LkAbsenceReportCampus.KAZAN
         );
         log.info("Автоотчёт отсутствующих запущен: id={} date={}", started.id(), today);
         return Optional.of(UUID.fromString(started.id()));
@@ -221,12 +241,16 @@ public class LkAbsenceReportService {
         LocalDate date,
         LkAbsenceReportOrigin origin,
         LkAbsenceReportScope scope,
-        String filterGroup
+        String filterGroup,
+        LkAbsenceReportCampus campus
     ) {
         UUID id = UUID.randomUUID();
+        LkAbsenceReportCampus resolved = campus == null ? LkAbsenceReportCampus.KRASNODAR : campus;
         LkAbsenceReportEntity entity = new LkAbsenceReportEntity(id, date, origin);
         entity.setScope(scope == null ? LkAbsenceReportScope.CAMPUS : scope);
         entity.setFilterGroup(filterGroup == null ? "" : filterGroup.trim());
+        entity.setSource(resolved.sourceCode());
+        entity.setCampusLabel(resolved.campusLabel());
         entity.setProgressPhase("queued");
         String queueLabel;
         if (origin == LkAbsenceReportOrigin.AUTO) {
@@ -507,6 +531,7 @@ public class LkAbsenceReportService {
     private void runBuild(UUID reportId, LocalDate date) {
         LkAbsenceReportScope scope = LkAbsenceReportScope.CAMPUS;
         String filterGroup = "";
+        LkAbsenceReportCampus campus = LkAbsenceReportCampus.KRASNODAR;
         try {
             LkAbsenceReportEntity meta = transactionTemplate.execute(status ->
                 reportRepository.findById(reportId).orElse(null)
@@ -514,9 +539,12 @@ public class LkAbsenceReportService {
             if (meta != null) {
                 scope = meta.getScope();
                 filterGroup = meta.getFilterGroup();
+                campus = LkAbsenceReportCampus.fromSource(meta.getSource());
             }
             ensureNotCancelled(reportId);
-            BuildResult result = buildInternal(reportId, date, filterGroup);
+            BuildResult result = campus == LkAbsenceReportCampus.KRASNODAR
+                ? buildKrasnodar(reportId, date, filterGroup)
+                : buildKazan(reportId, date, filterGroup);
             ensureNotCancelled(reportId);
             transactionTemplate.executeWithoutResult(status -> {
                 LkAbsenceReportEntity entity = reportRepository.findById(reportId)
@@ -556,16 +584,17 @@ public class LkAbsenceReportService {
                 reportRepository.save(entity);
             });
             log.info(
-                "Absence report {}: DONE scope={} group={} checked={} absent={} punchesEmp={}",
+                "Absence report {}: DONE campus={} scope={} group={} checked={} absent={} punchesEmp={}",
                 reportId,
+                campus,
                 scope,
                 filterGroup,
                 result.checkedCount(),
                 result.rows().size(),
                 result.punchEmpCodes()
             );
-            // Авторассылка только для полного отчёта по кампусу.
-            if (scope == LkAbsenceReportScope.CAMPUS) {
+            // Авторассылка: пока только Казань (CAMPUS); Краснодар — без PDF-шаблонов филиала.
+            if (scope == LkAbsenceReportScope.CAMPUS && campus == LkAbsenceReportCampus.KAZAN) {
                 try {
                     absenceNoticeService.notifyAfterReport(date, result.rows());
                 } catch (RuntimeException notifyError) {
@@ -575,8 +604,10 @@ public class LkAbsenceReportService {
                         notifyError.toString()
                     );
                 }
-            } else {
+            } else if (scope == LkAbsenceReportScope.GROUP) {
                 log.info("Absence report {}: групповой отчёт — авторассылка пропущена", reportId);
+            } else {
+                log.info("Absence report {}: Краснодар — авторассылка пропущена", reportId);
             }
         } catch (ReportCancelledException e) {
             log.info("Absence report {}: CANCELLED", reportId);
@@ -633,7 +664,7 @@ public class LkAbsenceReportService {
         );
     }
 
-    private BuildResult buildInternal(UUID reportId, LocalDate date, String filterGroup)
+    private BuildResult buildKazan(UUID reportId, LocalDate date, String filterGroup)
         throws ZKBioException {
         List<String> warnings = new ArrayList<>();
         boolean groupOnly = filterGroup != null && !filterGroup.isBlank();
@@ -653,7 +684,11 @@ public class LkAbsenceReportService {
                 skippedNoGradebook++;
                 continue;
             }
-            roster.add(new RosterCandidate(gradebook.get(), employee.empCode().trim(), employee));
+            roster.add(new RosterCandidate(
+                gradebook.get(),
+                employee.empCode().trim(),
+                employee.displayName()
+            ));
         }
         if (skippedNoGradebook > 0) {
             warnings.add("Пропущено без зачётки (emp_code/nickname длины ≠ " + EMP_CODE_LENGTH + "): "
@@ -680,6 +715,120 @@ public class LkAbsenceReportService {
         }
         warnings.add("Проходов ZKBio за день: emp_code=" + punchesByEmp.size());
 
+        return finishBuild(
+            reportId,
+            date,
+            filterGroup,
+            groupOnly,
+            allUnique.size(),
+            roster,
+            punchesByEmp,
+            LkAbsenceReportCampus.KAZAN,
+            warnings
+        );
+    }
+
+    private BuildResult buildKrasnodar(UUID reportId, LocalDate date, String filterGroup) {
+        List<String> warnings = new ArrayList<>();
+        boolean groupOnly = filterGroup != null && !filterGroup.isBlank();
+        if (groupOnly) {
+            warnings.add("Отчёт по группе: " + filterGroup.trim());
+        }
+        warnings.add("Кампус: Краснодар (Perco, зоны Краснодар-*)");
+
+        ensureNotCancelled(reportId);
+        updateProgress(reportId, "employees", "Загрузка сотрудников Perco…", 5, 0, 0);
+        List<PercoStaffMember> staff;
+        try {
+            staff = percoClient.fetchActiveStaffWithTabel();
+        } catch (PercoException e) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Не удалось получить сотрудников Perco: " + shortMessage(e)
+            );
+        }
+        Map<String, RosterCandidate> byTabel = new LinkedHashMap<>();
+        int skippedNoTabel = 0;
+        for (PercoStaffMember member : staff) {
+            if (member == null) {
+                continue;
+            }
+            String tabel = member.resolvedTabelNumber();
+            if (tabel == null || tabel.isBlank()) {
+                skippedNoTabel++;
+                continue;
+            }
+            String key = tabel.trim();
+            String display = member.fio() != null && !member.fio().isBlank()
+                ? member.fio().trim()
+                : (member.name() == null ? "" : member.name().trim());
+            byTabel.putIfAbsent(key, new RosterCandidate(key, key, display));
+        }
+        if (skippedNoTabel > 0) {
+            warnings.add("Пропущено без табельного в Perco: " + skippedNoTabel);
+        }
+        List<RosterCandidate> roster = List.copyOf(byTabel.values());
+        if (roster.isEmpty()) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "В Perco нет сотрудников с табельным номером"
+            );
+        }
+
+        ensureNotCancelled(reportId);
+        updateProgress(reportId, "punches", "Загрузка проходов Perco за день…", 12, 0, 0);
+        Map<String, List<SkudAccessEvent>> punchesByTabel = new ConcurrentHashMap<>();
+        try {
+            Map<String, List<PercoAccessEvent>> raw = percoClient.fetchAccessEventsByTabel(date, date);
+            int rawStaff = raw.size();
+            int keptEvents = 0;
+            for (Map.Entry<String, List<PercoAccessEvent>> entry : raw.entrySet()) {
+                String tabel = entry.getKey() == null ? "" : entry.getKey().trim();
+                if (tabel.isEmpty()) {
+                    continue;
+                }
+                List<SkudAccessEvent> mapped = mapKrasnodarPercoEvents(entry.getValue());
+                if (!mapped.isEmpty()) {
+                    punchesByTabel.put(tabel, mapped);
+                    keptEvents += mapped.size();
+                }
+            }
+            warnings.add("Проходов Perco (Краснодар): табелей=" + punchesByTabel.size()
+                + ", событий=" + keptEvents + " (сырой accessReports staff=" + rawStaff + ")");
+            if (raw.isEmpty()) {
+                warnings.add("accessReports пуст или недоступен — догрузка по табелю для кандидатов");
+            }
+        } catch (PercoException e) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Не удалось получить проходы Perco за день: " + shortMessage(e)
+            );
+        }
+
+        return finishBuild(
+            reportId,
+            date,
+            filterGroup,
+            groupOnly,
+            staff.size(),
+            roster,
+            punchesByTabel,
+            LkAbsenceReportCampus.KRASNODAR,
+            warnings
+        );
+    }
+
+    private BuildResult finishBuild(
+        UUID reportId,
+        LocalDate date,
+        String filterGroup,
+        boolean groupOnly,
+        int sourceTotal,
+        List<RosterCandidate> roster,
+        Map<String, List<SkudAccessEvent>> punchesByEmp,
+        LkAbsenceReportCampus campus,
+        List<String> warnings
+    ) {
         EnrichStats enrichStats = new EnrichStats();
         ensureNotCancelled(reportId);
         updateProgress(
@@ -690,12 +839,15 @@ public class LkAbsenceReportService {
             0,
             roster.size()
         );
-        Map<String, EnrichedStudent> enriched = enrichStudents(reportId, roster, enrichStats);
+        Map<String, EnrichedStudent> enriched = enrichStudents(reportId, roster, campus, enrichStats);
         if (enrichStats.noProfile > 0) {
             warnings.add("Нет профиля в 1С — пропуск: " + enrichStats.noProfile);
         }
         if (enrichStats.noGroup > 0) {
             warnings.add("Нет группы в 1С — пропуск: " + enrichStats.noGroup);
+        }
+        if (enrichStats.wrongCampus > 0) {
+            warnings.add("Другой филиал в 1С — пропуск: " + enrichStats.wrongCampus);
         }
         if (groupOnly) {
             String filter = filterGroup.trim();
@@ -713,16 +865,18 @@ public class LkAbsenceReportService {
             warnings.add(groupOnly
                 ? "В СКУД/1С не найдено студентов этой группы с профилем"
                 : "После фильтрации не осталось студентов с профилем и группой в 1С");
-            warnings.add(0, "Проверено студентов: 0 (кандидаты зачётки длины " + EMP_CODE_LENGTH
-                + ": " + roster.size() + ")");
-            return new BuildResult(allUnique.size(), roster.size(), 0, punchesByEmp.size(), List.of(), warnings);
+            warnings.add(0, "Проверено студентов: 0 (кандидаты: " + roster.size() + ")");
+            return new BuildResult(sourceTotal, roster.size(), 0, punchesByEmp.size(), List.of(), warnings);
         }
 
         Map<String, List<CampusLesson>> lessonsByGroup =
             loadLessonsByGroup(reportId, enriched, date, warnings);
 
-        // Day-list ZKBio бывает неполным: перепроверяем тех, кого bulk пометил отсутствующими.
-        recheckPunchesForAbsentees(reportId, date, enriched, lessonsByGroup, punchesByEmp, warnings);
+        if (campus == LkAbsenceReportCampus.KAZAN) {
+            recheckPunchesForAbsentees(reportId, date, enriched, lessonsByGroup, punchesByEmp, warnings);
+        } else {
+            recheckPercoPunchesForAbsentees(reportId, date, enriched, lessonsByGroup, punchesByEmp, warnings);
+        }
 
         ensureNotCancelled(reportId);
         updateProgress(reportId, "matching", "Сверка проходов с расписанием…", 93, 0, enriched.size());
@@ -732,7 +886,7 @@ public class LkAbsenceReportService {
             ensureNotCancelled(reportId);
             matched++;
             try {
-                AbsenceReportRowDto row = buildRow(date, student, lessonsByGroup, punchesByEmp);
+                AbsenceReportRowDto row = buildRow(date, student, lessonsByGroup, punchesByEmp, campus);
                 if (row != null) {
                     rows.add(row);
                 }
@@ -754,11 +908,10 @@ public class LkAbsenceReportService {
             .comparing(AbsenceReportRowDto::group, String.CASE_INSENSITIVE_ORDER)
             .thenComparing(AbsenceReportRowDto::fullName, String.CASE_INSENSITIVE_ORDER));
 
-        warnings.add(0, "Проверено студентов: " + enriched.size() + " (кандидаты зачётки длины "
-            + EMP_CODE_LENGTH + ": " + roster.size() + ")");
+        warnings.add(0, "Проверено студентов: " + enriched.size() + " (кандидаты: " + roster.size() + ")");
 
         return new BuildResult(
-            allUnique.size(),
+            sourceTotal,
             roster.size(),
             enriched.size(),
             punchesByEmp.size(),
@@ -798,7 +951,7 @@ public class LkAbsenceReportService {
                 continue;
             }
             try {
-                if (buildRow(date, student, lessonsByGroup, punchesByEmp) != null) {
+                if (buildRow(date, student, lessonsByGroup, punchesByEmp, LkAbsenceReportCampus.KAZAN) != null) {
                     empCodes.add(emp.trim());
                 }
             } catch (Exception e) {
@@ -880,9 +1033,130 @@ public class LkAbsenceReportService {
         log.info("Absence report {}: {}", reportId, line);
     }
 
+    private void recheckPercoPunchesForAbsentees(
+        UUID reportId,
+        LocalDate date,
+        Map<String, EnrichedStudent> enriched,
+        Map<String, List<CampusLesson>> lessonsByGroup,
+        Map<String, List<SkudAccessEvent>> punchesByTabel,
+        List<String> warnings
+    ) {
+        LinkedHashSet<String> tabels = new LinkedHashSet<>();
+        for (EnrichedStudent student : enriched.values()) {
+            String tabel = student.skudEmpCode();
+            if (tabel == null || tabel.isBlank()) {
+                continue;
+            }
+            try {
+                if (buildRow(date, student, lessonsByGroup, punchesByTabel, LkAbsenceReportCampus.KRASNODAR) != null) {
+                    tabels.add(tabel.trim());
+                }
+            } catch (Exception e) {
+                tabels.add(tabel.trim());
+            }
+        }
+        if (tabels.isEmpty()) {
+            warnings.add("Догрузка проходов Perco по табелю: кандидатов=0");
+            return;
+        }
+
+        List<String> codes = List.copyOf(tabels);
+        ensureNotCancelled(reportId);
+        updateProgress(
+            reportId,
+            "recheck",
+            "Догрузка проходов Perco: 0 / " + codes.size(),
+            88,
+            0,
+            codes.size()
+        );
+
+        AtomicInteger done = new AtomicInteger();
+        AtomicInteger updated = new AtomicInteger();
+        AtomicInteger failed = new AtomicInteger();
+        try (ExecutorService pool = Executors.newFixedThreadPool(
+            Math.min(MAX_PARALLEL, Math.max(1, codes.size()))
+        )) {
+            List<CompletableFuture<Void>> futures = new ArrayList<>(codes.size());
+            for (String tabel : codes) {
+                futures.add(CompletableFuture.runAsync(() -> {
+                    ensureNotCancelled(reportId);
+                    try {
+                        List<SkudAccessEvent> fresh = mapKrasnodarPercoEvents(
+                            percoClient.fetchAccessEvents(tabel, date, date)
+                        );
+                        punchesByTabel.put(tabel, List.copyOf(fresh));
+                        updated.incrementAndGet();
+                    } catch (ReportCancelledException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        failed.incrementAndGet();
+                        log.info("absence recheck perco tabel={}: {}", tabel, e.getMessage());
+                    } finally {
+                        int n = done.incrementAndGet();
+                        if (n == codes.size() || n % 25 == 0) {
+                            int pct = 88 + (int) Math.round(4.0 * n / Math.max(1, codes.size()));
+                            updateProgress(
+                                reportId,
+                                "recheck",
+                                "Догрузка проходов Perco: " + n + " / " + codes.size(),
+                                pct,
+                                n,
+                                codes.size()
+                            );
+                        }
+                    }
+                }, pool));
+            }
+            try {
+                CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+            } catch (CompletionException e) {
+                Throwable cause = e.getCause() != null ? e.getCause() : e;
+                if (cause instanceof ReportCancelledException cancelled) {
+                    throw cancelled;
+                }
+                if (cause instanceof RuntimeException runtime) {
+                    throw runtime;
+                }
+                throw e;
+            }
+        }
+
+        String line = "Догрузка проходов Perco по табелю: кандидатов=" + codes.size()
+            + ", обновлено=" + updated.get();
+        if (failed.get() > 0) {
+            line += ", ошибок=" + failed.get();
+        }
+        warnings.add(line);
+        log.info("Absence report {}: {}", reportId, line);
+    }
+
+    private List<SkudAccessEvent> mapKrasnodarPercoEvents(List<PercoAccessEvent> events) {
+        if (events == null || events.isEmpty()) {
+            return List.of();
+        }
+        List<SkudAccessEvent> mapped = new ArrayList<>();
+        for (PercoAccessEvent event : events) {
+            if (event == null || !PercoKrasnodarZones.involvesKrasnodar(event)) {
+                continue;
+            }
+            if (event.resolvedTimeLabel() == null) {
+                continue;
+            }
+            var direction = event.resolveDirection(percoUncontrolledZone);
+            mapped.add(new SkudAccessEvent(
+                event.resolvedTimeLabel(),
+                event.resolvedDisplayGate(direction),
+                direction
+            ));
+        }
+        return mapped;
+    }
+
     private Map<String, EnrichedStudent> enrichStudents(
         UUID reportId,
         List<RosterCandidate> roster,
+        LkAbsenceReportCampus campus,
         EnrichStats stats
     ) {
         Map<String, EnrichedStudent> result = new LinkedHashMap<>();
@@ -893,7 +1167,7 @@ public class LkAbsenceReportService {
             for (RosterCandidate candidate : roster) {
                 futures.add(CompletableFuture.supplyAsync(() -> {
                     ensureNotCancelled(reportId);
-                    EnrichOutcome outcome = enrichOne(candidate);
+                    EnrichOutcome outcome = enrichOne(candidate, campus);
                     int finished = done.incrementAndGet();
                     if (finished == total || finished % 100 == 0) {
                         int pct = 20 + (int) Math.round(40.0 * finished / Math.max(1, total));
@@ -918,6 +1192,7 @@ public class LkAbsenceReportService {
                 switch (outcome.kind()) {
                     case NO_PROFILE -> stats.noProfile++;
                     case NO_GROUP -> stats.noGroup++;
+                    case WRONG_CAMPUS -> stats.wrongCampus++;
                     case OK -> {
                         if (outcome.student() != null) {
                             result.put(outcome.student().studentId(), outcome.student());
@@ -929,11 +1204,14 @@ public class LkAbsenceReportService {
         return result;
     }
 
-    private EnrichOutcome enrichOne(RosterCandidate candidate) {
+    private EnrichOutcome enrichOne(RosterCandidate candidate, LkAbsenceReportCampus campus) {
         String studentId = candidate.studentId();
         OneCProfileResponse profile = onecClient.fetchProfile(studentId).orElse(null);
         if (profile == null) {
             return EnrichOutcome.noProfile();
+        }
+        if (campus == LkAbsenceReportCampus.KRASNODAR && !CampusSupport.isKrasnodar(profile)) {
+            return EnrichOutcome.wrongCampus();
         }
         String group = profile.group() == null ? "" : profile.group().trim();
         if (group.isEmpty()) {
@@ -941,7 +1219,7 @@ public class LkAbsenceReportService {
         }
         String fullName = profile.fullName() != null && !profile.fullName().isBlank()
             ? profile.fullName().trim()
-            : candidate.employee().displayName();
+            : candidate.displayName();
         if (fullName == null || fullName.isBlank()) {
             fullName = studentId;
         }
@@ -1035,7 +1313,8 @@ public class LkAbsenceReportService {
         LocalDate date,
         EnrichedStudent student,
         Map<String, List<CampusLesson>> lessonsByGroup,
-        Map<String, List<SkudAccessEvent>> punchesByEmp
+        Map<String, List<SkudAccessEvent>> punchesByEmp,
+        LkAbsenceReportCampus campus
     ) {
         List<CampusLesson> dayLessons = lessonsByGroup.getOrDefault(student.group(), List.of());
         if (dayLessons.isEmpty()) {
@@ -1043,7 +1322,8 @@ public class LkAbsenceReportService {
         }
 
         List<SkudAccessEvent> events = punchesByEmp.getOrDefault(student.skudEmpCode(), List.of());
-        StudentAttendanceResponse attendance = AttendanceMapper.toResponse(SOURCE, events, dayLessons);
+        String source = campus == LkAbsenceReportCampus.KRASNODAR ? SOURCE_PERCO : SOURCE_ZKBIO;
+        StudentAttendanceResponse attendance = AttendanceMapper.toResponse(source, events, dayLessons);
         List<StudentAttendanceLessonResponse> lessons = attendance.days().stream()
             .filter(d -> date.toString().equals(d.date()))
             .findFirst()
@@ -1544,9 +1824,18 @@ public class LkAbsenceReportService {
         return phase == null ? "" : phase;
     }
 
-    private void requireEnabled() {
+    private void requireEnabled(LkAbsenceReportCampus campus) {
         if (!attendanceEnabled) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Посещаемость отключена");
+        }
+        if (campus == LkAbsenceReportCampus.KRASNODAR) {
+            if (!percoEnabled) {
+                throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Perco отключён (app.perco.enabled)"
+                );
+            }
+            return;
         }
         if (!zkbioClient.isEnabled()) {
             throw new ResponseStatusException(
@@ -1693,7 +1982,13 @@ public class LkAbsenceReportService {
             || line.startsWith("Пропущено по длине emp_code")
             || line.startsWith("Пропущено без зачётки")
             || line.startsWith("Проходов ZKBio")
+            || line.startsWith("Проходов Perco")
             || line.startsWith("Догрузка проходов ZKBio")
+            || line.startsWith("Догрузка проходов Perco")
+            || line.startsWith("Кампус:")
+            || line.startsWith("accessReports")
+            || line.startsWith("Пропущено без табельного")
+            || line.startsWith("Другой филиал в 1С")
             || line.startsWith("Отчёт по группе:")
             || line.startsWith("После фильтра по группе")
             || line.startsWith("Нет профиля в 1С")
@@ -1815,7 +2110,7 @@ public class LkAbsenceReportService {
         return msg.length() > 160 ? msg.substring(0, 157) + "…" : msg;
     }
 
-    private record RosterCandidate(String studentId, String skudEmpCode, ZKBioEmployee employee) {}
+    private record RosterCandidate(String studentId, String skudEmpCode, String displayName) {}
 
     private record EnrichedStudent(
         String studentId,
@@ -1828,9 +2123,10 @@ public class LkAbsenceReportService {
     private static final class EnrichStats {
         int noProfile;
         int noGroup;
+        int wrongCampus;
     }
 
-    private enum EnrichKind { OK, NO_PROFILE, NO_GROUP }
+    private enum EnrichKind { OK, NO_PROFILE, NO_GROUP, WRONG_CAMPUS }
 
     private record EnrichOutcome(EnrichKind kind, EnrichedStudent student) {
         static EnrichOutcome ok(EnrichedStudent student) {
@@ -1843,6 +2139,10 @@ public class LkAbsenceReportService {
 
         static EnrichOutcome noGroup() {
             return new EnrichOutcome(EnrichKind.NO_GROUP, null);
+        }
+
+        static EnrichOutcome wrongCampus() {
+            return new EnrichOutcome(EnrichKind.WRONG_CAMPUS, null);
         }
     }
 

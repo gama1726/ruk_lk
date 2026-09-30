@@ -63,8 +63,14 @@ export function groupAbsenceWarnings(
       line.startsWith('Проверено студентов:') ||
       line.startsWith('Пропущено по длине emp_code') ||
       line.startsWith('Пропущено без зачётки') ||
+      line.startsWith('Пропущено без табельного') ||
       line.startsWith('Проходов ZKBio') ||
+      line.startsWith('Проходов Perco') ||
       line.startsWith('Догрузка проходов ZKBio') ||
+      line.startsWith('Догрузка проходов Perco') ||
+      line.startsWith('Кампус:') ||
+      line.startsWith('accessReports') ||
+      line.startsWith('Другой филиал в 1С') ||
       line.startsWith('Отчёт по группе:') ||
       line.startsWith('После фильтра по группе') ||
       line.startsWith('Нет профиля в 1С') ||

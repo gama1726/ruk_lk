@@ -161,8 +161,18 @@ public class LkAbsenceReportEntity {
         return source;
     }
 
+    public void setSource(String source) {
+        this.source = source == null || source.isBlank() ? "zkbio" : source.trim();
+    }
+
     public String getCampusLabel() {
         return campusLabel;
+    }
+
+    public void setCampusLabel(String campusLabel) {
+        this.campusLabel = campusLabel == null || campusLabel.isBlank()
+            ? "Казань (ZKBio)"
+            : campusLabel.trim();
     }
 
     public int getZkbioTotal() {

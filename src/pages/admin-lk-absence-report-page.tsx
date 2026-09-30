@@ -1,5 +1,5 @@
 /**
- * @file Отчёт отсутствующих (Казань / ZKBio) в админ-панели ЛК.
+ * @file Отчёт отсутствующих (Краснодар / Perco, Казань / ZKBio) в админ-панели ЛК.
  */
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
@@ -19,17 +19,22 @@ import {
   type AbsenceReportSummary,
   type LkAdminMe,
 } from '@/lk-admin'
-import { Button, Input, Modal } from '@/ui'
+import { Button, Input, Modal, Select } from '@/ui'
 import styles from './admin-events.module.css'
+
+const CAMPUS_OPTIONS = [
+  { value: 'KRASNODAR', label: 'Краснодар (Perco)' },
+  { value: 'KAZAN', label: 'Казань (ZKBio)' },
+]
 
 const PROGRESS_STEPS = [
   { id: 'queued', label: 'В очереди' },
-  { id: 'employees', label: 'Сотрудники ZKBio' },
+  { id: 'employees', label: 'Сотрудники СКУД' },
   { id: 'punches', label: 'Проходы за день' },
   { id: 'profiles', label: 'Профили 1С' },
   { id: 'schedule', label: 'Расписание групп' },
   { id: 'recheck', label: 'Догрузка проходов' },
-  { id: 'matching', label: 'Сверка отсутствий' },
+  { id: 'matching', label: 'Сверка с расписанием' },
   { id: 'done', label: 'Готово' },
 ] as const
 
@@ -88,9 +93,13 @@ function formatReportDateRu(iso: string | undefined): string {
 }
 
 function campusLabelFriendly(raw: string | undefined): string {
-  if (!raw?.trim()) return 'Казани'
-  const cleaned = raw.replace(/\s*\(ZKBio\)\s*/gi, '').trim()
+  if (!raw?.trim()) return 'Краснодаре'
+  const cleaned = raw
+    .replace(/\s*\(ZKBio\)\s*/gi, '')
+    .replace(/\s*\(Perco\)\s*/gi, '')
+    .trim()
   if (!cleaned || /^казань$/i.test(cleaned)) return 'Казани'
+  if (/^краснодар$/i.test(cleaned)) return 'Краснодаре'
   return cleaned
 }
 
@@ -262,6 +271,7 @@ export function AdminLkAbsenceReportPage() {
   const isSuperAdmin = me?.superAdmin === true
   const includeTechSections = isSuperAdmin
   const [date, setDate] = useState(todayIso)
+  const [campus, setCampus] = useState<'KRASNODAR' | 'KAZAN'>('KRASNODAR')
   const [reportMode, setReportMode] = useState<'CAMPUS' | 'GROUP'>('CAMPUS')
   const [groupName, setGroupName] = useState('')
   const [report, setReport] = useState<AbsenceReport | null>(null)
@@ -330,6 +340,7 @@ export function AdminLkAbsenceReportPage() {
     try {
       const started = await fetchAbsenceReport({
         date,
+        campus,
         scope: reportMode,
         group: reportMode === 'GROUP' ? groupName.trim() : undefined,
       })
@@ -451,9 +462,9 @@ export function AdminLkAbsenceReportPage() {
       </div>
       {includeTechSections ? (
         <p className={styles.statsHint}>
-          Казань (ZKBio): массовые проходы за день + зачётка (emp_code или nickname длины 6) +
-          профиль/группа из 1С + очные пары. В колонке контактов — телефоны родителей из 1С.
-          Полный отчёт по всем группам после построения шлёт уведомления (PDF) автоматически.
+          Краснодар (Perco): зоны «Краснодар-*», табельный = зачётка, профиль/группа из 1С (филиал
+          Краснодар), очные пары. Казань (ZKBio) — как раньше. Полный отчёт по Казани после построения
+          шлёт уведомления (PDF) автоматически; Краснодар — без авторассылки (шаблоны PDF позже).
           Отчёт по одной группе — без авторассылки; супер-админ шлёт вручную кнопкой в строке.
           Галочка — факт успешной отправки. Канал: MAX, иначе email.
         </p>
@@ -482,6 +493,19 @@ export function AdminLkAbsenceReportPage() {
               required
             />
           </div>
+          {isSuperAdmin ? (
+            <div className={styles.formRow}>
+              <Select
+                label="Кампус"
+                name="campus"
+                options={CAMPUS_OPTIONS}
+                value={campus}
+                onChange={(e) =>
+                  setCampus(e.target.value === 'KAZAN' ? 'KAZAN' : 'KRASNODAR')
+                }
+              />
+            </div>
+          ) : null}
           {isSuperAdmin ? (
             <fieldset
               style={{

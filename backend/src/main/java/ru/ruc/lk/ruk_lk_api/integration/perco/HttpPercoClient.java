@@ -206,6 +206,74 @@ public class HttpPercoClient implements PercoClient {
         return byTabel;
     }
 
+    @Override
+    public List<PercoStaffMember> fetchActiveStaffWithTabel() throws PercoException {
+        authenticate();
+        List<PercoStaffMember> all = new ArrayList<>();
+        int page = 1;
+        int pageSize = 200;
+        int guard = 0;
+        while (guard++ < 100) {
+            PercoStaffTableResponse table;
+            try {
+                table = requestStaffTablePage(page, pageSize);
+            } catch (RestClientResponseException e) {
+                if (e.getStatusCode().value() == 401) {
+                    token = null;
+                    authenticate();
+                    table = requestStaffTablePage(page, pageSize);
+                } else {
+                    log.error("Perco staff/table HTTP {}: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
+                    throw new PercoException(
+                        "Не удалось получить список сотрудников Perco-Web (HTTP "
+                            + e.getStatusCode().value() + ")",
+                        e
+                    );
+                }
+            } catch (ResourceAccessException e) {
+                log.error("Perco staff/table I/O: {}", e.getMessage());
+                throw new PercoException("Не удалось подключиться к Perco-Web: " + rootMessage(e), e);
+            }
+            List<PercoStaffMember> rows = table == null || table.rows() == null
+                ? List.of()
+                : table.rows();
+            if (rows.isEmpty()) {
+                break;
+            }
+            for (PercoStaffMember row : rows) {
+                if (row == null || row.resolvedTabelNumber() == null) {
+                    continue;
+                }
+                all.add(row);
+            }
+            int totalPages = table.total() == null || table.total() <= 0
+                ? (table.records() == null || table.records() <= 0
+                    ? page
+                    : (int) Math.ceil(table.records() / (double) pageSize))
+                : table.total();
+            if (page >= totalPages || rows.size() < pageSize) {
+                break;
+            }
+            page++;
+        }
+        log.info("Perco staff/table: сотрудников с табельным={}", all.size());
+        return all;
+    }
+
+    private PercoStaffTableResponse requestStaffTablePage(int page, int rows) {
+        return restClient.get()
+            .uri(uriBuilder -> uriBuilder
+                .path("/api/users/staff/table")
+                .queryParam("token", token)
+                .queryParam("status", "active")
+                .queryParam("page", page)
+                .queryParam("rows", rows)
+                .build())
+            .header("Authorization", "Bearer " + token)
+            .retrieve()
+            .body(PercoStaffTableResponse.class);
+    }
+
     private JsonNode requestAccessReportPage(LocalDate begin, LocalDate end, int page, int rows) {
         return restClient.get()
             .uri(uriBuilder -> uriBuilder
@@ -216,7 +284,7 @@ public class HttpPercoClient implements PercoClient {
                 .queryParam("group", "staff")
                 .queryParam("page", page)
                 .queryParam("rows", rows)
-                .queryParam("sord", "ASC")
+                .queryParam("sord", "asc")
                 .build())
             .header("Authorization", "Bearer " + token)
             .retrieve()

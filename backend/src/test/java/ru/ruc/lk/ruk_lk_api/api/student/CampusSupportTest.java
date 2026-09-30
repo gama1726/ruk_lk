@@ -1,6 +1,7 @@
 package ru.ruc.lk.ruk_lk_api.api.student;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Optional;
@@ -40,5 +41,17 @@ class CampusSupportTest {
             "СМ21"
         );
         assertTrue(campus.isEmpty());
+    }
+
+    @Test
+    void krasnodarBranchDetected() {
+        assertTrue(CampusSupport.isKrasnodar(
+            "Краснодарский кооперативный институт (филиал)",
+            "",
+            "",
+            "КР21"
+        ));
+        assertTrue(CampusSupport.isKrasnodar("филиал г. Краснодар", "", "", ""));
+        assertFalse(CampusSupport.isKrasnodar("Казанский кооперативный институт (филиал)", "", "", ""));
     }
 }

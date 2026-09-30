@@ -37,4 +37,12 @@ public interface PercoClient {
     ) throws PercoException {
         return java.util.Map.of();
     }
+
+    /**
+     * Активные сотрудники с непустым табельным ({@code /api/users/staff/table}).
+     * Для отчёта отсутствующих Краснодара: кандидаты → фильтр по филиалу в 1С.
+     */
+    default List<PercoStaffMember> fetchActiveStaffWithTabel() throws PercoException {
+        return List.of();
+    }
 }

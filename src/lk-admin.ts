@@ -163,6 +163,8 @@ export async function fetchAbsenceReport(body: {
   date: string
   scope?: 'CAMPUS' | 'GROUP' | string
   group?: string
+  /** KRASNODAR (default) | KAZAN */
+  campus?: 'KRASNODAR' | 'KAZAN' | string
 }): Promise<AbsenceReport> {
   return apiPost<AbsenceReport>('/api/admin/lk/absence-report', body)
 }
