@@ -15,12 +15,24 @@ import styles from './admin-events.module.css'
 
 const PAGE_SIZE = 50
 
+/** Как BranchBanner / UniversityBranchCatalog. */
 const CAMPUS_OPTIONS: Array<{ value: string; label: string }> = [
   { value: '', label: 'Все филиалы' },
-  { value: 'KAZAN', label: 'Казань' },
-  { value: 'KRASNODAR', label: 'Краснодар' },
-  { value: 'HEAD', label: 'Голова' },
-  { value: 'OTHER', label: 'Другой филиал' },
+  { value: 'main', label: 'Голова' },
+  { value: 'kazan', label: 'Казань' },
+  { value: 'krasnodar', label: 'Краснодар' },
+  { value: 'vladimir', label: 'Владимир' },
+  { value: 'arzamas', label: 'Арзамас' },
+  { value: 'ufa', label: 'Уфа' },
+  { value: 'volgograd', label: 'Волгоград' },
+  { value: 'izhevsk', label: 'Ижевск' },
+  { value: 'kaliningrad', label: 'Калининград' },
+  { value: 'pk', label: 'Камчатка' },
+  { value: 'crimea', label: 'Крым' },
+  { value: 'engels', label: 'Энгельс' },
+  { value: 'saransk', label: 'Саранск' },
+  { value: 'smolensk', label: 'Смоленск' },
+  { value: 'cheb', label: 'Чебоксары' },
   { value: 'UNKNOWN', label: 'Не определён' },
 ]
 

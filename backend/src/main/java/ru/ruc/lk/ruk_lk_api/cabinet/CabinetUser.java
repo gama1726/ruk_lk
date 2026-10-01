@@ -30,10 +30,12 @@ public class CabinetUser {
     @Column(nullable = false, length = 240)
     private String displayName;
 
-    /** Филиал контингента; null — ещё не определён (ждёт обход / следующий вход). */
-    @Enumerated(EnumType.STRING)
-    @Column(length = 16)
-    private CabinetCampus campus;
+    /**
+     * Id филиала из {@link ru.ruc.lk.ruk_lk_api.api.student.UniversityBranchCatalog}
+     * ({@code main}, {@code kazan}, …). Null — ещё не определён.
+     */
+    @Column(length = 32)
+    private String campus;
 
     @Column(nullable = false)
     private Instant firstLoginAt;
@@ -52,7 +54,7 @@ public class CabinetUser {
         String studentId,
         String parentKey,
         String displayName,
-        CabinetCampus campus,
+        String campus,
         Instant at
     ) {
         this.id = id;
@@ -90,11 +92,11 @@ public class CabinetUser {
         this.displayName = displayName;
     }
 
-    public CabinetCampus getCampus() {
+    public String getCampus() {
         return campus;
     }
 
-    public void setCampus(CabinetCampus campus) {
+    public void setCampus(String campus) {
         this.campus = campus;
     }
 

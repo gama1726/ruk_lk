@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.ParentSession;
 import ru.ruc.lk.ruk_lk_api.api.auth.StudentSession;
+import ru.ruc.lk.ruk_lk_api.api.student.UniversityBranchCatalog;
+import ru.ruc.lk.ruk_lk_api.api.student.UniversityBranchCatalog.Branch;
 import ru.ruc.lk.ruk_lk_api.cabinet.dto.CabinetCampusStatsDto;
 import ru.ruc.lk.ruk_lk_api.cabinet.dto.CabinetStatsDayDto;
 import ru.ruc.lk.ruk_lk_api.cabinet.dto.CabinetStatsResponse;
@@ -52,7 +54,7 @@ public class CabinetUserService {
         }
         String id = studentKey(student.studentId());
         Instant now = Instant.now();
-        CabinetCampus campus = resolveCampus(student.studentId());
+        String campus = resolveCampusId(student.studentId());
         String name = blank(student.fullName()) ? student.studentId().trim() : student.fullName().trim();
         CabinetUser user = repository.findById(id).orElse(null);
         if (user == null) {
@@ -70,9 +72,7 @@ public class CabinetUserService {
         user.setDisplayName(name);
         user.setLastLoginAt(now);
         user.setLastSeenAt(now);
-        if (campus != null) {
-            user.setCampus(campus);
-        }
+        user.setCampus(campus);
         repository.save(user);
     }
 
@@ -83,7 +83,7 @@ public class CabinetUserService {
         }
         String id = parentKey(parent.studentId(), parent.memberIndex());
         Instant now = Instant.now();
-        CabinetCampus campus = resolveCampus(parent.studentId());
+        String campus = resolveCampusId(parent.studentId());
         String name = blank(parent.parentFullName())
             ? ("Родитель · " + parent.studentId().trim())
             : parent.parentFullName().trim();
@@ -103,9 +103,7 @@ public class CabinetUserService {
         user.setDisplayName(name);
         user.setLastLoginAt(now);
         user.setLastSeenAt(now);
-        if (campus != null) {
-            user.setCampus(campus);
-        }
+        user.setCampus(campus);
         repository.save(user);
     }
 
@@ -176,10 +174,10 @@ public class CabinetUserService {
                 rangeEndExclusive
             );
         } else {
-            total = repository.countByCampus(filter.campus());
-            online = repository.countByCampusAndLastSeenAtGreaterThanEqual(filter.campus(), onlineSince);
+            total = repository.countByCampus(filter.campusId());
+            online = repository.countByCampusAndLastSeenAtGreaterThanEqual(filter.campusId(), onlineSince);
             newInRange = repository.countByCampusAndFirstLoginAtGreaterThanEqualAndFirstLoginAtLessThan(
-                filter.campus(),
+                filter.campusId(),
                 rangeStart,
                 rangeEndExclusive
             );
@@ -208,8 +206,6 @@ public class CabinetUserService {
             series.add(new CabinetStatsDayDto(day.toString(), counters[0], counters[1], counters[0] + counters[1]));
         }
 
-        List<CabinetCampusStatsDto> byCampus = buildCampusBreakdown(rangeStart, rangeEndExclusive, onlineSince);
-
         return new CabinetStatsResponse(
             total,
             online,
@@ -218,7 +214,7 @@ public class CabinetUserService {
             begin.toString(),
             end.toString(),
             series,
-            byCampus
+            buildCampusBreakdown(rangeStart, rangeEndExclusive, onlineSince)
         );
     }
 
@@ -237,13 +233,7 @@ public class CabinetUserService {
         String query = blank(q) ? null : q.trim();
 
         boolean campusUnknown = filter.mode() == CampusFilterMode.UNKNOWN;
-        CabinetCampus campus = filter.mode() == CampusFilterMode.EXACT ? filter.campus() : null;
-        // ALL: campus=null, campusUnknown=false → no campus predicate beyond OR short-circuit
-        // For ALL we need campusUnknown=false and campus=null meaning "any campus including null"
-        // Query: (:campusUnknown = true AND u.campus IS NULL OR :campusUnknown = false AND (:campus IS NULL OR u.campus = :campus))
-        // When ALL: campusUnknown=false, campus=null → (:campus IS NULL OR ...) → true. Good.
-        // When UNKNOWN: campusUnknown=true → campus IS NULL. Good.
-        // When EXACT: campusUnknown=false, campus=X → u.campus = X. Good.
+        String campus = filter.mode() == CampusFilterMode.EXACT ? filter.campusId() : null;
 
         Page<CabinetUser> result = repository.search(
             campus,
@@ -262,19 +252,50 @@ public class CabinetUserService {
     }
 
     /**
-     * Обход пользователей без кампуса: профиль 1С → {@link CabinetCampus}.
+     * Миграция старых кодов + обход null/OTHER через 1С.
      * @return число обновлённых строк
      */
     public int backfillCampuses() {
+        int updated = 0;
+        updated += migrateLegacyCodesWithoutOneC();
+        updated += resolveMissingFromOneC();
+        return updated;
+    }
+
+    private int migrateLegacyCodesWithoutOneC() {
+        int updated = 0;
+        for (CabinetUser user : repository.findAll()) {
+            String current = user.getCampus();
+            if (current == null || current.isBlank()) {
+                continue;
+            }
+            if (UniversityBranchCatalog.isKnownId(current)) {
+                continue;
+            }
+            String migrated = UniversityBranchCatalog.migrateLegacyCampusId(current);
+            if (migrated != null && !migrated.equals(current)) {
+                user.setCampus(migrated);
+                repository.save(user);
+                updated++;
+            } else if (migrated == null) {
+                // OTHER и неизвестное — сброс, чтобы забрать из 1С
+                user.setCampus(null);
+                repository.save(user);
+                updated++;
+            }
+        }
+        return updated;
+    }
+
+    private int resolveMissingFromOneC() {
         List<CabinetUser> missing = repository.findByCampusIsNull();
         if (missing.isEmpty()) {
             return 0;
         }
         int updated = 0;
-        Map<String, CabinetCampus> cache = new HashMap<>();
+        Map<String, String> cache = new HashMap<>();
         for (CabinetUser user : missing) {
-            String studentId = user.getStudentId();
-            CabinetCampus campus = cache.computeIfAbsent(studentId, this::resolveCampusSafe);
+            String campus = cache.computeIfAbsent(user.getStudentId(), this::resolveCampusId);
             user.setCampus(campus);
             repository.save(user);
             updated++;
@@ -288,22 +309,25 @@ public class CabinetUserService {
         Instant onlineSince
     ) {
         List<CabinetCampusStatsDto> list = new ArrayList<>();
-        for (CabinetCampus campus : CabinetCampus.values()) {
+        for (Branch branch : UniversityBranchCatalog.all()) {
+            long total = repository.countByCampus(branch.id());
+            if (total == 0) {
+                continue;
+            }
             list.add(new CabinetCampusStatsDto(
-                campus.name(),
-                campus.label(),
-                repository.countByCampus(campus),
-                repository.countByCampusAndLastSeenAtGreaterThanEqual(campus, onlineSince),
+                branch.id(),
+                branch.label(),
+                total,
+                repository.countByCampusAndLastSeenAtGreaterThanEqual(branch.id(), onlineSince),
                 repository.countByCampusAndFirstLoginAtGreaterThanEqualAndFirstLoginAtLessThan(
-                    campus,
+                    branch.id(),
                     rangeStart,
                     rangeEndExclusive
                 )
             ));
         }
         long unknownTotal = repository.countByCampusIsNull();
-        if (unknownTotal > 0
-            || repository.countByCampusIsNullAndLastSeenAtGreaterThanEqual(onlineSince) > 0) {
+        if (unknownTotal > 0) {
             list.add(new CabinetCampusStatsDto(
                 "UNKNOWN",
                 "Не определён",
@@ -341,49 +365,41 @@ public class CabinetUserService {
                 studentId,
                 parentKey,
                 displayName,
-                resolveCampus(studentId),
+                resolveCampusId(studentId),
                 now
             ));
             return;
         }
         user.setDisplayName(displayName);
         user.setLastSeenAt(now);
-        if (user.getCampus() == null) {
-            CabinetCampus campus = resolveCampus(studentId);
-            if (campus != null) {
-                user.setCampus(campus);
-            }
+        if (user.getCampus() == null || !UniversityBranchCatalog.isKnownId(user.getCampus())) {
+            user.setCampus(resolveCampusId(studentId));
         }
         repository.save(user);
     }
 
-    private CabinetCampus resolveCampus(String studentId) {
+    private String resolveCampusId(String studentId) {
         if (blank(studentId)) {
-            return CabinetCampus.OTHER;
+            return UniversityBranchCatalog.MAIN.id();
         }
         try {
             OneCProfileResponse profile = onecClient.fetchProfile(studentId.trim()).orElse(null);
-            return CabinetCampus.fromProfile(profile);
+            return UniversityBranchCatalog.resolveFromProfile(profile).id();
         } catch (RuntimeException e) {
-            log.debug("Не удалось определить кампус для {}: {}", studentId, e.toString());
-            return CabinetCampus.OTHER;
+            log.debug("Не удалось определить филиал для {}: {}", studentId, e.toString());
+            return UniversityBranchCatalog.MAIN.id();
         }
     }
 
-    /** Для обхода: ошибка 1С → OTHER, чтобы не крутить бесконечно null. */
-    private CabinetCampus resolveCampusSafe(String studentId) {
-        return resolveCampus(studentId);
-    }
-
     private CabinetUserListItemDto toListItem(CabinetUser user) {
-        CabinetCampus campus = user.getCampus();
+        String campus = user.getCampus();
         return new CabinetUserListItemDto(
             user.getId(),
             user.getRole().name(),
             user.getStudentId(),
             user.getDisplayName(),
-            campus == null ? null : campus.name(),
-            campus == null ? "Не определён" : campus.label(),
+            campus,
+            UniversityBranchCatalog.labelOf(campus),
             user.getFirstLoginAt().toString(),
             user.getLastLoginAt().toString(),
             user.getLastSeenAt().toString()
@@ -394,22 +410,23 @@ public class CabinetUserService {
         if (raw == null || raw.isBlank()) {
             return new CampusFilter(CampusFilterMode.ALL, null);
         }
-        String value = raw.trim().toUpperCase(Locale.ROOT);
-        if ("UNKNOWN".equals(value) || "NULL".equals(value)) {
+        String value = raw.trim().toLowerCase(Locale.ROOT);
+        if ("unknown".equals(value) || "null".equals(value)) {
             return new CampusFilter(CampusFilterMode.UNKNOWN, null);
         }
-        try {
-            return new CampusFilter(CampusFilterMode.EXACT, CabinetCampus.valueOf(value));
-        } catch (IllegalArgumentException e) {
+        String migrated = UniversityBranchCatalog.migrateLegacyCampusId(value);
+        String id = migrated != null ? migrated : value;
+        if (!UniversityBranchCatalog.isKnownId(id)) {
             return new CampusFilter(CampusFilterMode.ALL, null);
         }
+        return new CampusFilter(CampusFilterMode.EXACT, id);
     }
 
     private static boolean matchesCampusFilter(CabinetUser user, CampusFilter filter) {
         return switch (filter.mode()) {
             case ALL -> true;
             case UNKNOWN -> user.getCampus() == null;
-            case EXACT -> user.getCampus() == filter.campus();
+            case EXACT -> filter.campusId().equals(user.getCampus());
         };
     }
 
@@ -438,5 +455,5 @@ public class CabinetUserService {
 
     private enum CampusFilterMode { ALL, EXACT, UNKNOWN }
 
-    private record CampusFilter(CampusFilterMode mode, CabinetCampus campus) {}
+    private record CampusFilter(CampusFilterMode mode, String campusId) {}
 }

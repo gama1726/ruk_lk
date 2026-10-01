@@ -15,16 +15,16 @@ public interface CabinetUserRepository extends JpaRepository<CabinetUser, String
 
     long countByFirstLoginAtGreaterThanEqualAndFirstLoginAtLessThan(Instant from, Instant to);
 
-    long countByCampus(CabinetCampus campus);
+    long countByCampus(String campus);
 
     long countByCampusIsNull();
 
-    long countByCampusAndLastSeenAtGreaterThanEqual(CabinetCampus campus, Instant since);
+    long countByCampusAndLastSeenAtGreaterThanEqual(String campus, Instant since);
 
     long countByCampusIsNullAndLastSeenAtGreaterThanEqual(Instant since);
 
     long countByCampusAndFirstLoginAtGreaterThanEqualAndFirstLoginAtLessThan(
-        CabinetCampus campus,
+        String campus,
         Instant from,
         Instant to
     );
@@ -41,6 +41,8 @@ public interface CabinetUserRepository extends JpaRepository<CabinetUser, String
 
     List<CabinetUser> findByCampusIsNull();
 
+    List<CabinetUser> findByCampus(String campus);
+
     @Query("""
         SELECT u FROM CabinetUser u
         WHERE (:campusUnknown = true AND u.campus IS NULL
@@ -53,7 +55,7 @@ public interface CabinetUserRepository extends JpaRepository<CabinetUser, String
           )
         """)
     Page<CabinetUser> search(
-        @Param("campus") CabinetCampus campus,
+        @Param("campus") String campus,
         @Param("campusUnknown") boolean campusUnknown,
         @Param("role") CabinetUserRole role,
         @Param("q") String q,

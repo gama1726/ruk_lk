@@ -8,8 +8,8 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
- * Обход уже зашедших пользователей ЛК без кампуса — проставляет филиал из 1С.
- * В фоне, чтобы не блокировать старт приложения.
+ * Обход пользователей ЛК: миграция старых кодов филиала + 1С для пустых/OTHER.
+ * В фоне, чтобы не блокировать старт.
  */
 @Component
 @Order(200)
@@ -29,7 +29,7 @@ public class CabinetCampusBackfill implements ApplicationRunner {
             try {
                 int updated = cabinetUserService.backfillCampuses();
                 if (updated > 0) {
-                    log.info("Cabinet users: backfill campus для {} записей", updated);
+                    log.info("Cabinet users: синхронизация филиалов, обновлено {} записей", updated);
                 }
             } catch (RuntimeException e) {
                 log.warn("Cabinet users: backfill campus не удался: {}", e.toString());

@@ -5,7 +5,7 @@ public record CabinetUserListItemDto(
     String role,
     String studentId,
     String displayName,
-    /** KAZAN | KRASNODAR | HEAD | OTHER | null */
+    /** Id филиала (main, kazan, …) или null */
     String campus,
     String campusLabel,
     String firstLoginAt,
