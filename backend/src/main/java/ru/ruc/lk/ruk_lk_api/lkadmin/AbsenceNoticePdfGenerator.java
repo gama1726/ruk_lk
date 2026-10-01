@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.Optional;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
@@ -18,9 +19,11 @@ import com.lowagie.text.Phrase;
 import com.lowagie.text.pdf.BaseFont;
 import com.lowagie.text.pdf.PdfWriter;
 
+import ru.ruc.lk.ruk_lk_api.passphoto.EducationTrack;
+
 /**
- * PDF «Уведомление об отсутствии» для Казанского филиала (по официальному бланку СПО).
- * Без номера договора и служебной пометки про несовершеннолетних.
+ * PDF «Уведомление об отсутствии». Бланк выбирается по кампусу и уровню (СПО/ВО).
+ * Пока есть только Казань СПО и Казань ВО; иначе {@link #generate} пустой.
  */
 @Component
 public class AbsenceNoticePdfGenerator {
@@ -33,71 +36,64 @@ public class AbsenceNoticePdfGenerator {
         this.baseBold = loadFont("fonts/DejaVuSans-Bold.ttf");
     }
 
-    public byte[] generate(String studentFullName, String absenceDateRu) {
-        return generate(studentFullName, absenceDateRu, null);
+    /** Есть ли бланк для пары кампус × трек. */
+    public boolean hasTemplate(LkAbsenceReportCampus campus, EducationTrack track) {
+        return AbsenceNoticeTemplate.resolve(campus, track).isPresent();
     }
 
-    /**
-     * @param violationsDetail текст нарушений: «неявка на все пары» или список по парам
-     */
-    public byte[] generate(String studentFullName, String absenceDateRu, String violationsDetail) {
+    public Optional<byte[]> generate(
+        LkAbsenceReportCampus campus,
+        EducationTrack track,
+        String studentFullName,
+        String absenceDateRu,
+        String violationsDetail
+    ) {
+        return AbsenceNoticeTemplate.resolve(campus, track)
+            .map(template -> generate(template, studentFullName, absenceDateRu, violationsDetail));
+    }
+
+    public byte[] generate(AbsenceNoticeTemplate template, String studentFullName, String absenceDateRu) {
+        return generate(template, studentFullName, absenceDateRu, null);
+    }
+
+    public byte[] generate(
+        AbsenceNoticeTemplate template,
+        String studentFullName,
+        String absenceDateRu,
+        String violationsDetail
+    ) {
+        if (template == null) {
+            throw new IllegalArgumentException("Шаблон уведомления не задан");
+        }
+        return switch (template) {
+            case KAZAN_SPO -> generateKazanSpo(studentFullName, absenceDateRu, violationsDetail);
+            case KAZAN_HE -> generateKazanHe(studentFullName, absenceDateRu, violationsDetail);
+        };
+    }
+
+    private byte[] generateKazanSpo(String studentFullName, String absenceDateRu, String violationsDetail) {
         String fio = blankToDash(studentFullName);
         String date = blankToDash(absenceDateRu);
         String violations = normalizeViolations(violationsDetail);
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Document document = new Document(PageSize.A4, 56, 56, 48, 48);
-            PdfWriter.getInstance(document, out);
-            document.open();
-
+            Document document = openDocument(out);
             Font header = font(baseRegular, 9);
             Font title = font(baseBold, 12);
             Font body = font(baseRegular, 11);
             Font bodyBold = font(baseBold, 11);
             Font small = font(baseRegular, 10);
 
-            addCentered(document, "Автономная некоммерческая образовательная организация высшего образования", header);
-            addCentered(document, "Центросоюза Российской Федерации «Российский университет кооперации»", header);
-            addCentered(document, "Казанский кооперативный институт (филиал)", header);
-            addCentered(document, "Николая Ершова ул., д.58, г. Казань, Республика Татарстан, 420081", header);
-            addCentered(document, "Тел. 8(843) 210-30-28", header);
-
-            Paragraph dateLine = new Paragraph("от " + date, small);
-            dateLine.setSpacingBefore(10);
-            dateLine.setSpacingAfter(12);
-            document.add(dateLine);
-
+            addKazanHeader(document, header, small, date);
             addCentered(document, "ФАКУЛЬТЕТ СРЕДНЕГО ПРОФЕССИОНАЛЬНОГО ОБРАЗОВАНИЯ", bodyBold);
-            Paragraph noticeTitle = new Paragraph("УВЕДОМЛЕНИЕ", title);
-            noticeTitle.setAlignment(Element.ALIGN_CENTER);
-            noticeTitle.setSpacingBefore(8);
-            document.add(noticeTitle);
-            addCentered(document, "об отсутствии обучающегося на учебных занятиях", bodyBold);
+            addNoticeTitle(document, title, bodyBold);
 
             Paragraph greeting = new Paragraph("Уважаемый заказчик!", body);
             greeting.setSpacingBefore(14);
             greeting.setSpacingAfter(8);
             document.add(greeting);
 
-            String mainText =
-                "В соответствии с п. 2.4 Договора на оказание образовательных услуг по образовательным "
-                    + "программам среднего профессионального образования и высшего образования "
-                    + "информируем Вас о нарушении обучающимся " + fio
-                    + " положений п. 5.1 Договора, в виде непосещения учебных занятий " + date
-                    + ", предусмотренных учебным планом образовательной программы.";
-            Paragraph main = new Paragraph(mainText, body);
-            main.setAlignment(Element.ALIGN_JUSTIFIED);
-            main.setSpacingAfter(14);
-            document.add(main);
-
-            if (!violations.isBlank()) {
-                Paragraph vTitle = new Paragraph("Сведения о нарушениях:", bodyBold);
-                vTitle.setSpacingAfter(4);
-                document.add(vTitle);
-                Paragraph vBody = new Paragraph(violations, body);
-                vBody.setSpacingAfter(14);
-                document.add(vBody);
-            }
+            addMainBody(document, body, fio, date, violations, bodyBold);
 
             document.add(new Paragraph("Контактные лица:", bodyBold));
             document.add(new Paragraph(
@@ -126,8 +122,113 @@ public class AbsenceNoticePdfGenerator {
             document.close();
             return out.toByteArray();
         } catch (DocumentException | IOException e) {
-            throw new UncheckedIOException("Не удалось сформировать PDF уведомления",
-                e instanceof IOException io ? io : new IOException(e));
+            throw wrap(e);
+        }
+    }
+
+    private byte[] generateKazanHe(String studentFullName, String absenceDateRu, String violationsDetail) {
+        String fio = blankToDash(studentFullName);
+        String date = blankToDash(absenceDateRu);
+        String violations = normalizeViolations(violationsDetail);
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document document = openDocument(out);
+            Font header = font(baseRegular, 9);
+            Font title = font(baseBold, 12);
+            Font body = font(baseRegular, 11);
+            Font bodyBold = font(baseBold, 11);
+            Font small = font(baseRegular, 10);
+
+            addKazanHeader(document, header, small, date);
+            addCentered(document, "ФАКУЛЬТЕТ ВЫСШЕГО ОБРАЗОВАНИЯ", bodyBold);
+            addNoticeTitle(document, title, bodyBold);
+
+            Paragraph greeting = new Paragraph("Уважаемый (заказчик)!", body);
+            greeting.setSpacingBefore(14);
+            greeting.setSpacingAfter(8);
+            document.add(greeting);
+
+            addMainBody(document, body, fio, date, violations, bodyBold);
+
+            document.add(new Paragraph("Контактные лица:", bodyBold));
+            document.add(new Paragraph(
+                "Фаррахова Лилия Ильдусовна, декан факультета высшего образования",
+                small
+            ));
+            document.add(new Paragraph("Телефон: 8 927 249 20-45", small));
+            document.add(new Paragraph("Адрес электронной почты: l.i.farrahova@ruc.su", small));
+
+            Paragraph signLabel = new Paragraph("Декан факультета\nвысшего образования", small);
+            signLabel.setSpacingBefore(28);
+            document.add(signLabel);
+
+            Paragraph signName = new Paragraph("Л.И. Фаррахова", small);
+            signName.setAlignment(Element.ALIGN_RIGHT);
+            signName.setSpacingBefore(8);
+            document.add(signName);
+
+            document.close();
+            return out.toByteArray();
+        } catch (DocumentException | IOException e) {
+            throw wrap(e);
+        }
+    }
+
+    private static Document openDocument(ByteArrayOutputStream out) throws DocumentException {
+        Document document = new Document(PageSize.A4, 56, 56, 48, 48);
+        PdfWriter.getInstance(document, out);
+        document.open();
+        return document;
+    }
+
+    private static void addKazanHeader(Document document, Font header, Font small, String date)
+        throws DocumentException {
+        addCentered(document, "Автономная некоммерческая образовательная организация высшего образования", header);
+        addCentered(document, "Центросоюза Российской Федерации «Российский университет кооперации»", header);
+        addCentered(document, "Казанский кооперативный институт (филиал)", header);
+        addCentered(document, "Николая Ершова ул., д.58, г. Казань, Республика Татарстан, 420081", header);
+        addCentered(document, "Тел. 8(843) 210-30-28", header);
+
+        Paragraph dateLine = new Paragraph("от " + date, small);
+        dateLine.setSpacingBefore(10);
+        dateLine.setSpacingAfter(12);
+        document.add(dateLine);
+    }
+
+    private static void addNoticeTitle(Document document, Font title, Font bodyBold) throws DocumentException {
+        Paragraph noticeTitle = new Paragraph("УВЕДОМЛЕНИЕ", title);
+        noticeTitle.setAlignment(Element.ALIGN_CENTER);
+        noticeTitle.setSpacingBefore(8);
+        document.add(noticeTitle);
+        addCentered(document, "об отсутствии обучающегося на учебных занятиях", bodyBold);
+    }
+
+    private static void addMainBody(
+        Document document,
+        Font body,
+        String fio,
+        String date,
+        String violations,
+        Font bodyBold
+    ) throws DocumentException {
+        String mainText =
+            "В соответствии с п. 2.4 Договора на оказание образовательных услуг по образовательным "
+                + "программам среднего профессионального образования и высшего образования "
+                + "информируем Вас о нарушении обучающимся " + fio
+                + " положений п. 5.1 Договора, в виде непосещения учебных занятий " + date
+                + ", предусмотренных учебным планом образовательной программы.";
+        Paragraph main = new Paragraph(mainText, body);
+        main.setAlignment(Element.ALIGN_JUSTIFIED);
+        main.setSpacingAfter(14);
+        document.add(main);
+
+        if (!violations.isBlank()) {
+            Paragraph vTitle = new Paragraph("Сведения о нарушениях:", bodyBold);
+            vTitle.setSpacingAfter(4);
+            document.add(vTitle);
+            Paragraph vBody = new Paragraph(violations, body);
+            vBody.setSpacingAfter(14);
+            document.add(vBody);
         }
     }
 
@@ -181,5 +282,12 @@ public class AbsenceNoticePdfGenerator {
 
     private static String blankToDash(String value) {
         return value == null || value.isBlank() ? "—" : value.trim();
+    }
+
+    private static UncheckedIOException wrap(Exception e) {
+        return new UncheckedIOException(
+            "Не удалось сформировать PDF уведомления",
+            e instanceof IOException io ? io : new IOException(e)
+        );
     }
 }

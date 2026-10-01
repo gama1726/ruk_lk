@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
+import ru.ruc.lk.ruk_lk_api.api.student.CampusSupport;
 import ru.ruc.lk.ruk_lk_api.integration.email.AbsenceNoticeEmailSender;
 import ru.ruc.lk.ruk_lk_api.integration.email.EmailSendException;
 import ru.ruc.lk.ruk_lk_api.integration.max.MaxBindingService;
@@ -20,10 +21,12 @@ import ru.ruc.lk.ruk_lk_api.integration.onec.OneCFamilyResponse;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCParentMember;
 import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRowDto;
+import ru.ruc.lk.ruk_lk_api.passphoto.EducationTrack;
+import ru.ruc.lk.ruk_lk_api.passphoto.EducationTrackClassifier;
 
 /**
  * Рассылка PDF-уведомлений после отчёта отсутствующих.
- * Включение авторассылки — через флаги кампуса и настройки админки (см. {@link LkAbsenceReportSettingsService}).
+ * Бланк = кампус × СПО/ВО; нет бланка → не отправляем.
  * <ul>
  *   <li>несовершеннолетний → родителям;</li>
  *   <li>совершеннолетний → родителям с полным доступом в ЛК ({@code !servicesBlocked}),
@@ -59,14 +62,23 @@ public class LkAbsenceNoticeService {
         this.noticeRepository = noticeRepository;
     }
 
-    public void notifyAfterReport(LocalDate reportDate, List<AbsenceReportRowDto> rows) {
+    public void notifyAfterReport(
+        LocalDate reportDate,
+        LkAbsenceReportCampus campus,
+        List<AbsenceReportRowDto> rows
+    ) {
         if (rows == null || rows.isEmpty()) {
+            return;
+        }
+        if (campus == null) {
+            log.info("Рассылка уведомлений пропущена: кампус отчёта не задан");
             return;
         }
 
         int sent = 0;
         int skipped = 0;
         int failed = 0;
+        int noTemplate = 0;
 
         for (AbsenceReportRowDto row : rows) {
             if (row == null || row.studentId() == null || row.studentId().isBlank()) {
@@ -79,10 +91,13 @@ public class LkAbsenceNoticeService {
                 continue;
             }
             try {
-                NotifyOutcome outcome = notifyStudent(reportDate, row);
+                NotifyOutcome outcome = notifyStudent(reportDate, campus, row);
                 if (outcome == NotifyOutcome.SENT) {
                     markNotified(reportDate, studentId);
                     sent++;
+                } else if (outcome == NotifyOutcome.NO_TEMPLATE) {
+                    noTemplate++;
+                    skipped++;
                 } else if (outcome == NotifyOutcome.NO_RECIPIENTS) {
                     skipped++;
                 } else {
@@ -99,10 +114,12 @@ public class LkAbsenceNoticeService {
         }
 
         log.info(
-            "Рассылка уведомлений о непосещаемости (Казань) за {}: sent={} skipped={} failed={} totalRows={}",
+            "Рассылка уведомлений о непосещаемости ({}) за {}: sent={} skipped={} noTemplate={} failed={} totalRows={}",
+            campus,
             reportDate,
             sent,
             skipped,
+            noTemplate,
             failed,
             rows.size()
         );
@@ -110,7 +127,7 @@ public class LkAbsenceNoticeService {
 
     /**
      * Принудительная отправка по одному студенту (в т.ч. переотправка).
-     * При успехе ставит {@code parentNotified=true}.
+     * Кампус и уровень берутся из профиля 1С. При успехе ставит {@code parentNotified=true}.
      */
     public NotifyOutcome notifyOneForced(
         LocalDate reportDate,
@@ -123,28 +140,52 @@ public class LkAbsenceNoticeService {
             return NotifyOutcome.NO_RECIPIENTS;
         }
         String id = studentId.trim();
+        OneCProfileResponse profile = onecClient.fetchProfile(id).orElse(null);
+        LkAbsenceReportCampus campus = resolveCampus(profile);
+        if (campus == null) {
+            log.info("Нет бланка уведомления: не удалось определить кампус studentId={}", id);
+            return NotifyOutcome.NO_TEMPLATE;
+        }
         String dateRu = reportDate.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
         String resolvedKind = kind == null || kind.isBlank() ? "full" : kind.trim();
         String resolvedRange = absenceRange == null ? "" : absenceRange;
+        String name = fullNameHint == null || fullNameHint.isBlank()
+            ? (profile != null && profile.fullName() != null && !profile.fullName().isBlank()
+                ? profile.fullName().trim()
+                : id)
+            : fullNameHint.trim();
         AbsenceReportRowDto row = new AbsenceReportRowDto(
             dateRu,
             "",
             id,
-            fullNameHint == null || fullNameHint.isBlank() ? id : fullNameHint.trim(),
+            name,
             "",
             "",
             resolvedRange,
             alreadyNotified(reportDate, id),
             resolvedKind
         );
-        NotifyOutcome outcome = notifyStudent(reportDate, row);
+        NotifyOutcome outcome = notifyStudent(reportDate, campus, row, profile);
         if (outcome == NotifyOutcome.SENT) {
             markNotified(reportDate, id);
         }
         return outcome;
     }
 
-    private NotifyOutcome notifyStudent(LocalDate reportDate, AbsenceReportRowDto row) {
+    private NotifyOutcome notifyStudent(
+        LocalDate reportDate,
+        LkAbsenceReportCampus campus,
+        AbsenceReportRowDto row
+    ) {
+        return notifyStudent(reportDate, campus, row, null);
+    }
+
+    private NotifyOutcome notifyStudent(
+        LocalDate reportDate,
+        LkAbsenceReportCampus campus,
+        AbsenceReportRowDto row,
+        OneCProfileResponse profileHint
+    ) {
         String studentId = row.studentId().trim();
         String fullName = row.fullName() == null || row.fullName().isBlank() ? studentId : row.fullName().trim();
         String dateRu = row.date() == null || row.date().isBlank()
@@ -152,14 +193,30 @@ public class LkAbsenceNoticeService {
             : row.date().trim();
         String violations = AbsenceNoticePdfGenerator.resolveViolationsText(row.kind(), row.absenceRange());
 
+        OneCProfileResponse profile = profileHint != null
+            ? profileHint
+            : onecClient.fetchProfile(studentId).orElse(null);
+        EducationTrack track = EducationTrackClassifier.fromLevel(profile == null ? null : profile.level());
+        Optional<byte[]> pdfOpt = pdfGenerator.generate(campus, track, fullName, dateRu, violations);
+        if (pdfOpt.isEmpty()) {
+            log.info(
+                "Нет бланка уведомления campus={} track={} studentId={} level={}",
+                campus,
+                track,
+                studentId,
+                profile == null ? null : profile.level()
+            );
+            return NotifyOutcome.NO_TEMPLATE;
+        }
+        byte[] pdf = pdfOpt.get();
+
         OneCFamilyResponse family = onecClient.checkParent(studentId, null).orElse(null);
-        List<NoticeRecipient> recipients = resolveRecipients(studentId, fullName, family);
+        List<NoticeRecipient> recipients = resolveRecipients(studentId, fullName, family, profile);
         if (recipients.isEmpty()) {
             log.info("Нет получателей уведомления о непосещаемости для studentId={}", studentId);
             return NotifyOutcome.NO_RECIPIENTS;
         }
 
-        byte[] pdf = pdfGenerator.generate(fullName, dateRu, violations);
         String fileName = "Uvedomlenie_o_neposeshchaemosti_" + studentId + ".pdf";
         StringBuilder message = new StringBuilder();
         message.append("Уведомление об отсутствии обучающегося ").append(fullName)
@@ -167,7 +224,7 @@ public class LkAbsenceNoticeService {
         if (!violations.isBlank()) {
             message.append("Сведения о нарушениях:\n").append(violations).append("\n");
         }
-        message.append("Казанский кооперативный институт (филиал) РУК. Документ во вложении.");
+        message.append(campusNoticeFooter(campus));
         String messageText = message.toString();
 
         boolean anySent = false;
@@ -182,7 +239,8 @@ public class LkAbsenceNoticeService {
     private List<NoticeRecipient> resolveRecipients(
         String studentId,
         String studentFullName,
-        OneCFamilyResponse family
+        OneCFamilyResponse family,
+        OneCProfileResponse profileHint
     ) {
         List<NoticeRecipient> result = new ArrayList<>();
         boolean adult = family != null && family.studentAdult();
@@ -212,7 +270,9 @@ public class LkAbsenceNoticeService {
             return result;
         }
 
-        OneCProfileResponse profile = onecClient.fetchProfile(studentId).orElse(null);
+        OneCProfileResponse profile = profileHint != null
+            ? profileHint
+            : onecClient.fetchProfile(studentId).orElse(null);
         String email = profile == null ? null : profile.email();
         String phone = profile == null ? null : profile.phone();
         String name = profile != null && profile.fullName() != null && !profile.fullName().isBlank()
@@ -242,7 +302,6 @@ public class LkAbsenceNoticeService {
         String phone
     ) {
         Long maxUserId = maxBindingService.findMaxUserId(studentId).orElse(null);
-        // phone reserved for future phone-match checks; MAX key is raw studentId
         String safeEmail = blankToNull(email);
         if (maxUserId == null && safeEmail == null) {
             log.debug("У студента {} нет MAX и email для уведомления (phonePresent={})", studentId, phone != null);
@@ -325,6 +384,33 @@ public class LkAbsenceNoticeService {
         noticeRepository.save(row);
     }
 
+    /** Кампус для выбора бланка по профилю 1С. */
+    static LkAbsenceReportCampus resolveCampus(OneCProfileResponse profile) {
+        if (profile == null) {
+            return null;
+        }
+        if (CampusSupport.isKrasnodar(profile)) {
+            return LkAbsenceReportCampus.KRASNODAR;
+        }
+        if (CampusSupport.resolveAttendanceCampus(profile)
+            .filter(c -> c == CampusSupport.AttendanceCampus.KAZAN)
+            .isPresent()) {
+            return LkAbsenceReportCampus.KAZAN;
+        }
+        if (CampusSupport.isHead(profile)) {
+            return LkAbsenceReportCampus.HEAD;
+        }
+        return null;
+    }
+
+    private static String campusNoticeFooter(LkAbsenceReportCampus campus) {
+        return switch (campus) {
+            case KAZAN -> "Казанский кооперативный институт (филиал) РУК. Документ во вложении.";
+            case KRASNODAR -> "Краснодарский филиал РУК. Документ во вложении.";
+            case HEAD -> "Российский университет кооперации. Документ во вложении.";
+        };
+    }
+
     private static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
@@ -334,6 +420,7 @@ public class LkAbsenceNoticeService {
     public enum NotifyOutcome {
         SENT,
         NO_RECIPIENTS,
+        NO_TEMPLATE,
         DELIVERY_FAILED
     }
 }

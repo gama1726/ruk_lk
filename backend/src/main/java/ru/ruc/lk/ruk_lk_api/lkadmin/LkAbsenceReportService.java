@@ -552,6 +552,10 @@ public class LkAbsenceReportService {
                 "studentId", studentId,
                 "notified", true
             );
+            case NO_TEMPLATE -> throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Нет бланка уведомления для филиала/уровня студента (СПО/ВО)"
+            );
             case NO_RECIPIENTS -> throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
                 "Не найден канал доставки: нет привязки MAX и email у получателя"
@@ -641,7 +645,7 @@ public class LkAbsenceReportService {
             // Авторассылка CAMPUS: флаг notify AND настройка админки для кампуса.
             if (scope == LkAbsenceReportScope.CAMPUS && settingsService.isEffectiveNotify(campus)) {
                 try {
-                    absenceNoticeService.notifyAfterReport(date, result.rows());
+                    absenceNoticeService.notifyAfterReport(date, campus, result.rows());
                 } catch (RuntimeException notifyError) {
                     log.warn(
                         "Absence report {}: рассылка уведомлений завершилась с ошибкой: {}",
