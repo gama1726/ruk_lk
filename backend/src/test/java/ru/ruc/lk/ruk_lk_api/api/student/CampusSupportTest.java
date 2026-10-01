@@ -54,4 +54,12 @@ class CampusSupportTest {
         assertTrue(CampusSupport.isKrasnodar("филиал г. Краснодар", "", "", ""));
         assertFalse(CampusSupport.isKrasnodar("Казанский кооперативный институт (филиал)", "", "", ""));
     }
+
+    @Test
+    void headCampusHelper() {
+        assertTrue(CampusSupport.isHead("", "Экономический факультет", "", "ЭК-21"));
+        assertFalse(CampusSupport.isHead("Казанский кооперативный институт (филиал)", "", "", "КЗ21"));
+        assertFalse(CampusSupport.isHead("Краснодарский кооперативный институт (филиал)", "", "", ""));
+        assertFalse(CampusSupport.isHead("Смоленский филиал", "", "", "СМ21"));
+    }
 }

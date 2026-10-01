@@ -73,6 +73,19 @@ public final class CampusSupport {
         return joinLower(parts).contains("краснодар");
     }
 
+    /** Головной вуз по правилам посещаемости (не Казань и не «филиал»). */
+    public static boolean isHead(OneCProfileResponse profile) {
+        return resolveAttendanceCampus(profile)
+            .filter(c -> c == AttendanceCampus.HEAD)
+            .isPresent();
+    }
+
+    public static boolean isHead(String... parts) {
+        return resolveAttendanceCampus(parts)
+            .filter(c -> c == AttendanceCampus.HEAD)
+            .isPresent();
+    }
+
     private static String joinLower(String... parts) {
         StringBuilder sb = new StringBuilder();
         for (String part : parts) {
