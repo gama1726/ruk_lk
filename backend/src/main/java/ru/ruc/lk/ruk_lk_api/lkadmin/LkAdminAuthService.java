@@ -110,6 +110,32 @@ public class LkAdminAuthService {
         }
     }
 
+    public static void requireAnySection(HttpSession session, LkAdminSection... sections) {
+        LkAdminSession admin = require(session);
+        if (sections == null || sections.length == 0) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет доступа к этому разделу");
+        }
+        for (LkAdminSection section : sections) {
+            if (section != null && admin.hasSection(section)) {
+                return;
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет доступа к этому разделу");
+    }
+
+    public static void requireAbsenceCampus(HttpSession session, LkAbsenceReportCampus campus) {
+        requireSection(session, LkAdminSection.forAbsenceCampus(campus));
+    }
+
+    public static void requireAnyAbsenceReport(HttpSession session) {
+        requireAnySection(
+            session,
+            LkAdminSection.ABSENCE_REPORT_KAZAN,
+            LkAdminSection.ABSENCE_REPORT_KRASNODAR,
+            LkAdminSection.ABSENCE_REPORT_HEAD
+        );
+    }
+
     public static void requireSuperAdmin(HttpSession session) {
         LkAdminSession admin = require(session);
         if (!admin.superAdmin()) {

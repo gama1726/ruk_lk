@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  * (например при сидере). Этот раннер идемпотентно пересоздаёт ограничение из актуального enum.
  */
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class LkAdminSectionConstraintMigrator implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(LkAdminSectionConstraintMigrator.class);

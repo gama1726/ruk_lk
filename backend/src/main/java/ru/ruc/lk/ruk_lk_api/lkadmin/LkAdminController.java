@@ -135,14 +135,20 @@ public class LkAdminController {
     }
 
     @GetMapping("/absence-reports")
-    public List<AbsenceReportSummaryDto> listAbsenceReports(HttpSession session) {
-        return absenceReportService.list(session);
+    public List<AbsenceReportSummaryDto> listAbsenceReports(
+        HttpSession session,
+        @RequestParam String campus
+    ) {
+        return absenceReportService.list(session, campus);
     }
 
     /** Только супер-админ: отчёты по одной группе. */
     @GetMapping("/absence-reports/groups")
-    public List<AbsenceReportSummaryDto> listGroupAbsenceReports(HttpSession session) {
-        return absenceReportService.listGroupReports(session);
+    public List<AbsenceReportSummaryDto> listGroupAbsenceReports(
+        HttpSession session,
+        @RequestParam String campus
+    ) {
+        return absenceReportService.listGroupReports(session, campus);
     }
 
     @GetMapping("/group-rosters")

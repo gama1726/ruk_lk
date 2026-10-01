@@ -34,10 +34,25 @@ const allNavItems: NavItem[] = [
     section: 'ATTENDANCE',
   },
   {
-    to: paths.adminLkAbsenceReport,
-    label: 'Отчёт отсутствующих',
-    title: 'Отчёт отсутствующих',
-    section: 'ABSENCE_REPORT',
+    to: paths.adminLkAbsenceReportKazan,
+    label: 'Отчёт · Казань',
+    title: 'Отчёт отсутствующих · Казань',
+    section: 'ABSENCE_REPORT_KAZAN',
+    end: true,
+  },
+  {
+    to: paths.adminLkAbsenceReportKrasnodar,
+    label: 'Отчёт · Краснодар',
+    title: 'Отчёт отсутствующих · Краснодар',
+    section: 'ABSENCE_REPORT_KRASNODAR',
+    end: true,
+  },
+  {
+    to: paths.adminLkAbsenceReportHead,
+    label: 'Отчёт · Голова',
+    title: 'Отчёт отсутствующих · Голова',
+    section: 'ABSENCE_REPORT_HEAD',
+    end: true,
   },
   {
     to: paths.adminLkEvents,
@@ -65,6 +80,13 @@ const allNavItems: NavItem[] = [
   },
 ]
 
+function pathMatchesNav(pathname: string, item: NavItem): boolean {
+  if (item.end) {
+    return pathname === item.to
+  }
+  return pathname === item.to || pathname.startsWith(`${item.to}/`)
+}
+
 export function AdminLkLayout() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -78,9 +100,7 @@ export function AdminLkLayout() {
   )
 
   const pageSection =
-    navItems.find((item) =>
-      item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
-    )?.title ?? 'Админ-панель'
+    navItems.find((item) => pathMatchesNav(location.pathname, item))?.title ?? 'Админ-панель'
 
   const loadMe = useCallback(async () => {
     setLoading(true)
@@ -109,8 +129,7 @@ export function AdminLkLayout() {
   useEffect(() => {
     if (!me) return
     const denied = allNavItems.find(
-      (item) =>
-        location.pathname.startsWith(item.to) && !hasLkSection(me, item.section),
+      (item) => pathMatchesNav(location.pathname, item) && !hasLkSection(me, item.section),
     )
     if (denied) {
       navigate(firstAllowedLkPath(me), { replace: true })

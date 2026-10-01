@@ -7,11 +7,15 @@ import type { StudentAttendanceDto } from '@/attendance'
 
 export type LkAdminSection =
   | 'ATTENDANCE'
-  | 'ABSENCE_REPORT'
+  | 'ABSENCE_REPORT_KAZAN'
+  | 'ABSENCE_REPORT_KRASNODAR'
+  | 'ABSENCE_REPORT_HEAD'
   | 'EVENTS'
   | 'API_LOAD'
   | 'CABINET_STATS'
   | 'ADMINS'
+
+export type AbsenceReportCampus = 'KAZAN' | 'KRASNODAR' | 'HEAD'
 
 export type LkAdminMe = {
   id: string
@@ -119,7 +123,9 @@ export type AbsenceReportSummary = {
 
 export const LK_ADMIN_SECTION_LABELS: Record<LkAdminSection, string> = {
   ATTENDANCE: 'Посещаемость',
-  ABSENCE_REPORT: 'Отчёт отсутствующих',
+  ABSENCE_REPORT_KAZAN: 'Отчёт · Казань',
+  ABSENCE_REPORT_KRASNODAR: 'Отчёт · Краснодар',
+  ABSENCE_REPORT_HEAD: 'Отчёт · Голова',
   EVENTS: 'Мероприятия',
   API_LOAD: 'Нагрузка API',
   CABINET_STATS: 'Пользователи ЛК',
@@ -163,8 +169,7 @@ export async function fetchAbsenceReport(body: {
   date: string
   scope?: 'CAMPUS' | 'GROUP' | string
   group?: string
-  /** KRASNODAR (default) | KAZAN */
-  campus?: 'KRASNODAR' | 'KAZAN' | string
+  campus: AbsenceReportCampus | string
 }): Promise<AbsenceReport> {
   return apiPost<AbsenceReport>('/api/admin/lk/absence-report', body)
 }
@@ -177,13 +182,17 @@ export async function getAbsenceReport(id: string): Promise<AbsenceReport> {
   return apiGet<AbsenceReport>(`/api/admin/lk/absence-report/${id}`)
 }
 
-export async function listAbsenceReports(): Promise<AbsenceReportSummary[]> {
-  return apiGet<AbsenceReportSummary[]>('/api/admin/lk/absence-reports')
+export async function listAbsenceReports(campus: AbsenceReportCampus | string): Promise<AbsenceReportSummary[]> {
+  const params = new URLSearchParams({ campus })
+  return apiGet<AbsenceReportSummary[]>(`/api/admin/lk/absence-reports?${params}`)
 }
 
 /** Только супер-админ: отчёты по одной группе. */
-export async function listGroupAbsenceReports(): Promise<AbsenceReportSummary[]> {
-  return apiGet<AbsenceReportSummary[]>('/api/admin/lk/absence-reports/groups')
+export async function listGroupAbsenceReports(
+  campus: AbsenceReportCampus | string,
+): Promise<AbsenceReportSummary[]> {
+  const params = new URLSearchParams({ campus })
+  return apiGet<AbsenceReportSummary[]>(`/api/admin/lk/absence-reports/groups?${params}`)
 }
 
 export async function downloadAbsenceReportExcel(id: string): Promise<void> {
@@ -234,7 +243,9 @@ export function hasLkSection(me: LkAdminMe | undefined, section: LkAdminSection)
 
 export function firstAllowedLkPath(me: LkAdminMe): string {
   if (hasLkSection(me, 'ATTENDANCE')) return '/admin/lk/attendance'
-  if (hasLkSection(me, 'ABSENCE_REPORT')) return '/admin/lk/absence-report'
+  if (hasLkSection(me, 'ABSENCE_REPORT_KRASNODAR')) return '/admin/lk/absence-report/krasnodar'
+  if (hasLkSection(me, 'ABSENCE_REPORT_KAZAN')) return '/admin/lk/absence-report/kazan'
+  if (hasLkSection(me, 'ABSENCE_REPORT_HEAD')) return '/admin/lk/absence-report/head'
   if (hasLkSection(me, 'EVENTS')) return '/admin/lk/events'
   if (hasLkSection(me, 'API_LOAD')) return '/admin/lk/load'
   if (hasLkSection(me, 'CABINET_STATS')) return '/admin/lk/users'

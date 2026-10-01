@@ -176,7 +176,14 @@ export const router = createBrowserRouter([
     children: [
       { path: paths.adminLk, element: null },
       { path: paths.adminLkAttendance, element: <AdminLkAttendancePage /> },
-      { path: paths.adminLkAbsenceReport, element: <AdminLkAbsenceReportPage /> },
+      {
+        path: paths.adminLkAbsenceReport,
+        element: <Navigate to={paths.adminLkAbsenceReportKrasnodar} replace />,
+      },
+      {
+        path: `${paths.adminLkAbsenceReport}/:campus`,
+        element: <AdminLkAbsenceReportPage />,
+      },
       { path: paths.adminLkEvents, element: <AdminEventsPage /> },
       { path: paths.adminLkApiLoad, element: <AdminEventsLoadPage /> },
       { path: paths.adminLkUsers, element: <AdminEventsUsersPage /> },

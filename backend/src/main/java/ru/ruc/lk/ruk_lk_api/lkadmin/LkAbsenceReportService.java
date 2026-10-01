@@ -159,12 +159,12 @@ public class LkAbsenceReportService {
     /** Старт асинхронного построения; сразу возвращает RUNNING. Только супер-админ. */
     @Transactional
     public AbsenceReportResponse start(HttpSession session, AbsenceReportRequest body) {
-        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
-        LkAdminAuthService.requireSuperAdmin(session);
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
         }
         LkAbsenceReportCampus campus = LkAbsenceReportCampus.fromRequest(body.campus());
+        LkAdminAuthService.requireAbsenceCampus(session, campus);
+        LkAdminAuthService.requireSuperAdmin(session);
         requireEnabled(campus);
         LocalDate date = parseDate(body.date());
         LocalDate today = LocalDate.now(ZoneId.of("Europe/Moscow"));
@@ -214,12 +214,12 @@ public class LkAbsenceReportService {
 
     @Transactional
     public AbsenceReportResponse cancel(HttpSession session, UUID id) {
-        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
         LkAdminAuthService.requireSuperAdmin(session);
         // Сразу стопаем build-поток; запись в БД — следом.
         cancelRequested.add(id);
         LkAbsenceReportEntity entity = reportRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден"));
+        LkAdminAuthService.requireAbsenceCampus(session, LkAbsenceReportCampus.fromSource(entity.getSource()));
         if (entity.getStatus() != LkAbsenceReportStatus.RUNNING
             && entity.getStatus() != LkAbsenceReportStatus.CANCELLED) {
             cancelRequested.remove(id);
@@ -290,12 +290,13 @@ public class LkAbsenceReportService {
 
     @Transactional(readOnly = true)
     public AbsenceReportResponse get(HttpSession session, UUID id) {
-        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
         LkAdminSession admin = LkAdminAuthService.require(session);
         LkAbsenceReportEntity entity = reportRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден"));
+        LkAbsenceReportCampus campus = LkAbsenceReportCampus.fromSource(entity.getSource());
+        LkAdminAuthService.requireAbsenceCampus(session, campus);
         if (!admin.superAdmin()) {
-            requireVisibleDoneForViewer(entity);
+            requireVisibleDoneForViewer(entity, campus);
         }
         List<AbsenceReportRowDto> rows = entity.getStatus() == LkAbsenceReportStatus.DONE
             ? mapRows(entity)
@@ -313,12 +314,13 @@ public class LkAbsenceReportService {
      */
     @Transactional(readOnly = true)
     public AbsenceReportExcelFile exportExcel(HttpSession session, UUID id) {
-        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
         LkAdminSession admin = LkAdminAuthService.require(session);
         LkAbsenceReportEntity entity = reportRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден"));
+        LkAbsenceReportCampus campus = LkAbsenceReportCampus.fromSource(entity.getSource());
+        LkAdminAuthService.requireAbsenceCampus(session, campus);
         if (!admin.superAdmin()) {
-            requireVisibleDoneForViewer(entity);
+            requireVisibleDoneForViewer(entity, campus);
         }
         if (entity.getStatus() != LkAbsenceReportStatus.DONE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Отчёт ещё не готов");
@@ -343,11 +345,13 @@ public class LkAbsenceReportService {
     public record AbsenceReportExcelFile(String filename, byte[] content) {}
 
     @Transactional(readOnly = true)
-    public List<AbsenceReportSummaryDto> list(HttpSession session) {
-        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+    public List<AbsenceReportSummaryDto> list(HttpSession session, String campusRaw) {
+        LkAbsenceReportCampus campus = LkAbsenceReportCampus.fromRequest(campusRaw);
+        LkAdminAuthService.requireAbsenceCampus(session, campus);
         LkAdminSession admin = LkAdminAuthService.require(session);
+        String source = campus.sourceCode();
         if (!admin.superAdmin()) {
-            return visibleDoneOnePerDate().stream()
+            return visibleDoneOnePerDate(campus).stream()
                 .sorted(Comparator
                     .comparing(LkAbsenceReportEntity::getReportDate, Comparator.reverseOrder())
                     .thenComparing(this::finishInstant, Comparator.reverseOrder()))
@@ -356,26 +360,34 @@ public class LkAbsenceReportService {
         }
         return reportRepository.findAllByOrderByCreatedAtDesc().stream()
             .filter(e -> e.getScope() == LkAbsenceReportScope.CAMPUS)
+            .filter(e -> source.equalsIgnoreCase(e.getSource()))
             .map(this::toSummary)
             .toList();
     }
 
     /** Отчёты по одной группе — только супер-админ. */
     @Transactional(readOnly = true)
-    public List<AbsenceReportSummaryDto> listGroupReports(HttpSession session) {
-        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+    public List<AbsenceReportSummaryDto> listGroupReports(HttpSession session, String campusRaw) {
+        LkAbsenceReportCampus campus = LkAbsenceReportCampus.fromRequest(campusRaw);
+        LkAdminAuthService.requireAbsenceCampus(session, campus);
         LkAdminAuthService.requireSuperAdmin(session);
+        String source = campus.sourceCode();
         return reportRepository.findAllByOrderByCreatedAtDesc().stream()
             .filter(e -> e.getScope() == LkAbsenceReportScope.GROUP)
+            .filter(e -> source.equalsIgnoreCase(e.getSource()))
             .map(this::toSummary)
             .toList();
     }
 
-    /** Для обычных админов: только DONE CAMPUS, одна запись на дату (AUTO предпочтительнее). */
-    private List<LkAbsenceReportEntity> visibleDoneOnePerDate() {
+    /** Для обычных админов: только DONE CAMPUS своего кампуса, одна запись на дату (AUTO предпочтительнее). */
+    private List<LkAbsenceReportEntity> visibleDoneOnePerDate(LkAbsenceReportCampus campus) {
+        String source = campus.sourceCode();
         Map<LocalDate, LkAbsenceReportEntity> best = new LinkedHashMap<>();
         for (LkAbsenceReportEntity entity : reportRepository.findByStatus(LkAbsenceReportStatus.DONE)) {
             if (entity.getScope() == LkAbsenceReportScope.GROUP) {
+                continue;
+            }
+            if (!source.equalsIgnoreCase(entity.getSource())) {
                 continue;
             }
             LocalDate day = entity.getReportDate();
@@ -409,14 +421,14 @@ public class LkAbsenceReportService {
         return Instant.EPOCH;
     }
 
-    private void requireVisibleDoneForViewer(LkAbsenceReportEntity entity) {
+    private void requireVisibleDoneForViewer(LkAbsenceReportEntity entity, LkAbsenceReportCampus campus) {
         if (entity.getScope() == LkAbsenceReportScope.GROUP) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден");
         }
         if (entity.getStatus() != LkAbsenceReportStatus.DONE) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден");
         }
-        boolean allowed = visibleDoneOnePerDate().stream()
+        boolean allowed = visibleDoneOnePerDate(campus).stream()
             .anyMatch(e -> e.getId().equals(entity.getId()));
         if (!allowed) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Отчёт не найден");
@@ -441,14 +453,14 @@ public class LkAbsenceReportService {
     }
 
     public List<GroupRosterDto> listRosters(HttpSession session) {
-        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminAuthService.requireAnyAbsenceReport(session);
         return rosterRepository.findAllByOrderByGroupNameAsc().stream()
             .map(this::toRosterDto)
             .collect(Collectors.toList());
     }
 
     public GroupRosterDto saveRoster(HttpSession session, GroupRosterSaveRequest body) {
-        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminAuthService.requireAnyAbsenceReport(session);
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
         }
@@ -461,7 +473,7 @@ public class LkAbsenceReportService {
     }
 
     public GroupRosterDto getRoster(HttpSession session, String groupName) {
-        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminAuthService.requireAnyAbsenceReport(session);
         String group = requireText(groupName, "Укажите номер группы");
         return rosterRepository.findById(group)
             .map(this::toRosterDto)
@@ -469,7 +481,7 @@ public class LkAbsenceReportService {
     }
 
     public Map<String, Object> setParentNotice(HttpSession session, ParentNoticeRequest body) {
-        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminAuthService.requireAnyAbsenceReport(session);
         LkAdminAuthService.requireSuperAdmin(session);
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
@@ -490,7 +502,7 @@ public class LkAbsenceReportService {
      * ФИО берём из запроса (не грузим отчёт из БД — иначе LOB warnings вне транзакции).
      */
     public Map<String, Object> sendAbsenceNoticeOne(HttpSession session, AbsenceNoticeSendRequest body) {
-        LkAdminAuthService.requireSection(session, LkAdminSection.ABSENCE_REPORT);
+        LkAdminAuthService.requireAnyAbsenceReport(session);
         LkAdminAuthService.requireSuperAdmin(session);
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пустое тело запроса");
@@ -542,9 +554,17 @@ public class LkAbsenceReportService {
                 campus = LkAbsenceReportCampus.fromSource(meta.getSource());
             }
             ensureNotCancelled(reportId);
-            BuildResult result = campus == LkAbsenceReportCampus.KRASNODAR
-                ? buildKrasnodar(reportId, date, filterGroup)
-                : buildKazan(reportId, date, filterGroup);
+            BuildResult result;
+            if (campus == LkAbsenceReportCampus.KRASNODAR) {
+                result = buildKrasnodar(reportId, date, filterGroup);
+            } else if (campus == LkAbsenceReportCampus.KAZAN) {
+                result = buildKazan(reportId, date, filterGroup);
+            } else {
+                throw new ResponseStatusException(
+                    HttpStatus.NOT_IMPLEMENTED,
+                    "Отчёт отсутствующих для головы пока не реализован"
+                );
+            }
             ensureNotCancelled(reportId);
             transactionTemplate.executeWithoutResult(status -> {
                 LkAbsenceReportEntity entity = reportRepository.findById(reportId)
@@ -1827,6 +1847,12 @@ public class LkAbsenceReportService {
     private void requireEnabled(LkAbsenceReportCampus campus) {
         if (!attendanceEnabled) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Посещаемость отключена");
+        }
+        if (campus == LkAbsenceReportCampus.HEAD) {
+            throw new ResponseStatusException(
+                HttpStatus.NOT_IMPLEMENTED,
+                "Отчёт отсутствующих для головы пока не реализован"
+            );
         }
         if (campus == LkAbsenceReportCampus.KRASNODAR) {
             if (!percoEnabled) {

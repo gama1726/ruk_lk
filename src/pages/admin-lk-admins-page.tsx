@@ -17,7 +17,9 @@ import styles from './admin-events.module.css'
 
 const ALL_SECTIONS: LkAdminSection[] = [
   'ATTENDANCE',
-  'ABSENCE_REPORT',
+  'ABSENCE_REPORT_KAZAN',
+  'ABSENCE_REPORT_KRASNODAR',
+  'ABSENCE_REPORT_HEAD',
   'EVENTS',
   'API_LOAD',
   'CABINET_STATS',
