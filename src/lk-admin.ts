@@ -235,6 +235,40 @@ export async function sendAbsenceNoticeOne(
   })
 }
 
+export type AbsenceReportCampusSettings = {
+  campus: AbsenceReportCampus
+  label: string
+  autoEnabled: boolean
+  notifyEnabled: boolean
+  flagAutoEnabled: boolean
+  flagNotifyEnabled: boolean
+  effectiveAuto: boolean
+  effectiveNotify: boolean
+}
+
+export type AbsenceReportSettings = {
+  autoCron: string
+  campuses: AbsenceReportCampusSettings[]
+}
+
+export type AbsenceReportSettingsUpdate = {
+  campuses: Array<{
+    campus: AbsenceReportCampus
+    autoEnabled?: boolean
+    notifyEnabled?: boolean
+  }>
+}
+
+export function getAbsenceReportSettings(): Promise<AbsenceReportSettings> {
+  return apiGet<AbsenceReportSettings>('/api/admin/lk/absence-report/settings')
+}
+
+export function updateAbsenceReportSettings(
+  body: AbsenceReportSettingsUpdate,
+): Promise<AbsenceReportSettings> {
+  return apiPut<AbsenceReportSettings>('/api/admin/lk/absence-report/settings', body)
+}
+
 export function hasLkSection(me: LkAdminMe | undefined, section: LkAdminSection): boolean {
   if (!me) return false
   if (me.superAdmin) return true

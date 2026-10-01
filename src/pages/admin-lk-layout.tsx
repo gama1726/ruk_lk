@@ -22,7 +22,9 @@ type NavItem = {
   to: string
   label: string
   title: string
-  section: LkAdminSection
+  section?: LkAdminSection
+  /** Только супер-админ (не через секции). */
+  superAdminOnly?: boolean
   end?: boolean
 }
 
@@ -55,6 +57,13 @@ const allNavItems: NavItem[] = [
     end: true,
   },
   {
+    to: paths.adminLkAbsenceReportSettings,
+    label: 'Настройки отчёта',
+    title: 'Настройки автоотчёта отсутствующих',
+    superAdminOnly: true,
+    end: true,
+  },
+  {
     to: paths.adminLkEvents,
     label: 'Мероприятия',
     title: 'Мероприятия',
@@ -80,6 +89,12 @@ const allNavItems: NavItem[] = [
   },
 ]
 
+function canSeeNav(me: LkAdminMe | undefined, item: NavItem): boolean {
+  if (item.superAdminOnly) return Boolean(me?.superAdmin)
+  if (!item.section) return false
+  return hasLkSection(me, item.section)
+}
+
 function pathMatchesNav(pathname: string, item: NavItem): boolean {
   if (item.end) {
     return pathname === item.to
@@ -95,7 +110,7 @@ export function AdminLkLayout() {
   const [error, setError] = useState<string | null>(null)
 
   const navItems = useMemo(
-    () => allNavItems.filter((item) => hasLkSection(me, item.section)),
+    () => allNavItems.filter((item) => canSeeNav(me, item)),
     [me],
   )
 
@@ -129,7 +144,7 @@ export function AdminLkLayout() {
   useEffect(() => {
     if (!me) return
     const denied = allNavItems.find(
-      (item) => pathMatchesNav(location.pathname, item) && !hasLkSection(me, item.section),
+      (item) => pathMatchesNav(location.pathname, item) && !canSeeNav(me, item),
     )
     if (denied) {
       navigate(firstAllowedLkPath(me), { replace: true })

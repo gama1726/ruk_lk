@@ -98,7 +98,7 @@ public class LkAbsenceReportService {
     private final LkAbsenceParentNoticeRepository noticeRepository;
     private final LkAbsenceReportRepository reportRepository;
     private final LkAbsenceNoticeService absenceNoticeService;
-    private final boolean attendanceEnabled;
+    private final LkAbsenceReportSettingsService settingsService;
     private final boolean percoEnabled;
     private final String percoUncontrolledZone;
     private final ExecutorService reportExecutor = Executors.newFixedThreadPool(2);
@@ -131,8 +131,8 @@ public class LkAbsenceReportService {
         LkAbsenceParentNoticeRepository noticeRepository,
         LkAbsenceReportRepository reportRepository,
         LkAbsenceNoticeService absenceNoticeService,
+        LkAbsenceReportSettingsService settingsService,
         PlatformTransactionManager transactionManager,
-        @Value("${app.attendance.enabled:false}") boolean attendanceEnabled,
         @Value("${app.perco.enabled:false}") boolean percoEnabled,
         @Value("${app.perco.uncontrolled-zone:Неконтролируемая территория}") String percoUncontrolledZone
     ) {
@@ -144,7 +144,7 @@ public class LkAbsenceReportService {
         this.noticeRepository = noticeRepository;
         this.reportRepository = reportRepository;
         this.absenceNoticeService = absenceNoticeService;
-        this.attendanceEnabled = attendanceEnabled;
+        this.settingsService = settingsService;
         this.percoEnabled = percoEnabled;
         this.percoUncontrolledZone = percoUncontrolledZone == null || percoUncontrolledZone.isBlank()
             ? "Неконтролируемая территория"
@@ -182,24 +182,46 @@ public class LkAbsenceReportService {
     }
 
     /**
-     * Автозапуск на сегодня (МСК): если уже есть AUTO RUNNING/DONE на эту дату — пропуск.
-     * Ручные отчёты за ту же дату не мешают. Только CAMPUS, Казань.
+     * Автозапуск на сегодня (МСК) для всех кампусов с эффективным {@code auto-enabled}.
+     * Ручные отчёты за ту же дату не мешают. Только CAMPUS.
      */
     @Transactional
-    public Optional<UUID> startAutoForToday() {
-        if (!attendanceEnabled || !zkbioClient.isEnabled()) {
-            log.info("Автоотчёт отсутствующих пропущен: attendance/ZKBio выключены");
+    public List<UUID> startAutoForTodayAll() {
+        List<UUID> started = new ArrayList<>();
+        for (LkAbsenceReportCampus campus : LkAbsenceReportCampus.values()) {
+            startAutoForToday(campus).ifPresent(started::add);
+        }
+        return started;
+    }
+
+    /**
+     * Автозапуск CAMPUS-отчёта на сегодня для одного кампуса.
+     * Пропуск, если флаг/настройка выключены, СКУД недоступен или уже есть AUTO RUNNING/DONE.
+     */
+    @Transactional
+    public Optional<UUID> startAutoForToday(LkAbsenceReportCampus campus) {
+        if (campus == null) {
+            return Optional.empty();
+        }
+        if (!settingsService.isEffectiveAuto(campus)) {
+            log.info("Автоотчёт {} пропущен: auto выключен (флаг и/или админка)", campus);
+            return Optional.empty();
+        }
+        try {
+            requireEnabled(campus);
+        } catch (ResponseStatusException e) {
+            log.info("Автоотчёт {} пропущен: {}", campus, e.getReason());
             return Optional.empty();
         }
         LocalDate today = LocalDate.now(ZoneId.of("Europe/Moscow"));
         boolean alreadyAuto = reportRepository.findByReportDate(today).stream()
             .filter(e -> e.getScope() == LkAbsenceReportScope.CAMPUS)
             .filter(e -> e.getOrigin() == LkAbsenceReportOrigin.AUTO)
-            .filter(e -> LkAbsenceReportCampus.fromSource(e.getSource()) == LkAbsenceReportCampus.KAZAN)
+            .filter(e -> LkAbsenceReportCampus.fromSource(e.getSource()) == campus)
             .anyMatch(e -> e.getStatus() == LkAbsenceReportStatus.RUNNING
                 || e.getStatus() == LkAbsenceReportStatus.DONE);
         if (alreadyAuto) {
-            log.info("Автоотчёт отсутствующих пропущен: на {} уже есть AUTO RUNNING/DONE", today);
+            log.info("Автоотчёт {} пропущен: на {} уже есть AUTO RUNNING/DONE", campus, today);
             return Optional.empty();
         }
         AbsenceReportResponse started = enqueue(
@@ -207,9 +229,9 @@ public class LkAbsenceReportService {
             LkAbsenceReportOrigin.AUTO,
             LkAbsenceReportScope.CAMPUS,
             "",
-            LkAbsenceReportCampus.KAZAN
+            campus
         );
-        log.info("Автоотчёт отсутствующих запущен: id={} date={}", started.id(), today);
+        log.info("Автоотчёт {} запущен: id={} date={}", campus, started.id(), today);
         return Optional.of(UUID.fromString(started.id()));
     }
 
@@ -616,8 +638,8 @@ public class LkAbsenceReportService {
                 result.rows().size(),
                 result.punchEmpCodes()
             );
-            // Авторассылка: пока только Казань (CAMPUS); Краснодар — без PDF-шаблонов филиала.
-            if (scope == LkAbsenceReportScope.CAMPUS && campus == LkAbsenceReportCampus.KAZAN) {
+            // Авторассылка CAMPUS: флаг notify AND настройка админки для кампуса.
+            if (scope == LkAbsenceReportScope.CAMPUS && settingsService.isEffectiveNotify(campus)) {
                 try {
                     absenceNoticeService.notifyAfterReport(date, result.rows());
                 } catch (RuntimeException notifyError) {
@@ -630,7 +652,11 @@ public class LkAbsenceReportService {
             } else if (scope == LkAbsenceReportScope.GROUP) {
                 log.info("Absence report {}: групповой отчёт — авторассылка пропущена", reportId);
             } else {
-                log.info("Absence report {}: кампус {} — авторассылка пропущена", reportId, campus);
+                log.info(
+                    "Absence report {}: кампус {} — авторассылка пропущена (флаг/админка)",
+                    reportId,
+                    campus
+                );
             }
         } catch (ReportCancelledException e) {
             log.info("Absence report {}: CANCELLED", reportId);
@@ -1874,9 +1900,6 @@ public class LkAbsenceReportService {
     }
 
     private void requireEnabled(LkAbsenceReportCampus campus) {
-        if (!attendanceEnabled) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Посещаемость отключена");
-        }
         if (campus == LkAbsenceReportCampus.KRASNODAR || campus == LkAbsenceReportCampus.HEAD) {
             if (!percoEnabled) {
                 throw new ResponseStatusException(

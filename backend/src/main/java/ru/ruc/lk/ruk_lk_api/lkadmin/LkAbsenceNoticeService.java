@@ -8,7 +8,6 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import ru.ruc.lk.ruk_lk_api.integration.email.AbsenceNoticeEmailSender;
@@ -23,7 +22,8 @@ import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRowDto;
 
 /**
- * Рассылка PDF-уведомлений после отчёта отсутствующих (только Казань / ZKBio).
+ * Рассылка PDF-уведомлений после отчёта отсутствующих.
+ * Включение авторассылки — через флаги кампуса и настройки админки (см. {@link LkAbsenceReportSettingsService}).
  * <ul>
  *   <li>несовершеннолетний → родителям;</li>
  *   <li>совершеннолетний → родителям с полным доступом в ЛК ({@code !servicesBlocked}),
@@ -36,7 +36,6 @@ public class LkAbsenceNoticeService {
 
     private static final Logger log = LoggerFactory.getLogger(LkAbsenceNoticeService.class);
 
-    private final boolean notifyEnabled;
     private final OneCClient onecClient;
     private final MaxBindingService maxBindingService;
     private final ObjectProvider<MaxOutboundMessages> maxOutbound;
@@ -45,7 +44,6 @@ public class LkAbsenceNoticeService {
     private final LkAbsenceParentNoticeRepository noticeRepository;
 
     public LkAbsenceNoticeService(
-        @Value("${app.absence-report.notify-enabled:true}") boolean notifyEnabled,
         OneCClient onecClient,
         MaxBindingService maxBindingService,
         ObjectProvider<MaxOutboundMessages> maxOutbound,
@@ -53,7 +51,6 @@ public class LkAbsenceNoticeService {
         AbsenceNoticePdfGenerator pdfGenerator,
         LkAbsenceParentNoticeRepository noticeRepository
     ) {
-        this.notifyEnabled = notifyEnabled;
         this.onecClient = onecClient;
         this.maxBindingService = maxBindingService;
         this.maxOutbound = maxOutbound;
@@ -63,10 +60,6 @@ public class LkAbsenceNoticeService {
     }
 
     public void notifyAfterReport(LocalDate reportDate, List<AbsenceReportRowDto> rows) {
-        if (!notifyEnabled) {
-            log.info("Рассылка уведомлений о непосещаемости отключена (app.absence-report.notify-enabled=false)");
-            return;
-        }
         if (rows == null || rows.isEmpty()) {
             return;
         }

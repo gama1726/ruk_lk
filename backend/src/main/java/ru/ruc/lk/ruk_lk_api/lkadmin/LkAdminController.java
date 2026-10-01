@@ -25,9 +25,10 @@ import ru.ruc.lk.ruk_lk_api.api.student.StudentService;
 import ru.ruc.lk.ruk_lk_api.events.dto.AdminAttendanceResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.LkAbsenceReportService.AbsenceReportExcelFile;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceNoticeSendRequest;
-import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceNoticeSendRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportResponse;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportSettingsResponse;
+import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportSettingsUpdateRequest;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.AbsenceReportSummaryDto;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterDto;
 import ru.ruc.lk.ruk_lk_api.lkadmin.dto.GroupRosterSaveRequest;
@@ -46,17 +47,20 @@ public class LkAdminController {
     private final LkAdminUserService userService;
     private final StudentService studentService;
     private final LkAbsenceReportService absenceReportService;
+    private final LkAbsenceReportSettingsService absenceReportSettingsService;
 
     public LkAdminController(
         LkAdminAuthService authService,
         LkAdminUserService userService,
         StudentService studentService,
-        LkAbsenceReportService absenceReportService
+        LkAbsenceReportService absenceReportService,
+        LkAbsenceReportSettingsService absenceReportSettingsService
     ) {
         this.authService = authService;
         this.userService = userService;
         this.studentService = studentService;
         this.absenceReportService = absenceReportService;
+        this.absenceReportSettingsService = absenceReportSettingsService;
     }
 
     @PostMapping("/auth/login")
@@ -164,6 +168,19 @@ public class LkAdminController {
     @PutMapping("/group-rosters")
     public GroupRosterDto saveGroupRoster(HttpSession session, @RequestBody GroupRosterSaveRequest body) {
         return absenceReportService.saveRoster(session, body);
+    }
+
+    @GetMapping("/absence-report/settings")
+    public AbsenceReportSettingsResponse getAbsenceReportSettings(HttpSession session) {
+        return absenceReportSettingsService.get(session);
+    }
+
+    @PutMapping("/absence-report/settings")
+    public AbsenceReportSettingsResponse updateAbsenceReportSettings(
+        HttpSession session,
+        @RequestBody AbsenceReportSettingsUpdateRequest body
+    ) {
+        return absenceReportSettingsService.update(session, body);
     }
 
     @PutMapping("/absence-report/parent-notice")

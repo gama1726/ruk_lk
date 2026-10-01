@@ -54,9 +54,14 @@ app.lk-admin.username=lk-admin
 app.lk-admin.password=CHANGE_ME_LK_ADMIN
 app.lk-admin.full-name=Супер-администратор ЛК
 
-# Автоотчёт отсутствующих в 21:00 МСК (по умолчанию включён в application.properties)
-# app.absence-report.auto-enabled=true
+# Автоотчёт отсутствующих в 21:00 МСК. Эффект = флаг AND тумблер в /admin/lk/absence-report-settings
 # app.absence-report.auto-cron=0 0 21 * * *
+# app.absence-report.kazan.auto-enabled=true
+# app.absence-report.kazan.notify-enabled=true
+# app.absence-report.krnodar.auto-enabled=false
+# app.absence-report.krnodar.notify-enabled=false
+# app.absence-report.head.auto-enabled=false
+# app.absence-report.head.notify-enabled=false
 
 # Тестовые зачётки: разделы «в разработке» без ComingSoon (через GET /api/features.previewEnabled).
 # Пусто / не задано — у всех ComingSoon. Через запятую можно несколько:

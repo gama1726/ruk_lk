@@ -70,6 +70,7 @@ export const paths = {
   adminLkApiLoad: '/admin/lk/load',
   adminLkUsers: '/admin/lk/users',
   adminLkAdmins: '/admin/lk/admins',
+  adminLkAbsenceReportSettings: '/admin/lk/absence-report-settings',
   parentHome: '/parent',
   parentSurvey: '/parent/survey',
   parentContacts: '/parent/contacts',

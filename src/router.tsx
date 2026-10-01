@@ -62,6 +62,7 @@ import { AdminLkLayout } from '@/pages/admin-lk-layout'
 import { AdminLkAttendancePage } from '@/pages/admin-lk-attendance-page'
 import { AdminLkAbsenceReportPage } from '@/pages/admin-lk-absence-report-page'
 import { AdminLkAdminsPage } from '@/pages/admin-lk-admins-page'
+import { AdminLkAbsenceReportSettingsPage } from '@/pages/admin-lk-absence-report-settings-page'
 import { EventsPage } from '@/pages/events'
 import { ParentEvents } from '@/pages/parent-events'
 
@@ -188,6 +189,10 @@ export const router = createBrowserRouter([
       { path: paths.adminLkApiLoad, element: <AdminEventsLoadPage /> },
       { path: paths.adminLkUsers, element: <AdminEventsUsersPage /> },
       { path: paths.adminLkAdmins, element: <AdminLkAdminsPage /> },
+      {
+        path: paths.adminLkAbsenceReportSettings,
+        element: <AdminLkAbsenceReportSettingsPage />,
+      },
     ],
   },
   { path: '*', element: <Navigate to={paths.login} replace /> },
