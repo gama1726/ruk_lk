@@ -37,7 +37,7 @@ public class StartBridgeClient {
     private final String callbackPath;
     private final boolean enabled;
     private final boolean configured;
-    /** Временный костыль: для Start смотреть только оплату 1-го платежа графика. */
+    /** Временный костыль: для Start — ok при любой оплате в графике (в т.ч. частичной). */
     private final boolean firstMonthOnly;
 
     public StartBridgeClient(
@@ -180,8 +180,9 @@ public class StartBridgeClient {
     }
 
     /**
-     * Временный костыль ({@code app.start.first-month-only}): для Start учитываем только
-     * первый платёж графика; остальные долги игнорируем. Раздел «Оплаты» в ЛК не затрагивается.
+     * Временный костыль ({@code app.start.first-month-only}): для Start — {@code ok},
+     * если в графике есть хотя бы один платёж с {@code paid > 0} (включая частичный).
+     * Полная оплата месяца не требуется. Раздел «Оплаты» в ЛК не затрагивается.
      */
     private String statusByFirstMonthOnly(StudentPaymentsResponse payments, String studentId) {
         var schedule = payments.schedule();
@@ -193,18 +194,29 @@ public class StartBridgeClient {
             );
             return "overdue";
         }
-        var first = schedule.stream()
-            .min(java.util.Comparator.comparingInt(s -> s.number() <= 0 ? Integer.MAX_VALUE : s.number()))
-            .orElse(schedule.getFirst());
-        boolean paid = "paid".equalsIgnoreCase(blankToEmpty(first.status()));
-        String status = paid ? "ok" : "overdue";
-        log.info(
-            "start first-month-only: studentId={} payment#{} statusIn={} → exchange={}",
-            studentId,
-            first.number(),
-            first.status(),
-            status
-        );
+        var withPaid = schedule.stream()
+            .filter(s -> s != null && s.paid() > 0.009)
+            .findFirst();
+        boolean anyPaid = withPaid.isPresent();
+        String status = anyPaid ? "ok" : "overdue";
+        if (anyPaid) {
+            var hit = withPaid.get();
+            log.info(
+                "start first-month-only: studentId={} payment#{} paid={} statusIn={} → exchange={}",
+                studentId,
+                hit.number(),
+                hit.paid(),
+                hit.status(),
+                status
+            );
+        } else {
+            log.info(
+                "start first-month-only: studentId={} нет оплат в графике ({} строк) → exchange={}",
+                studentId,
+                schedule.size(),
+                status
+            );
+        }
         return status;
     }
 
