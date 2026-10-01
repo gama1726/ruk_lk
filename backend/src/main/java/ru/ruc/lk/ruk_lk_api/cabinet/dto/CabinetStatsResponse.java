@@ -10,5 +10,5 @@ public record CabinetStatsResponse(
     String from,
     String to,
     List<CabinetStatsDayDto> series,
-    List<CabinetUserListItemDto> recentUsers
+    List<CabinetCampusStatsDto> byCampus
 ) {}

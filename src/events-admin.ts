@@ -39,11 +39,21 @@ export type CabinetStatsDay = {
   total: number
 }
 
+export type CabinetCampusStats = {
+  campus: string
+  label: string
+  total: number
+  online: number
+  newInRange: number
+}
+
 export type CabinetUserListItem = {
   id: string
   role: string
   studentId: string
   displayName: string
+  campus: string | null
+  campusLabel: string
   firstLoginAt: string
   lastLoginAt: string
   lastSeenAt: string
@@ -57,12 +67,41 @@ export type CabinetStats = {
   from: string
   to: string
   series: CabinetStatsDay[]
-  recentUsers: CabinetUserListItem[]
+  byCampus: CabinetCampusStats[]
 }
 
-export async function fetchEventsAdminStats(from: string, to: string): Promise<CabinetStats> {
+export type CabinetUserPage = {
+  items: CabinetUserListItem[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+export async function fetchEventsAdminStats(
+  from: string,
+  to: string,
+  campus?: string,
+): Promise<CabinetStats> {
   const params = new URLSearchParams({ from, to })
+  if (campus) params.set('campus', campus)
   return apiGet<CabinetStats>(`/api/admin/events/stats?${params}`)
+}
+
+export async function fetchEventsAdminUsers(opts: {
+  page?: number
+  size?: number
+  campus?: string
+  role?: string
+  q?: string
+}): Promise<CabinetUserPage> {
+  const params = new URLSearchParams()
+  params.set('page', String(opts.page ?? 0))
+  params.set('size', String(opts.size ?? 50))
+  if (opts.campus) params.set('campus', opts.campus)
+  if (opts.role) params.set('role', opts.role)
+  if (opts.q?.trim()) params.set('q', opts.q.trim())
+  return apiGet<CabinetUserPage>(`/api/admin/events/stats/users?${params}`)
 }
 
 export type ApiLoadEndpoint = {

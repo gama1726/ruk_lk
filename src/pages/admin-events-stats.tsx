@@ -1,15 +1,28 @@
 /**
- * @file Статистика пользователей ЛК в админке мероприятий.
+ * @file Статистика пользователей ЛК: по филиалам, пагинация списка.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ApiError } from '@/apiClient'
 import {
   fetchEventsAdminStats,
+  fetchEventsAdminUsers,
   type CabinetStats,
+  type CabinetUserPage,
 } from '@/events-admin'
 import { Button, Input, Loader, LoadError } from '@/ui'
 import styles from './admin-events.module.css'
+
+const PAGE_SIZE = 50
+
+const CAMPUS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: '', label: 'Все филиалы' },
+  { value: 'KAZAN', label: 'Казань' },
+  { value: 'KRASNODAR', label: 'Краснодар' },
+  { value: 'HEAD', label: 'Голова' },
+  { value: 'OTHER', label: 'Другой филиал' },
+  { value: 'UNKNOWN', label: 'Не определён' },
+]
 
 function isoDaysAgo(days: number): string {
   const d = new Date()
@@ -42,28 +55,61 @@ function roleLabel(role: string): string {
 export function AdminEventsStats() {
   const [from, setFrom] = useState(() => isoDaysAgo(29))
   const [to, setTo] = useState(() => todayIso())
+  const [campus, setCampus] = useState('')
   const [appliedFrom, setAppliedFrom] = useState(from)
   const [appliedTo, setAppliedTo] = useState(to)
-  const [stats, setStats] = useState<CabinetStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [appliedCampus, setAppliedCampus] = useState('')
+  const [role, setRole] = useState('')
+  const [q, setQ] = useState('')
+  const [appliedQ, setAppliedQ] = useState('')
+  const [page, setPage] = useState(0)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const [stats, setStats] = useState<CabinetStats | null>(null)
+  const [users, setUsers] = useState<CabinetUserPage | null>(null)
+  const [loadingStats, setLoadingStats] = useState(true)
+  const [loadingUsers, setLoadingUsers] = useState(true)
+  const [statsError, setStatsError] = useState<string | null>(null)
+  const [usersError, setUsersError] = useState<string | null>(null)
+
+  const loadStats = useCallback(async () => {
+    setLoadingStats(true)
+    setStatsError(null)
     try {
-      const data = await fetchEventsAdminStats(appliedFrom, appliedTo)
-      setStats(data)
+      setStats(await fetchEventsAdminStats(appliedFrom, appliedTo, appliedCampus || undefined))
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось загрузить статистику')
+      setStatsError(err instanceof ApiError ? err.message : 'Не удалось загрузить статистику')
     } finally {
-      setLoading(false)
+      setLoadingStats(false)
     }
-  }, [appliedFrom, appliedTo])
+  }, [appliedFrom, appliedTo, appliedCampus])
+
+  const loadUsers = useCallback(async () => {
+    setLoadingUsers(true)
+    setUsersError(null)
+    try {
+      setUsers(
+        await fetchEventsAdminUsers({
+          page,
+          size: PAGE_SIZE,
+          campus: appliedCampus || undefined,
+          role: role || undefined,
+          q: appliedQ || undefined,
+        }),
+      )
+    } catch (err) {
+      setUsersError(err instanceof ApiError ? err.message : 'Не удалось загрузить пользователей')
+    } finally {
+      setLoadingUsers(false)
+    }
+  }, [page, appliedCampus, role, appliedQ])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    void loadStats()
+  }, [loadStats])
+
+  useEffect(() => {
+    void loadUsers()
+  }, [loadUsers])
 
   const maxTotal = useMemo(() => {
     if (!stats?.series.length) return 1
@@ -73,6 +119,9 @@ export function AdminEventsStats() {
   const applyRange = () => {
     setAppliedFrom(from)
     setAppliedTo(to || from)
+    setAppliedCampus(campus)
+    setAppliedQ(q)
+    setPage(0)
   }
 
   return (
@@ -82,7 +131,7 @@ export function AdminEventsStats() {
           <h2 className={styles.statsTitle}>Пользователи ЛК</h2>
           <p className={styles.statsHint}>
             Учёт с момента включения. Онлайн — активность за последние{' '}
-            {stats?.onlineWindowMinutes ?? 15} мин.
+            {stats?.onlineWindowMinutes ?? 15} мин. Филиал — контингент из 1С.
           </p>
         </div>
         <div className={styles.statsRange}>
@@ -94,16 +143,32 @@ export function AdminEventsStats() {
             По
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
-          <Button type="button" onClick={applyRange} disabled={loading}>
+          <label className={styles.label}>
+            Филиал
+            <select
+              className={styles.input}
+              value={campus}
+              onChange={(e) => setCampus(e.target.value)}
+            >
+              {CAMPUS_OPTIONS.map((opt) => (
+                <option key={opt.value || 'all'} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button type="button" onClick={applyRange} disabled={loadingStats || loadingUsers}>
             Показать
           </Button>
         </div>
       </div>
 
-      {loading ? <Loader /> : null}
-      {!loading && error ? <LoadError message={error} onRetry={() => void load()} /> : null}
+      {loadingStats ? <Loader /> : null}
+      {!loadingStats && statsError ? (
+        <LoadError message={statsError} onRetry={() => void loadStats()} />
+      ) : null}
 
-      {!loading && !error && stats ? (
+      {!loadingStats && !statsError && stats ? (
         <>
           <div className={styles.statsCards}>
             <article className={styles.statCard}>
@@ -119,6 +184,34 @@ export function AdminEventsStats() {
               <strong className={styles.statValue}>{stats.newInRange}</strong>
             </article>
           </div>
+
+          {stats.byCampus.length > 0 ? (
+            <div className={styles.usersCard}>
+              <h3 className={styles.chartTitle}>По филиалам</h3>
+              <div className={styles.usersTableWrap}>
+                <table className={styles.usersTable}>
+                  <thead>
+                    <tr>
+                      <th>Филиал</th>
+                      <th>Всего</th>
+                      <th>Онлайн</th>
+                      <th>Новые за период</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.byCampus.map((row) => (
+                      <tr key={row.campus}>
+                        <td>{row.label}</td>
+                        <td>{row.total}</td>
+                        <td>{row.online}</td>
+                        <td>{row.newInRange}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
 
           <div className={styles.chartCard}>
             <h3 className={styles.chartTitle}>Новые пользователи по дням</h3>
@@ -148,11 +241,67 @@ export function AdminEventsStats() {
               </span>
             </div>
           </div>
+        </>
+      ) : null}
 
-          <div className={styles.usersCard}>
-            <h3 className={styles.chartTitle}>Последние регистрации (до 100)</h3>
-            {stats.recentUsers.length === 0 ? (
-              <p className={styles.statsHint}>Пока никто не входил после включения учёта.</p>
+      <div className={styles.usersCard}>
+        <div className={styles.statsHead}>
+          <h3 className={styles.chartTitle}>
+            Пользователи
+            {users ? ` (${users.totalElements})` : ''}
+          </h3>
+          <div className={styles.statsRange}>
+            <label className={styles.label}>
+              Роль
+              <select
+                className={styles.input}
+                value={role}
+                onChange={(e) => {
+                  setRole(e.target.value)
+                  setPage(0)
+                }}
+              >
+                <option value="">Все</option>
+                <option value="STUDENT">Студент</option>
+                <option value="PARENT">Родитель</option>
+              </select>
+            </label>
+            <label className={styles.label}>
+              Поиск
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="ФИО или зачётка"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setAppliedQ(q)
+                    setPage(0)
+                  }
+                }}
+              />
+            </label>
+            <Button
+              type="button"
+              onClick={() => {
+                setAppliedQ(q)
+                setPage(0)
+              }}
+              disabled={loadingUsers}
+            >
+              Найти
+            </Button>
+          </div>
+        </div>
+
+        {loadingUsers ? <Loader /> : null}
+        {!loadingUsers && usersError ? (
+          <LoadError message={usersError} onRetry={() => void loadUsers()} />
+        ) : null}
+
+        {!loadingUsers && !usersError && users ? (
+          <>
+            {users.items.length === 0 ? (
+              <p className={styles.statsHint}>Никого не найдено.</p>
             ) : (
               <div className={styles.usersTableWrap}>
                 <table className={styles.usersTable}>
@@ -161,16 +310,18 @@ export function AdminEventsStats() {
                       <th>Роль</th>
                       <th>ФИО</th>
                       <th>Зачетная книжка</th>
+                      <th>Филиал</th>
                       <th>Первый вход</th>
                       <th>Был в сети</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {stats.recentUsers.map((u) => (
+                    {users.items.map((u) => (
                       <tr key={u.id}>
                         <td>{roleLabel(u.role)}</td>
                         <td>{u.displayName}</td>
                         <td>{u.studentId}</td>
+                        <td>{u.campusLabel}</td>
                         <td>{formatInstant(u.firstLoginAt)}</td>
                         <td>{formatInstant(u.lastSeenAt)}</td>
                       </tr>
@@ -179,9 +330,30 @@ export function AdminEventsStats() {
                 </table>
               </div>
             )}
-          </div>
-        </>
-      ) : null}
+            {users.totalPages > 1 ? (
+              <div className={styles.footerActions} style={{ justifyContent: 'space-between' }}>
+                <Button
+                  type="button"
+                  disabled={page <= 0 || loadingUsers}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                >
+                  Назад
+                </Button>
+                <span className={styles.statsHint}>
+                  Стр. {users.page + 1} из {users.totalPages}
+                </span>
+                <Button
+                  type="button"
+                  disabled={page + 1 >= users.totalPages || loadingUsers}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Вперёд
+                </Button>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
     </section>
   )
 }

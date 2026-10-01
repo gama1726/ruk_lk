@@ -30,6 +30,11 @@ public class CabinetUser {
     @Column(nullable = false, length = 240)
     private String displayName;
 
+    /** Филиал контингента; null — ещё не определён (ждёт обход / следующий вход). */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private CabinetCampus campus;
+
     @Column(nullable = false)
     private Instant firstLoginAt;
 
@@ -47,6 +52,7 @@ public class CabinetUser {
         String studentId,
         String parentKey,
         String displayName,
+        CabinetCampus campus,
         Instant at
     ) {
         this.id = id;
@@ -54,6 +60,7 @@ public class CabinetUser {
         this.studentId = studentId;
         this.parentKey = parentKey;
         this.displayName = displayName;
+        this.campus = campus;
         this.firstLoginAt = at;
         this.lastLoginAt = at;
         this.lastSeenAt = at;
@@ -81,6 +88,14 @@ public class CabinetUser {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public CabinetCampus getCampus() {
+        return campus;
+    }
+
+    public void setCampus(CabinetCampus campus) {
+        this.campus = campus;
     }
 
     public Instant getFirstLoginAt() {
