@@ -911,6 +911,9 @@ public class LkAbsenceReportService {
         if (enrichStats.wrongCampus > 0) {
             warnings.add("Другой филиал в 1С — пропуск: " + enrichStats.wrongCampus);
         }
+        if (enrichStats.notStudent > 0) {
+            warnings.add("Не является студентом — пропуск: " + enrichStats.notStudent);
+        }
         if (groupOnly) {
             String filter = filterGroup.trim();
             Map<String, EnrichedStudent> filtered = new LinkedHashMap<>();
@@ -1265,6 +1268,7 @@ public class LkAbsenceReportService {
                     case NO_PROFILE -> stats.noProfile++;
                     case NO_GROUP -> stats.noGroup++;
                     case WRONG_CAMPUS -> stats.wrongCampus++;
+                    case NOT_STUDENT -> stats.notStudent++;
                     case OK -> {
                         if (outcome.student() != null) {
                             result.put(outcome.student().studentId(), outcome.student());
@@ -1281,6 +1285,9 @@ public class LkAbsenceReportService {
         OneCProfileResponse profile = onecClient.fetchProfile(studentId).orElse(null);
         if (profile == null) {
             return EnrichOutcome.noProfile();
+        }
+        if (!isActiveStudentStatus(profile.status())) {
+            return EnrichOutcome.notStudent();
         }
         if (campus == LkAbsenceReportCampus.KRASNODAR && !CampusSupport.isKrasnodar(profile)) {
             return EnrichOutcome.wrongCampus();
@@ -2196,9 +2203,10 @@ public class LkAbsenceReportService {
         int noProfile;
         int noGroup;
         int wrongCampus;
+        int notStudent;
     }
 
-    private enum EnrichKind { OK, NO_PROFILE, NO_GROUP, WRONG_CAMPUS }
+    private enum EnrichKind { OK, NO_PROFILE, NO_GROUP, WRONG_CAMPUS, NOT_STUDENT }
 
     private record EnrichOutcome(EnrichKind kind, EnrichedStudent student) {
         static EnrichOutcome ok(EnrichedStudent student) {
@@ -2216,6 +2224,19 @@ public class LkAbsenceReportService {
         static EnrichOutcome wrongCampus() {
             return new EnrichOutcome(EnrichKind.WRONG_CAMPUS, null);
         }
+
+        static EnrichOutcome notStudent() {
+            return new EnrichOutcome(EnrichKind.NOT_STUDENT, null);
+        }
+    }
+
+    /** В мониторинг только со статусом 1С «Является студентом». */
+    private static boolean isActiveStudentStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return false;
+        }
+        String normalized = status.trim().toLowerCase(Locale.ROOT).replace('\u00a0', ' ');
+        return "является студентом".equals(normalized);
     }
 
     private record EmployeesCache(List<ZKBioEmployee> employees, Instant loadedAt) {}
