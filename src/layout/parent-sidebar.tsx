@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import logo from '@/assets/ruk-logo.png'
-import { isAttendanceNavVisible } from '@/campus'
+import { isAttendanceNavVisible, isEventsNavVisible } from '@/campus'
 import { useAppFeatures } from '@/features'
 import { SocialIcon } from '@/icons/social'
 import { NavIcon, type NavIconId } from '@/icons/nav'
@@ -59,6 +59,15 @@ export function ParentSidebar() {
 
   const showAttendance =
     attendanceEnabled && isAttendanceNavVisible(studentCampus, attendanceEnabled)
+  const showEvents = isEventsNavVisible(studentCampus)
+
+  const topItems = useMemo(
+    () =>
+      parentSidebarTop.filter(
+        (item) => item.to !== paths.parentEvents || showEvents,
+      ),
+    [showEvents],
+  )
 
   const groups = useMemo(() => getParentSidebarGroups(showAttendance), [showAttendance])
 
@@ -73,7 +82,7 @@ export function ParentSidebar() {
 
       <div className={styles.menu}>
         <ul className={styles.topList}>
-          {parentSidebarTop.map((item) => (
+          {topItems.map((item) => (
             <li key={item.to}>
               <ParentMenuLink
                 to={item.to}
