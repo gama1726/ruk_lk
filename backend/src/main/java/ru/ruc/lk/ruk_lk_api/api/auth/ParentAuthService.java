@@ -233,30 +233,31 @@ public class ParentAuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Сначала запросите код входа");
         }
 
+        // Не сбрасываем challenge при истечении/лимите — иначе «Отправить снова» ломается.
         if (pending.createdAt() == null || Instant.now().isAfter(pending.createdAt().plus(otpTtl))) {
-            session.removeAttribute(PENDING_CHALLENGE_KEY);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Код истёк. Запросите новый код входа");
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Код истёк. Нажмите «Отправить снова»"
+            );
         }
 
         if (pending.failedAttempts() >= otpMaxAttempts) {
-            session.removeAttribute(PENDING_CHALLENGE_KEY);
             throw new ResponseStatusException(
                 HttpStatus.TOO_MANY_REQUESTS,
-                "Слишком много неверных попыток. Запросите новый код"
+                "Слишком много неверных попыток. Нажмите «Отправить снова»"
             );
         }
 
         String digits = code == null ? "" : code.replaceAll("\\s", "");
         if (!pending.code().equals(digits)) {
             int next = pending.failedAttempts() + 1;
+            session.setAttribute(PENDING_CHALLENGE_KEY, pending.withFailedAttempts(next));
             if (next >= otpMaxAttempts) {
-                session.removeAttribute(PENDING_CHALLENGE_KEY);
                 throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS,
-                    "Слишком много неверных попыток. Запросите новый код"
+                    "Слишком много неверных попыток. Нажмите «Отправить снова»"
                 );
             }
-            session.setAttribute(PENDING_CHALLENGE_KEY, pending.withFailedAttempts(next));
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Неверный код подтверждения");
         }
 
@@ -328,10 +329,7 @@ public class ParentAuthService {
         if (!(raw instanceof PendingParentChallenge pending)) {
             return Optional.empty();
         }
-        if (pending.createdAt() == null || Instant.now().isAfter(pending.createdAt().plus(otpTtl))) {
-            session.removeAttribute(PENDING_CHALLENGE_KEY);
-            return Optional.empty();
-        }
+        // Истёкший challenge оставляем для экрана verify и повторной отправки.
         String hint = challengeHint(pending);
         return Optional.of(new ParentLoginChallengeDto(hint, pending.channel().name()));
     }

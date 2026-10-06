@@ -317,33 +317,31 @@ public class AuthService {
             );
         }
 
+        // Не сбрасываем PENDING_KEY при истечении/лимите — иначе «Отправить снова» (resend) ломается.
         if (pending.createdAt() == null || Instant.now().isAfter(pending.createdAt().plus(otpTtl))) {
-            session.removeAttribute(PENDING_KEY);
             throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Код истёк. Запросите новый код входа"
+                "Код истёк. Нажмите «Отправить снова»"
             );
         }
 
         if (pending.failedAttempts() >= otpMaxAttempts) {
-            session.removeAttribute(PENDING_KEY);
             throw new ResponseStatusException(
                 HttpStatus.TOO_MANY_REQUESTS,
-                "Слишком много неверных попыток. Запросите новый код"
+                "Слишком много неверных попыток. Нажмите «Отправить снова»"
             );
         }
 
         String digits = code == null ? "" : code.replaceAll("\\s", "");
         if (!pending.code().equals(digits)) {
             int next = pending.failedAttempts() + 1;
+            session.setAttribute(PENDING_KEY, pending.withFailedAttempts(next));
             if (next >= otpMaxAttempts) {
-                session.removeAttribute(PENDING_KEY);
                 throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS,
-                    "Слишком много неверных попыток. Запросите новый код"
+                    "Слишком много неверных попыток. Нажмите «Отправить снова»"
                 );
             }
-            session.setAttribute(PENDING_KEY, pending.withFailedAttempts(next));
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Неверный код подтверждения");
         }
 
@@ -401,10 +399,7 @@ public class AuthService {
         if (!(raw instanceof PendingChallenge pending)) {
             return Optional.empty();
         }
-        if (pending.createdAt() != null && Instant.now().isAfter(pending.createdAt().plus(otpTtl))) {
-            session.removeAttribute(PENDING_KEY);
-            return Optional.empty();
-        }
+        // Истёкший challenge оставляем: экран verify и resend должны работать.
         String deliveryHint = pending.channel() == LoginCodeChannel.MAX
             ? maskPhone(pending.phone())
             : maskEmail(pending.email());
