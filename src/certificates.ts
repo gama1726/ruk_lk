@@ -2,7 +2,7 @@
  * @file API справок (студент / родитель / админ ЛК).
  */
 
-import { apiGet, apiPost, apiPostFormData, apiPut, getApiBaseUrl, isApiConfigured } from '@/apiClient'
+import { apiGet, apiPost, apiPostFormData, getApiBaseUrl, isApiConfigured } from '@/apiClient'
 import { preparePassPhotoFile } from '@/pass-photo-validation'
 import type { AbsenceReportCampus } from '@/lk-admin'
 
