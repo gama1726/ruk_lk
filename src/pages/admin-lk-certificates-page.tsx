@@ -144,12 +144,10 @@ export function AdminLkCertificatesPage() {
     }
   }, [previewUrl])
 
-  const counts = useMemo(() => {
-    const pending = items.filter((i) => i.status === 'PENDING').length
-    const approved = items.filter((i) => i.status === 'APPROVED').length
-    const rejected = items.filter((i) => i.status === 'REJECTED').length
-    return { pending, approved, rejected, total: items.length }
-  }, [items])
+  const pendingCount = useMemo(
+    () => items.filter((i) => i.status === 'PENDING').length,
+    [items],
+  )
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -344,15 +342,7 @@ export function AdminLkCertificatesPage() {
       <div className={styles.stats}>
         <div className={styles.stat}>
           <p className={styles.statLabel}>На проверке</p>
-          <p className={`${styles.statValue} ${styles.statPending}`}>{counts.pending}</p>
-        </div>
-        <div className={styles.stat}>
-          <p className={styles.statLabel}>Одобрено</p>
-          <p className={`${styles.statValue} ${styles.statApproved}`}>{counts.approved}</p>
-        </div>
-        <div className={styles.stat}>
-          <p className={styles.statLabel}>Отклонено</p>
-          <p className={`${styles.statValue} ${styles.statRejected}`}>{counts.rejected}</p>
+          <p className={`${styles.statValue} ${styles.statPending}`}>{pendingCount}</p>
         </div>
       </div>
 

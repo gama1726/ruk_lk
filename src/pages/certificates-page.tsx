@@ -177,13 +177,6 @@ export function CertificatesPage({ audience, title = 'Мои справки' }: 
     void load()
   }, [featuresStatus, load, preview])
 
-  const counts = useMemo(() => {
-    const pending = items.filter((i) => i.status === 'PENDING').length
-    const approved = items.filter((i) => i.status === 'APPROVED').length
-    const rejected = items.filter((i) => i.status === 'REJECTED').length
-    return { pending, approved, rejected }
-  }, [items])
-
   const filtered = useMemo(() => {
     return items.filter((item) => {
       if (tab === 'pending') return item.status === 'PENDING'
@@ -387,33 +380,6 @@ export function CertificatesPage({ audience, title = 'Мои справки' }: 
         <p className={styles.lead}>
           Загружайте документы, подтверждающие уважительные причины отсутствия на занятиях.
         </p>
-      </div>
-
-      <div className={styles.stats}>
-        <button
-          type="button"
-          className={`${styles.stat} ${tab === 'pending' ? styles.statActive : ''}`}
-          onClick={() => setHistoryTab('pending')}
-        >
-          <p className={styles.statLabel}>На проверке</p>
-          <p className={`${styles.statValue} ${styles.statPending}`}>{counts.pending}</p>
-        </button>
-        <button
-          type="button"
-          className={`${styles.stat} ${tab === 'approved' ? styles.statActive : ''}`}
-          onClick={() => setHistoryTab('approved')}
-        >
-          <p className={styles.statLabel}>Принято</p>
-          <p className={`${styles.statValue} ${styles.statApproved}`}>{counts.approved}</p>
-        </button>
-        <button
-          type="button"
-          className={`${styles.stat} ${tab === 'rejected' ? styles.statActive : ''}`}
-          onClick={() => setHistoryTab('rejected')}
-        >
-          <p className={styles.statLabel}>Отклонено</p>
-          <p className={`${styles.statValue} ${styles.statRejected}`}>{counts.rejected}</p>
-        </button>
       </div>
 
       <section className={styles.process} aria-label="Как проходит проверка">
