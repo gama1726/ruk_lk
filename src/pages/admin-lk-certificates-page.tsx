@@ -47,7 +47,6 @@ function parseCampus(raw: string | undefined): AbsenceReportCampus | null {
   return null
 }
 
-<<<<<<< HEAD
 function StatusBadge({ status }: { status: string }) {
   const cls =
     status === 'APPROVED'
@@ -80,20 +79,6 @@ function formatBytes(size: number): string {
   if (size < 1024) return `${size} Б`
   if (size < 1024 * 1024) return `${Math.round(size / 1024)} КБ`
   return `${(size / (1024 * 1024)).toFixed(1)} МБ`
-=======
-function statusBadgeClass(status: string): string {
-  if (status === 'APPROVED') return styles.badgeOn
-  if (status === 'REJECTED') return styles.badgeOff
-  return styles.badge
-}
-
-function StatusChip({ status }: { status: string }) {
-  return (
-    <span className={`${styles.badge} ${statusBadgeClass(status)}`}>
-      {certificateStatusLabel(status)}
-    </span>
-  )
->>>>>>> 7d51a413cf5fb2f5d0457b6fef4ceed9583f96f1
 }
 
 export function AdminLkCertificatesPage() {
@@ -402,8 +387,6 @@ export function AdminLkCertificatesPage() {
             <Button type="button" onClick={() => void saveSettings()} disabled={saving}>
               {saving ? 'Сохранение…' : 'Сохранить'}
             </Button>
-<<<<<<< HEAD
-            <StatusBadge status={settings?.notifyEmail ? 'APPROVED' : 'CANCELLED'} />
             <span className={styles.cardMeta}>
               {settings?.notifyEmail ? 'Письма включены' : 'Письма выключены'}
             </span>
@@ -478,162 +461,6 @@ export function AdminLkCertificatesPage() {
               <div className={styles.cardFooter}>
                 <Button type="button" size="sm" onClick={() => void openRequest(item.id)} disabled={acting}>
                   Открыть
-=======
-            {settings?.notifyEmail ? (
-              <span className={`${styles.badge} ${styles.badgeOn}`}>Письма включены</span>
-            ) : (
-              <span className={`${styles.badge} ${styles.badgeCampus}`}>Письма выключены</span>
-            )}
-            {saveMsg ? <span className={styles.cardMeta}>{saveMsg}</span> : null}
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.card} style={{ marginBottom: '1.25rem' }}>
-        <h2 className={styles.cardTitle}>На проверке · {pending.length}</h2>
-        {pending.length === 0 ? (
-          <p className={styles.cardMeta}>Новых заявок нет. Когда студент или родитель отправит справку, она появится здесь.</p>
-        ) : (
-          <ul className={styles.list}>
-            {pending.map((item) => (
-              <li key={item.id} className={styles.card} style={{ marginBottom: '0.75rem' }}>
-                <div className={styles.cardTop}>
-                  <div>
-                    <div className={styles.cardTitle}>{item.studentFullName || item.studentId}</div>
-                    <p className={styles.cardMeta}>
-                      {item.typeLabel} · {new Date(item.createdAt).toLocaleString('ru-RU')} ·{' '}
-                      {item.studentId}
-                    </p>
-                  </div>
-                  <Button type="button" onClick={() => void openRequest(item.id)} disabled={acting}>
-                    Открыть
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {others.length > 0 ? (
-        <div className={styles.card} style={{ marginBottom: '1.25rem' }}>
-          <h2 className={styles.cardTitle}>Обработанные · {others.length}</h2>
-          <ul className={styles.list}>
-            {others.slice(0, 30).map((item) => (
-              <li key={item.id} className={styles.card} style={{ marginBottom: '0.75rem' }}>
-                <div className={styles.cardTop}>
-                  <div>
-                    <div className={styles.cardTitle}>
-                      {item.studentFullName || item.studentId}{' '}
-                      <StatusChip status={item.status} />
-                    </div>
-                    <p className={styles.cardMeta}>
-                      {item.typeLabel} · {new Date(item.createdAt).toLocaleString('ru-RU')} ·{' '}
-                      {item.studentId}
-                    </p>
-                    {item.status === 'REJECTED' && item.rejectionReason ? (
-                      <p className={styles.error} style={{ marginTop: 6 }}>
-                        Причина: {item.rejectionReason}
-                      </p>
-                    ) : null}
-                    {item.status === 'APPROVED' && item.approvedFrom && item.approvedTo ? (
-                      <p className={styles.cardMeta}>
-                        Период: {item.approvedFrom} — {item.approvedTo}
-                      </p>
-                    ) : null}
-                  </div>
-                  <Button type="button" onClick={() => void openRequest(item.id)} disabled={acting}>
-                    Открыть заявку
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {selected ? (
-        <div className={styles.card}>
-          <div className={styles.cardTop}>
-            <h2 className={styles.cardTitle}>
-              {selected.studentFullName} <StatusChip status={selected.status} />
-            </h2>
-            <Button type="button" variant="secondary" onClick={() => setSelected(null)}>
-              Закрыть
-            </Button>
-          </div>
-          <p className={styles.cardMeta}>
-            {selected.typeLabel} · зачётка {selected.studentId} · от{' '}
-            {selected.submitterName || selected.submittedBy}
-          </p>
-          {selected.comment ? <p>Комментарий: {selected.comment}</p> : null}
-          {selected.rejectionReason ? (
-            <p className={styles.error}>Причина отклонения: {selected.rejectionReason}</p>
-          ) : null}
-          {selected.approvedFrom && selected.approvedTo ? (
-            <p>
-              Период: {selected.approvedFrom} — {selected.approvedTo}
-            </p>
-          ) : null}
-
-          <h3 className={styles.cardTitle}>Файлы</h3>
-          <ul className={styles.list}>
-            {selected.attachments.map((a) => (
-              <li key={a.id} style={{ marginBottom: 8 }}>
-                {a.originalFilename}{' '}
-                <span className={styles.cardMeta}>({Math.round(a.sizeBytes / 1024)} КБ)</span>{' '}
-                <Button
-                  type="button"
-                  onClick={() =>
-                    void (async () => {
-                      try {
-                        const path = `/api/admin/lk/certificates/${campus.toLowerCase()}/requests/${selected.id}/attachments/${a.id}`
-                        const { blob, filename } = await apiGetBlob(path)
-                        const url = URL.createObjectURL(blob)
-                        const link = document.createElement('a')
-                        link.href = url
-                        link.download = filename || a.originalFilename
-                        link.click()
-                        URL.revokeObjectURL(url)
-                      } catch (err) {
-                        setActionError(err instanceof ApiError ? err.message : 'Не удалось скачать')
-                      }
-                    })()
-                  }
-                >
-                  Скачать
-                </Button>
-              </li>
-            ))}
-          </ul>
-
-          {selected.status === 'PENDING' ? (
-            <>
-              <h3 className={styles.cardTitle}>Одобрить</h3>
-              <div className={styles.formGrid}>
-                <label>
-                  С
-                  <input
-                    className={styles.input}
-                    type="date"
-                    value={from}
-                    onChange={(e) => setFrom(e.target.value)}
-                    disabled={acting}
-                  />
-                </label>
-                <label>
-                  По
-                  <input
-                    className={styles.input}
-                    type="date"
-                    value={to}
-                    onChange={(e) => setTo(e.target.value)}
-                    disabled={acting}
-                  />
-                </label>
-                <Button type="button" onClick={() => void onApprove()} disabled={acting || !from || !to}>
-                  Одобрить
->>>>>>> 7d51a413cf5fb2f5d0457b6fef4ceed9583f96f1
                 </Button>
               </div>
             </li>
