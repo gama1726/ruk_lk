@@ -13,5 +13,11 @@ public record CertificateRequestSummaryDto(
     Instant createdAt,
     LocalDate approvedFrom,
     LocalDate approvedTo,
-    String rejectionReason
+    String rejectionReason,
+    String group,
+    String faculty,
+    String course,
+    String department,
+    String reviewedBy,
+    Instant reviewedAt
 ) {}

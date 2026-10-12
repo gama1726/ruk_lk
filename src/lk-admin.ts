@@ -278,6 +278,12 @@ export type CertificateRequestSummary = {
   approvedFrom?: string | null
   approvedTo?: string | null
   rejectionReason?: string | null
+  group?: string | null
+  faculty?: string | null
+  course?: string | null
+  department?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: string | null
 }
 
 export type CertificateSettings = {

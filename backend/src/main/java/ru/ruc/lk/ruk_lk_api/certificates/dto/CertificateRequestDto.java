@@ -20,5 +20,10 @@ public record CertificateRequestDto(
     LocalDate approvedTo,
     Instant createdAt,
     Instant reviewedAt,
+    String reviewedBy,
+    String group,
+    String faculty,
+    String course,
+    String department,
     List<CertificateAttachmentDto> attachments
 ) {}

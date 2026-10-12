@@ -32,6 +32,11 @@ export type CertificateRequest = {
   approvedTo: string | null
   createdAt: string
   reviewedAt: string | null
+  reviewedBy?: string | null
+  group?: string | null
+  faculty?: string | null
+  course?: string | null
+  department?: string | null
   attachments: CertificateAttachment[]
 }
 

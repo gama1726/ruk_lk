@@ -27,6 +27,8 @@ import ru.ruc.lk.ruk_lk_api.certificates.dto.CertificateRequestDto;
 import ru.ruc.lk.ruk_lk_api.certificates.dto.CertificateRequestSummaryDto;
 import ru.ruc.lk.ruk_lk_api.integration.max.MaxBindingService;
 import ru.ruc.lk.ruk_lk_api.integration.max.VerificationMaxSender;
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCClient;
+import ru.ruc.lk.ruk_lk_api.integration.onec.OneCProfileResponse;
 import ru.ruc.lk.ruk_lk_api.lkadmin.LkAbsenceReportCampus;
 import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminAuthService;
 import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminSession;
@@ -49,6 +51,7 @@ public class CertificateService {
     private final CertificateAuditRepository auditRepository;
     private final MaxBindingService maxBindingService;
     private final ObjectProvider<VerificationMaxSender> maxSender;
+    private final OneCClient oneCClient;
 
     public CertificateService(
         CertificateProperties properties,
@@ -61,7 +64,8 @@ public class CertificateService {
         CertificateNotificationMailer mailer,
         CertificateAuditRepository auditRepository,
         MaxBindingService maxBindingService,
-        ObjectProvider<VerificationMaxSender> maxSender
+        ObjectProvider<VerificationMaxSender> maxSender,
+        OneCClient oneCClient
     ) {
         this.properties = properties;
         this.requestRepository = requestRepository;
@@ -74,6 +78,7 @@ public class CertificateService {
         this.auditRepository = auditRepository;
         this.maxBindingService = maxBindingService;
         this.maxSender = maxSender;
+        this.oneCClient = oneCClient;
     }
 
     @Transactional(readOnly = true)
@@ -569,6 +574,12 @@ public class CertificateService {
                 a.getSizeBytes()
             ));
         }
+        OneCProfileResponse profile = null;
+        try {
+            profile = oneCClient.fetchProfile(row.getStudentId()).orElse(null);
+        } catch (RuntimeException ignored) {
+            // профиль необязателен для карточки
+        }
         return new CertificateRequestDto(
             row.getId().toString(),
             row.getStudentId(),
@@ -585,6 +596,11 @@ public class CertificateService {
             row.getApprovedTo(),
             row.getCreatedAt(),
             row.getReviewedAt(),
+            row.getReviewedBy(),
+            blankToNull(profile == null ? null : profile.group()),
+            blankToNull(profile == null ? null : profile.faculty()),
+            blankToNull(profile == null ? null : profile.course()),
+            blankToNull(profile == null ? null : profile.department()),
             attachments
         );
     }
