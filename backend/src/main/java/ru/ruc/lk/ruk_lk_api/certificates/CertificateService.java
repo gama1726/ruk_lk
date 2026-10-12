@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,8 @@ import ru.ruc.lk.ruk_lk_api.certificates.dto.CertificateAttachmentDto;
 import ru.ruc.lk.ruk_lk_api.certificates.dto.CertificateRejectRequest;
 import ru.ruc.lk.ruk_lk_api.certificates.dto.CertificateRequestDto;
 import ru.ruc.lk.ruk_lk_api.certificates.dto.CertificateRequestSummaryDto;
+import ru.ruc.lk.ruk_lk_api.integration.max.MaxBindingService;
+import ru.ruc.lk.ruk_lk_api.integration.max.VerificationMaxSender;
 import ru.ruc.lk.ruk_lk_api.lkadmin.LkAbsenceReportCampus;
 import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminAuthService;
 import ru.ruc.lk.ruk_lk_api.lkadmin.LkAdminSession;
@@ -43,6 +46,9 @@ public class CertificateService {
     private final PassPhotoValidationService imageNormalizer;
     private final PreviewStudents previewStudents;
     private final CertificateNotificationMailer mailer;
+    private final CertificateAuditRepository auditRepository;
+    private final MaxBindingService maxBindingService;
+    private final ObjectProvider<VerificationMaxSender> maxSender;
 
     public CertificateService(
         CertificateProperties properties,
@@ -52,7 +58,10 @@ public class CertificateService {
         CertificateCampusResolver campusResolver,
         PassPhotoValidationService imageNormalizer,
         PreviewStudents previewStudents,
-        CertificateNotificationMailer mailer
+        CertificateNotificationMailer mailer,
+        CertificateAuditRepository auditRepository,
+        MaxBindingService maxBindingService,
+        ObjectProvider<VerificationMaxSender> maxSender
     ) {
         this.properties = properties;
         this.requestRepository = requestRepository;
@@ -62,6 +71,9 @@ public class CertificateService {
         this.imageNormalizer = imageNormalizer;
         this.previewStudents = previewStudents;
         this.mailer = mailer;
+        this.auditRepository = auditRepository;
+        this.maxBindingService = maxBindingService;
+        this.maxSender = maxSender;
     }
 
     @Transactional(readOnly = true)
@@ -106,6 +118,10 @@ public class CertificateService {
             CertificateSubmittedBy.STUDENT,
             student.fullName(),
             student.email(),
+            student.studentId(),
+            "STUDENT",
+            student.studentId(),
+            student.fullName(),
             typeRaw,
             comment,
             files
@@ -126,6 +142,10 @@ public class CertificateService {
             CertificateSubmittedBy.PARENT,
             parent.parentFullName(),
             parent.parentEmail(),
+            MaxBindingService.parentBindingKey(parent.studentId(), parent.memberIndex()),
+            "PARENT",
+            parent.studentId() + "#" + parent.memberIndex(),
+            parent.parentFullName(),
             typeRaw,
             comment,
             files
@@ -135,13 +155,27 @@ public class CertificateService {
     @Transactional
     public CertificateRequestDto cancelStudent(HttpSession session, UUID id) {
         StudentSession student = requirePreviewStudent(session);
-        return cancel(requireOwned(id, student.studentId()));
+        CertificateRequestEntity row = requireOwned(id, student.studentId());
+        CertificateRequestDto dto = cancel(row);
+        audit(row.getId(), null, CertificateAuditAction.CANCEL, "STUDENT", student.studentId(), student.fullName(), null);
+        return dto;
     }
 
     @Transactional
     public CertificateRequestDto cancelParent(HttpSession session, UUID id) {
         ParentSession parent = requirePreviewParent(session);
-        return cancel(requireOwned(id, parent.studentId()));
+        CertificateRequestEntity row = requireOwned(id, parent.studentId());
+        CertificateRequestDto dto = cancel(row);
+        audit(
+            row.getId(),
+            null,
+            CertificateAuditAction.CANCEL,
+            "PARENT",
+            parent.studentId() + "#" + parent.memberIndex(),
+            parent.parentFullName(),
+            null
+        );
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -167,6 +201,15 @@ public class CertificateService {
         LkAdminSession admin = LkAdminAuthService.require(session);
         row.approve(body.from(), body.to(), admin.username());
         requestRepository.save(row);
+        audit(
+            row.getId(),
+            null,
+            CertificateAuditAction.APPROVE,
+            "ADMIN",
+            admin.username(),
+            admin.fullName(),
+            body.from() + ".." + body.to()
+        );
         notifySubmitterApproved(row);
         return toDto(row);
     }
@@ -185,27 +228,69 @@ public class CertificateService {
         LkAdminSession admin = LkAdminAuthService.require(session);
         row.reject(reason.trim(), admin.username());
         requestRepository.save(row);
+        audit(
+            row.getId(),
+            null,
+            CertificateAuditAction.REJECT,
+            "ADMIN",
+            admin.username(),
+            admin.fullName(),
+            reason.trim()
+        );
         notifySubmitterRejected(row);
         return toDto(row);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public byte[] readAttachmentStudent(HttpSession session, UUID requestId, UUID attachmentId) throws IOException {
         StudentSession student = requirePreviewStudent(session);
-        return readOwnedAttachment(requireOwned(requestId, student.studentId()), attachmentId);
+        CertificateRequestEntity row = requireOwned(requestId, student.studentId());
+        byte[] bytes = readOwnedAttachment(row, attachmentId);
+        audit(
+            row.getId(),
+            attachmentId,
+            CertificateAuditAction.DOWNLOAD,
+            "STUDENT",
+            student.studentId(),
+            student.fullName(),
+            null
+        );
+        return bytes;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public byte[] readAttachmentParent(HttpSession session, UUID requestId, UUID attachmentId) throws IOException {
         ParentSession parent = requirePreviewParent(session);
-        return readOwnedAttachment(requireOwned(requestId, parent.studentId()), attachmentId);
+        CertificateRequestEntity row = requireOwned(requestId, parent.studentId());
+        byte[] bytes = readOwnedAttachment(row, attachmentId);
+        audit(
+            row.getId(),
+            attachmentId,
+            CertificateAuditAction.DOWNLOAD,
+            "PARENT",
+            parent.studentId() + "#" + parent.memberIndex(),
+            parent.parentFullName(),
+            null
+        );
+        return bytes;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public byte[] readAttachmentAdmin(HttpSession session, UUID requestId, UUID attachmentId) throws IOException {
         CertificateRequestEntity row = requireRequest(requestId);
         LkAdminAuthService.requireCertificateCampus(session, row.getCampus());
-        return readOwnedAttachment(row, attachmentId);
+        LkAdminSession admin = LkAdminAuthService.require(session);
+        byte[] bytes = readOwnedAttachment(row, attachmentId);
+        audit(
+            row.getId(),
+            attachmentId,
+            CertificateAuditAction.DOWNLOAD,
+            "ADMIN",
+            admin.username(),
+            admin.fullName(),
+            null
+        );
+        return bytes;
     }
 
     @Transactional(readOnly = true)
@@ -222,6 +307,10 @@ public class CertificateService {
         CertificateSubmittedBy submittedBy,
         String submitterName,
         String submitterEmail,
+        String submitterMaxBindKey,
+        String actorType,
+        String actorId,
+        String actorName,
         String typeRaw,
         String comment,
         List<MultipartFile> files
@@ -251,6 +340,7 @@ public class CertificateService {
             submittedBy,
             submitterName,
             submitterEmail,
+            submitterMaxBindKey,
             blankToNull(comment)
         );
 
@@ -279,6 +369,15 @@ public class CertificateService {
         }
 
         requestRepository.save(request);
+        audit(
+            request.getId(),
+            null,
+            CertificateAuditAction.SUBMIT,
+            actorType,
+            actorId,
+            actorName,
+            type.name() + " x" + uploads.size()
+        );
         notifyAdminNewRequest(request);
         return toDto(request);
     }
@@ -337,38 +436,81 @@ public class CertificateService {
     }
 
     private void notifySubmitterApproved(CertificateRequestEntity request) {
-        String email = request.getSubmitterEmail();
-        if (email == null || email.isBlank()) {
-            return;
-        }
-        String subject = "Справка одобрена";
         String period = request.getApprovedFrom() + " — " + request.getApprovedTo();
         String text = "Ваша справка («" + request.getType().labelRu() + "») одобрена.\n"
             + "Период отсутствия: " + period;
         String html = "<p>Ваша справка («" + escape(request.getType().labelRu()) + "») одобрена.</p>"
             + "<p>Период отсутствия: <strong>" + escape(period) + "</strong></p>";
-        try {
-            mailer.send(email, request.getSubmitterName(), subject, html, text);
-        } catch (RuntimeException e) {
-            log.warn("Не удалось уведомить заявителя об одобрении: {}", e.getMessage());
-        }
+        notifySubmitter(request, "Справка одобрена", html, text);
     }
 
     private void notifySubmitterRejected(CertificateRequestEntity request) {
-        String email = request.getSubmitterEmail();
-        if (email == null || email.isBlank()) {
-            return;
-        }
-        String subject = "Справка отклонена";
         String reason = request.getRejectionReason() == null ? "" : request.getRejectionReason();
         String text = "Ваша справка («" + request.getType().labelRu() + "») отклонена.\n"
             + "Причина: " + reason;
         String html = "<p>Ваша справка («" + escape(request.getType().labelRu()) + "») отклонена.</p>"
             + "<p>Причина: " + escape(reason) + "</p>";
+        notifySubmitter(request, "Справка отклонена", html, text);
+    }
+
+    private void notifySubmitter(
+        CertificateRequestEntity request,
+        String subject,
+        String html,
+        String text
+    ) {
+        sendMaxIfBound(request.getSubmitterMaxBindKey(), text);
+        String email = request.getSubmitterEmail();
+        if (email == null || email.isBlank()) {
+            return;
+        }
         try {
             mailer.send(email, request.getSubmitterName(), subject, html, text);
         } catch (RuntimeException e) {
-            log.warn("Не удалось уведомить заявителя об отклонении: {}", e.getMessage());
+            log.warn("Не удалось отправить email заявителю: {}", e.getMessage());
+        }
+    }
+
+    private void sendMaxIfBound(String bindKey, String text) {
+        if (bindKey == null || bindKey.isBlank()) {
+            return;
+        }
+        VerificationMaxSender sender = maxSender.getIfAvailable();
+        if (sender == null || !sender.isConfigured()) {
+            return;
+        }
+        Long maxUserId = maxBindingService.findMaxUserId(bindKey).orElse(null);
+        if (maxUserId == null) {
+            return;
+        }
+        try {
+            sender.sendMessage(maxUserId, text);
+        } catch (RuntimeException e) {
+            log.warn("Не удалось отправить MAX заявителю: {}", e.getMessage());
+        }
+    }
+
+    private void audit(
+        UUID requestId,
+        UUID attachmentId,
+        CertificateAuditAction action,
+        String actorType,
+        String actorId,
+        String actorName,
+        String detail
+    ) {
+        try {
+            auditRepository.save(new CertificateAuditEntity(
+                requestId,
+                attachmentId,
+                action,
+                actorType,
+                actorId,
+                actorName,
+                detail
+            ));
+        } catch (RuntimeException e) {
+            log.warn("Не удалось записать audit справок: {}", e.getMessage());
         }
     }
 

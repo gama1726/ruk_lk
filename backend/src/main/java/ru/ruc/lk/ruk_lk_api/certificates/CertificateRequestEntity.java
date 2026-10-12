@@ -53,6 +53,10 @@ public class CertificateRequestEntity {
     @Column(length = 320)
     private String submitterEmail;
 
+    /** Ключ привязки MAX (studentId или P:studentId:index). */
+    @Column(length = 128)
+    private String submitterMaxBindKey;
+
     @Column(length = 2000)
     private String comment;
 
@@ -89,6 +93,7 @@ public class CertificateRequestEntity {
         CertificateSubmittedBy submittedBy,
         String submitterName,
         String submitterEmail,
+        String submitterMaxBindKey,
         String comment
     ) {
         Instant now = Instant.now();
@@ -101,6 +106,7 @@ public class CertificateRequestEntity {
         this.submittedBy = submittedBy;
         this.submitterName = submitterName;
         this.submitterEmail = blankToNull(submitterEmail);
+        this.submitterMaxBindKey = blankToNull(submitterMaxBindKey);
         this.comment = comment;
         this.createdAt = now;
         this.updatedAt = now;
@@ -149,6 +155,10 @@ public class CertificateRequestEntity {
 
     public String getSubmitterEmail() {
         return submitterEmail;
+    }
+
+    public String getSubmitterMaxBindKey() {
+        return submitterMaxBindKey;
     }
 
     public String getComment() {

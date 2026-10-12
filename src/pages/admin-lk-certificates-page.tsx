@@ -4,9 +4,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { ApiError } from '@/apiClient'
+import { ApiError, apiGetBlob } from '@/apiClient'
 import {
-  adminCertificateAttachmentUrl,
   approveCertificate,
   certificateStatusLabel,
   getAdminCertificate,
@@ -263,15 +262,30 @@ export function AdminLkCertificatesPage() {
           <h3 className={styles.cardTitle}>Файлы</h3>
           <ul className={styles.list}>
             {selected.attachments.map((a) => (
-              <li key={a.id}>
-                <a
-                  href={adminCertificateAttachmentUrl(campus, selected.id, a.id)}
-                  target="_blank"
-                  rel="noreferrer"
+              <li key={a.id} style={{ marginBottom: 8 }}>
+                {a.originalFilename}{' '}
+                <span className={styles.cardMeta}>({Math.round(a.sizeBytes / 1024)} КБ)</span>{' '}
+                <Button
+                  type="button"
+                  onClick={() =>
+                    void (async () => {
+                      try {
+                        const path = `/api/admin/lk/certificates/${campus.toLowerCase()}/requests/${selected.id}/attachments/${a.id}`
+                        const { blob, filename } = await apiGetBlob(path)
+                        const url = URL.createObjectURL(blob)
+                        const link = document.createElement('a')
+                        link.href = url
+                        link.download = filename || a.originalFilename
+                        link.click()
+                        URL.revokeObjectURL(url)
+                      } catch (err) {
+                        setActionError(err instanceof ApiError ? err.message : 'Не удалось скачать')
+                      }
+                    })()
+                  }
                 >
-                  {a.originalFilename}
-                </a>{' '}
-                <span className={styles.cardMeta}>({Math.round(a.sizeBytes / 1024)} КБ)</span>
+                  Скачать
+                </Button>
               </li>
             ))}
           </ul>

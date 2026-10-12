@@ -21,7 +21,8 @@
 |----------|--------|
 | Open questions | Все решения закрыты |
 | Overview / requirements / flows / tech / ops | Синхронизированы |
-| Реализация | Этап 1 в коде: админ очередь/approve, student/parent upload, exclusion в отчёте |
+| Реализация | Этап 1 готов: upload/review/exclusion, audit, MAX+email, UI скачивание, тесты |
+| Ручной тест | [`08-manual-test.md`](08-manual-test.md) |
 
 ## Следующий шаг
 

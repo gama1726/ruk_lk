@@ -1,17 +1,19 @@
 /**
- * @file Справки: список и подача заявки (студент или родитель, preview allowlist).
+ * @file Справки: список, детали, скачивание, подача заявки (студент / родитель).
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { ApiError } from '@/apiClient'
+import { ApiError, apiGetBlob } from '@/apiClient'
 import {
   cancelCertificate,
   CERTIFICATE_ACCEPT,
   CERTIFICATE_MAX_FILES,
   CERTIFICATE_TYPE_OPTIONS,
   certificateStatusLabel,
+  getMyCertificate,
   listMyCertificates,
   submitCertificate,
+  type CertificateRequest,
   type CertificateSummary,
   type CertificateType,
 } from '@/certificates'
@@ -26,12 +28,28 @@ type Props = {
   title?: string
 }
 
+function attachmentPath(audience: Audience, requestId: string, attachmentId: string): string {
+  const base = audience === 'parent' ? '/api/parent/certificates' : '/api/student/certificates'
+  return `${base}/${requestId}/attachments/${attachmentId}`
+}
+
+async function downloadAttachment(audience: Audience, requestId: string, attachmentId: string) {
+  const { blob, filename } = await apiGetBlob(attachmentPath(audience, requestId, attachmentId))
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename || 'attachment'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function CertificatesPage({ audience, title = 'Справки' }: Props) {
   const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
   const preview = useAppFeatures((s) => s.features?.previewEnabled === true)
 
   const [items, setItems] = useState<CertificateSummary[]>([])
+  const [selected, setSelected] = useState<CertificateRequest | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [type, setType] = useState<CertificateType>('SICK_LEAVE')
@@ -40,6 +58,7 @@ export function CertificatesPage({ audience, title = 'Справки' }: Props) 
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [detailError, setDetailError] = useState<string | null>(null)
 
   useEffect(() => {
     if (featuresStatus === 'idle') void loadFeatures()
@@ -77,8 +96,7 @@ export function CertificatesPage({ audience, title = 'Справки' }: Props) 
       setFiles([])
       return
     }
-    const next = Array.from(list).slice(0, CERTIFICATE_MAX_FILES)
-    setFiles(next)
+    setFiles(Array.from(list).slice(0, CERTIFICATE_MAX_FILES))
   }
 
   const onSubmit = async () => {
@@ -104,11 +122,33 @@ export function CertificatesPage({ audience, title = 'Справки' }: Props) 
     setBusyId(id)
     try {
       await cancelCertificate(audience, id)
+      if (selected?.id === id) setSelected(null)
       await load()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось отозвать')
     } finally {
       setBusyId(null)
+    }
+  }
+
+  const openDetail = async (id: string) => {
+    setDetailError(null)
+    setBusyId(id)
+    try {
+      setSelected(await getMyCertificate(audience, id))
+    } catch (err) {
+      setDetailError(err instanceof ApiError ? err.message : 'Не удалось открыть заявку')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const onDownload = async (requestId: string, attachmentId: string) => {
+    setDetailError(null)
+    try {
+      await downloadAttachment(audience, requestId, attachmentId)
+    } catch (err) {
+      setDetailError(err instanceof ApiError ? err.message : 'Не удалось скачать файл')
     }
   }
 
@@ -175,7 +215,7 @@ export function CertificatesPage({ audience, title = 'Справки' }: Props) 
       {error ? <LoadError message={error} onRetry={() => void load()} /> : null}
 
       {!loading && !error ? (
-        <Card>
+        <Card style={{ marginBottom: '1.25rem' }}>
           <h2 style={{ marginTop: 0 }}>Мои заявки</h2>
           {items.length === 0 ? (
             <p style={{ opacity: 0.75 }}>Пока нет заявок.</p>
@@ -203,16 +243,16 @@ export function CertificatesPage({ audience, title = 'Справки' }: Props) 
                   {item.status === 'REJECTED' && item.rejectionReason ? (
                     <div style={{ fontSize: '0.9rem' }}>Причина: {item.rejectionReason}</div>
                   ) : null}
-                  {item.status === 'PENDING' ? (
-                    <Button
-                      type="button"
-                      onClick={() => void onCancel(item.id)}
-                      disabled={busyId === item.id}
-                      style={{ marginTop: 8 }}
-                    >
-                      Отозвать
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                    <Button type="button" onClick={() => void openDetail(item.id)} disabled={busyId === item.id}>
+                      Файлы
                     </Button>
-                  ) : null}
+                    {item.status === 'PENDING' ? (
+                      <Button type="button" onClick={() => void onCancel(item.id)} disabled={busyId === item.id}>
+                        Отозвать
+                      </Button>
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -220,6 +260,43 @@ export function CertificatesPage({ audience, title = 'Справки' }: Props) 
         </Card>
       ) : null}
 
+      {selected ? (
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+            <h2 style={{ marginTop: 0, marginBottom: 0 }}>
+              {selected.typeLabel} · {certificateStatusLabel(selected.status)}
+            </h2>
+            <Button type="button" onClick={() => setSelected(null)}>
+              Закрыть
+            </Button>
+          </div>
+          {selected.comment ? <p>Комментарий: {selected.comment}</p> : null}
+          {selected.status === 'APPROVED' && selected.approvedFrom && selected.approvedTo ? (
+            <p>
+              Период: {selected.approvedFrom} — {selected.approvedTo}
+            </p>
+          ) : null}
+          {selected.status === 'REJECTED' && selected.rejectionReason ? (
+            <p>Причина: {selected.rejectionReason}</p>
+          ) : null}
+          <h3>Вложения</h3>
+          {selected.attachments.length === 0 ? (
+            <p style={{ opacity: 0.75 }}>Файлы удалены по сроку хранения.</p>
+          ) : (
+            <ul>
+              {selected.attachments.map((a) => (
+                <li key={a.id} style={{ marginBottom: 8 }}>
+                  {a.originalFilename}{' '}
+                  <Button type="button" onClick={() => void onDownload(selected.id, a.id)}>
+                    Скачать
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {detailError ? <p style={{ color: 'var(--color-danger, #b00020)' }}>{detailError}</p> : null}
+        </Card>
+      ) : null}
     </div>
   )
 }
