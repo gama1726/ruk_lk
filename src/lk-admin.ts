@@ -275,6 +275,9 @@ export type CertificateRequestSummary = {
   typeLabel: string
   status: CertificateRequestStatus
   createdAt: string
+  approvedFrom?: string | null
+  approvedTo?: string | null
+  rejectionReason?: string | null
 }
 
 export type CertificateSettings = {

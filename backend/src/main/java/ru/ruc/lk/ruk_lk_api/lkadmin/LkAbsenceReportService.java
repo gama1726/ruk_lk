@@ -99,6 +99,7 @@ public class LkAbsenceReportService {
     private final LkAbsenceReportRepository reportRepository;
     private final LkAbsenceNoticeService absenceNoticeService;
     private final LkAbsenceReportSettingsService settingsService;
+    private final ru.ruc.lk.ruk_lk_api.certificates.CertificateRequestRepository certificateRequestRepository;
     private final boolean percoEnabled;
     private final String percoUncontrolledZone;
     private final ExecutorService reportExecutor = Executors.newFixedThreadPool(2);
@@ -132,6 +133,7 @@ public class LkAbsenceReportService {
         LkAbsenceReportRepository reportRepository,
         LkAbsenceNoticeService absenceNoticeService,
         LkAbsenceReportSettingsService settingsService,
+        ru.ruc.lk.ruk_lk_api.certificates.CertificateRequestRepository certificateRequestRepository,
         PlatformTransactionManager transactionManager,
         @Value("${app.perco.enabled:false}") boolean percoEnabled,
         @Value("${app.perco.uncontrolled-zone:Неконтролируемая территория}") String percoUncontrolledZone
@@ -145,6 +147,7 @@ public class LkAbsenceReportService {
         this.reportRepository = reportRepository;
         this.absenceNoticeService = absenceNoticeService;
         this.settingsService = settingsService;
+        this.certificateRequestRepository = certificateRequestRepository;
         this.percoEnabled = percoEnabled;
         this.percoUncontrolledZone = percoUncontrolledZone == null || percoUncontrolledZone.isBlank()
             ? "Неконтролируемая территория"
@@ -930,6 +933,19 @@ public class LkAbsenceReportService {
                 + " (из " + enriched.size() + " с профилем)");
             enriched = filtered;
         }
+
+        java.util.Set<String> excusedIds = new java.util.HashSet<>(
+            certificateRequestRepository.findApprovedStudentIdsForDay(campus, date)
+        );
+        if (!excusedIds.isEmpty()) {
+            int before = enriched.size();
+            enriched.entrySet().removeIf(e -> excusedIds.contains(e.getKey()));
+            int removed = before - enriched.size();
+            if (removed > 0) {
+                warnings.add("Исключены по одобренным справкам: " + removed);
+            }
+        }
+
         if (enriched.isEmpty()) {
             warnings.add(groupOnly
                 ? "В СКУД/1С не найдено студентов этой группы с профилем"

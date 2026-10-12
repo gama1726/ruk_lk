@@ -65,6 +65,7 @@ export const sidebarGroups: NavGroup[] = [
       { to: paths.portfolio, label: 'Портфолио', icon: 'portfolio' },
       { to: paths.settings, label: 'Настройки', icon: 'settings' },
       { to: paths.passPhoto, label: 'Фото для пропуска', icon: 'passPhoto' },
+      { to: paths.certificates, label: 'Справки', icon: 'orders' },
       { to: paths.start, label: 'Start', icon: 'start' },
       { to: paths.esports, label: 'Киберспорт', icon: 'esports' },
     ],
@@ -77,6 +78,8 @@ export type SidebarNavOptions = {
   passPhoto?: boolean
   /** false — скрыть Start в меню (мост /start остаётся). */
   start?: boolean
+  /** true — показать «Справки» (preview allowlist). */
+  certificates?: boolean
 }
 
 /** Верхние пункты; {@code events: false} — скрыть календарь (другие филиалы). */
@@ -110,6 +113,7 @@ export function getSidebarGroups(options?: SidebarNavOptions): NavGroup[] {
   const showAttendance = options?.attendance !== false
   const showPassPhoto = options?.passPhoto !== false
   const showStart = options?.start !== false
+  const showCertificates = options?.certificates === true
   return sidebarGroups.map((group) => {
     let items = group.items
     if (group.id === 'study' && !showAttendance) {
@@ -118,6 +122,9 @@ export function getSidebarGroups(options?: SidebarNavOptions): NavGroup[] {
     if (group.id === 'services') {
       if (!showPassPhoto) {
         items = items.filter((item) => item.to !== paths.passPhoto)
+      }
+      if (!showCertificates) {
+        items = items.filter((item) => item.to !== paths.certificates)
       }
       if (!showStart) {
         items = items.filter((item) => item.to !== paths.start)

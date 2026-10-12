@@ -21,7 +21,7 @@
 |----------|--------|
 | Open questions | Все решения закрыты |
 | Overview / requirements / flows / tech / ops | Синхронизированы |
-| Реализация | В работе: секции админов → storage → API |
+| Реализация | Этап 1 в коде: админ очередь/approve, student/parent upload, exclusion в отчёте |
 
 ## Следующий шаг
 

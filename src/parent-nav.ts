@@ -22,14 +22,27 @@ const parentStudyItemsBase: ParentNavItem[] = [
   { to: paths.parentRecordBook, label: 'Зачётная книжка ребёнка', icon: 'recordBook' },
   { to: paths.parentAttendance, label: 'Посещаемость', icon: 'attendance' },
   { to: paths.parentOrders, label: 'Приказы', icon: 'orders' },
+  { to: paths.parentCertificates, label: 'Справки', icon: 'orders' },
 ]
 
-export function getParentStudyItems(attendanceEnabled: boolean): ParentNavItem[] {
-  if (attendanceEnabled) return parentStudyItemsBase
-  return parentStudyItemsBase.filter((item) => item.to !== paths.parentAttendance)
+export function getParentStudyItems(
+  attendanceEnabled: boolean,
+  certificatesEnabled = false,
+): ParentNavItem[] {
+  let items = parentStudyItemsBase
+  if (!attendanceEnabled) {
+    items = items.filter((item) => item.to !== paths.parentAttendance)
+  }
+  if (!certificatesEnabled) {
+    items = items.filter((item) => item.to !== paths.parentCertificates)
+  }
+  return items
 }
 
-export function getParentSidebarGroups(attendanceEnabled: boolean): {
+export function getParentSidebarGroups(
+  attendanceEnabled: boolean,
+  certificatesEnabled = false,
+): {
   id: string
   label: string
   icon: NavIconId
@@ -40,7 +53,7 @@ export function getParentSidebarGroups(attendanceEnabled: boolean): {
       id: 'study',
       label: 'Обучение',
       icon: 'program',
-      items: getParentStudyItems(attendanceEnabled),
+      items: getParentStudyItems(attendanceEnabled, certificatesEnabled),
     },
     {
       id: 'finance',

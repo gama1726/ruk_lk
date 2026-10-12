@@ -16,6 +16,7 @@ export function Services() {
   const load = useStudentProfile((s) => s.load)
   const startEnabled = useAppFeatures((s) => s.features?.startEnabled === true)
   const startShowInLk = useAppFeatures((s) => s.features?.startShowInLk === true)
+  const previewEnabled = useAppFeatures((s) => s.features?.previewEnabled === true)
   const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
 
@@ -35,6 +36,11 @@ export function Services() {
       { to: paths.portfolio, title: 'Портфолио', note: 'Достижения и награды' },
       { to: paths.passPhoto, title: 'Фото для пропуска', note: 'Загрузка фото для пропуска' },
       {
+        to: paths.certificates,
+        title: 'Справки',
+        note: 'Больничный и другие справки на согласование',
+      },
+      {
         to: paths.start,
         title: 'Start',
         note: startEnabled ? 'Вход на start.ruc.su' : 'Скоро — вход на start.ruc.su',
@@ -44,10 +50,11 @@ export function Services() {
     ] as const
     return allItems.filter((item) => {
       if (item.to === paths.passPhoto && !isPassPhotoNavVisible(profile)) return false
+      if (item.to === paths.certificates && !previewEnabled) return false
       if (item.to === paths.start && !startShowInLk) return false
       return true
     })
-  }, [profile, startEnabled, startShowInLk])
+  }, [profile, startEnabled, startShowInLk, previewEnabled])
 
   return (
     <>

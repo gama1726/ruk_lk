@@ -29,6 +29,7 @@ export function ParentSidebar() {
   const dataAllowed = session?.dataAccessAllowed !== false
   const lockTitle = session?.consentRequiredMessage ?? PARENT_CONSENT_MESSAGE
   const attendanceEnabled = useAppFeatures((s) => s.features?.attendanceEnabled === true)
+  const previewEnabled = useAppFeatures((s) => s.features?.previewEnabled === true)
   const featuresStatus = useAppFeatures((s) => s.status)
   const loadFeatures = useAppFeatures((s) => s.load)
   const [studentCampus, setStudentCampus] = useState<{
@@ -69,7 +70,10 @@ export function ParentSidebar() {
     [showEvents],
   )
 
-  const groups = useMemo(() => getParentSidebarGroups(showAttendance), [showAttendance])
+  const groups = useMemo(
+    () => getParentSidebarGroups(showAttendance, previewEnabled),
+    [showAttendance, previewEnabled],
+  )
 
   return (
     <nav className={styles.sidebar} aria-label="Разделы кабинета родителя">

@@ -50,6 +50,7 @@ import { Portfolio } from '@/pages/portfolio'
 import { Library } from '@/pages/library'
 import { Settings } from '@/pages/settings'
 import { PassPhoto } from '@/pages/pass-photo'
+import { ParentCertificatesPage, StudentCertificatesPage } from '@/pages/certificates-page'
 import { EsportsRedirect } from '@/pages/esports-redirect'
 import { StartRedirect } from '@/pages/start-redirect'
 import { AdminPassPhotosHe, AdminPassPhotosSpo } from '@/pages/admin-pass-photos'
@@ -135,6 +136,7 @@ export const router = createBrowserRouter([
           { path: paths.library, element: <Library /> },
           { path: paths.settings, element: <Settings /> },
           { path: paths.passPhoto, element: <PassPhoto /> },
+          { path: paths.certificates, element: <StudentCertificatesPage /> },
           { path: paths.start, element: <StartRedirect /> },
           { path: paths.esports, element: <EsportsRedirect /> },
         ],
@@ -156,6 +158,7 @@ export const router = createBrowserRouter([
           { path: paths.parentRecordBook, element: <ParentRecordBook /> },
           { path: paths.parentAttendance, element: <ParentAttendance /> },
           { path: paths.parentOrders, element: <ParentOrders /> },
+          { path: paths.parentCertificates, element: <ParentCertificatesPage /> },
           { path: paths.parentPayments, element: <ParentPayments /> },
         ],
       },

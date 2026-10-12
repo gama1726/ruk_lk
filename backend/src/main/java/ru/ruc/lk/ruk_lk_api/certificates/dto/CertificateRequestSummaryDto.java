@@ -1,6 +1,7 @@
 package ru.ruc.lk.ruk_lk_api.certificates.dto;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 public record CertificateRequestSummaryDto(
     String id,
@@ -9,5 +10,8 @@ public record CertificateRequestSummaryDto(
     String type,
     String typeLabel,
     String status,
-    Instant createdAt
+    Instant createdAt,
+    LocalDate approvedFrom,
+    LocalDate approvedTo,
+    String rejectionReason
 ) {}

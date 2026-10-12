@@ -76,7 +76,10 @@ public class CertificateAdminService {
             row.getType().name(),
             row.getType().labelRu(),
             row.getStatus().name(),
-            row.getCreatedAt()
+            row.getCreatedAt(),
+            row.getApprovedFrom(),
+            row.getApprovedTo(),
+            row.getRejectionReason()
         );
     }
 

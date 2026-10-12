@@ -50,6 +50,9 @@ public class CertificateRequestEntity {
     @Column(length = 255)
     private String submitterName;
 
+    @Column(length = 320)
+    private String submitterEmail;
+
     @Column(length = 2000)
     private String comment;
 
@@ -85,6 +88,7 @@ public class CertificateRequestEntity {
         CertificateType type,
         CertificateSubmittedBy submittedBy,
         String submitterName,
+        String submitterEmail,
         String comment
     ) {
         Instant now = Instant.now();
@@ -96,9 +100,14 @@ public class CertificateRequestEntity {
         this.status = CertificateStatus.PENDING;
         this.submittedBy = submittedBy;
         this.submitterName = submitterName;
+        this.submitterEmail = blankToNull(submitterEmail);
         this.comment = comment;
         this.createdAt = now;
         this.updatedAt = now;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public UUID getId() {
@@ -136,6 +145,10 @@ public class CertificateRequestEntity {
 
     public String getSubmitterName() {
         return submitterName;
+    }
+
+    public String getSubmitterEmail() {
+        return submitterEmail;
     }
 
     public String getComment() {

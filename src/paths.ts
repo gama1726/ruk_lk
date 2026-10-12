@@ -46,6 +46,8 @@ export const paths = {
   esports: '/esports',
   start: '/start',
   passPhoto: '/services/pass-photo',
+  certificates: '/services/certificates',
+  parentCertificates: '/parent/certificates',
   adminPassPhotos: '/admin/pass-photos',
   adminPassPhotosLogin: '/admin/pass-photos/login',
   adminPassPhotosSpo: '/admin/pass-photos/spo',
