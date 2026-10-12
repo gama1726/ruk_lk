@@ -35,6 +35,20 @@ function parseCampus(raw: string | undefined): AbsenceReportCampus | null {
   return null
 }
 
+function statusBadgeClass(status: string): string {
+  if (status === 'APPROVED') return styles.badgeOn
+  if (status === 'REJECTED') return styles.badgeOff
+  return styles.badge
+}
+
+function StatusChip({ status }: { status: string }) {
+  return (
+    <span className={`${styles.badge} ${statusBadgeClass(status)}`}>
+      {certificateStatusLabel(status)}
+    </span>
+  )
+}
+
 export function AdminLkCertificatesPage() {
   const { campus: campusParam } = useParams()
   const campus = useMemo(() => parseCampus(campusParam), [campusParam])
@@ -185,9 +199,9 @@ export function AdminLkCertificatesPage() {
               {saving ? 'Сохранение…' : 'Сохранить'}
             </Button>
             {settings?.notifyEmail ? (
-              <span className={`${styles.badge} ${styles.badgeOn}`}>письма включены</span>
+              <span className={`${styles.badge} ${styles.badgeOn}`}>Письма включены</span>
             ) : (
-              <span className={`${styles.badge} ${styles.badgeOff}`}>письма выкл</span>
+              <span className={`${styles.badge} ${styles.badgeCampus}`}>Письма выключены</span>
             )}
             {saveMsg ? <span className={styles.cardMeta}>{saveMsg}</span> : null}
           </div>
@@ -197,7 +211,7 @@ export function AdminLkCertificatesPage() {
       <div className={styles.card} style={{ marginBottom: '1.25rem' }}>
         <h2 className={styles.cardTitle}>На проверке · {pending.length}</h2>
         {pending.length === 0 ? (
-          <p className={styles.cardMeta}>Нет заявок на проверке.</p>
+          <p className={styles.cardMeta}>Новых заявок нет. Когда студент или родитель отправит справку, она появится здесь.</p>
         ) : (
           <ul className={styles.list}>
             {pending.map((item) => (
@@ -225,12 +239,32 @@ export function AdminLkCertificatesPage() {
           <h2 className={styles.cardTitle}>Обработанные · {others.length}</h2>
           <ul className={styles.list}>
             {others.slice(0, 30).map((item) => (
-              <li key={item.id} className={styles.cardMeta} style={{ marginBottom: 8 }}>
-                {item.studentFullName || item.studentId} · {item.typeLabel} ·{' '}
-                {certificateStatusLabel(item.status)}{' '}
-                <Button type="button" onClick={() => void openRequest(item.id)} disabled={acting}>
-                  Карточка
-                </Button>
+              <li key={item.id} className={styles.card} style={{ marginBottom: '0.75rem' }}>
+                <div className={styles.cardTop}>
+                  <div>
+                    <div className={styles.cardTitle}>
+                      {item.studentFullName || item.studentId}{' '}
+                      <StatusChip status={item.status} />
+                    </div>
+                    <p className={styles.cardMeta}>
+                      {item.typeLabel} · {new Date(item.createdAt).toLocaleString('ru-RU')} ·{' '}
+                      {item.studentId}
+                    </p>
+                    {item.status === 'REJECTED' && item.rejectionReason ? (
+                      <p className={styles.error} style={{ marginTop: 6 }}>
+                        Причина: {item.rejectionReason}
+                      </p>
+                    ) : null}
+                    {item.status === 'APPROVED' && item.approvedFrom && item.approvedTo ? (
+                      <p className={styles.cardMeta}>
+                        Период: {item.approvedFrom} — {item.approvedTo}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Button type="button" onClick={() => void openRequest(item.id)} disabled={acting}>
+                    Открыть заявку
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -241,9 +275,9 @@ export function AdminLkCertificatesPage() {
         <div className={styles.card}>
           <div className={styles.cardTop}>
             <h2 className={styles.cardTitle}>
-              {selected.studentFullName} · {certificateStatusLabel(selected.status)}
+              {selected.studentFullName} <StatusChip status={selected.status} />
             </h2>
-            <Button type="button" onClick={() => setSelected(null)}>
+            <Button type="button" variant="secondary" onClick={() => setSelected(null)}>
               Закрыть
             </Button>
           </div>
@@ -252,7 +286,9 @@ export function AdminLkCertificatesPage() {
             {selected.submitterName || selected.submittedBy}
           </p>
           {selected.comment ? <p>Комментарий: {selected.comment}</p> : null}
-          {selected.rejectionReason ? <p>Причина отклонения: {selected.rejectionReason}</p> : null}
+          {selected.rejectionReason ? (
+            <p className={styles.error}>Причина отклонения: {selected.rejectionReason}</p>
+          ) : null}
           {selected.approvedFrom && selected.approvedTo ? (
             <p>
               Период: {selected.approvedFrom} — {selected.approvedTo}
