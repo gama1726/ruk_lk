@@ -57,6 +57,27 @@ const allNavItems: NavItem[] = [
     end: true,
   },
   {
+    to: paths.adminLkCertificatesKazan,
+    label: 'Справки · Казань',
+    title: 'Очередь справок · Казань',
+    section: 'CERTIFICATE_REVIEW_KAZAN',
+    end: true,
+  },
+  {
+    to: paths.adminLkCertificatesKrasnodar,
+    label: 'Справки · Краснодар',
+    title: 'Очередь справок · Краснодар',
+    section: 'CERTIFICATE_REVIEW_KRASNODAR',
+    end: true,
+  },
+  {
+    to: paths.adminLkCertificatesHead,
+    label: 'Справки · Голова',
+    title: 'Очередь справок · Голова',
+    section: 'CERTIFICATE_REVIEW_HEAD',
+    end: true,
+  },
+  {
     to: paths.adminLkAbsenceReportSettings,
     label: 'Настройки отчёта',
     title: 'Настройки автоотчёта отсутствующих',

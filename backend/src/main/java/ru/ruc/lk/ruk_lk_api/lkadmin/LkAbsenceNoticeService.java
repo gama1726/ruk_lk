@@ -384,8 +384,8 @@ public class LkAbsenceNoticeService {
         noticeRepository.save(row);
     }
 
-    /** Кампус для выбора бланка по профилю 1С. */
-    static LkAbsenceReportCampus resolveCampus(OneCProfileResponse profile) {
+    /** Кампус для выбора бланка / справок по профилю 1С. */
+    public static LkAbsenceReportCampus resolveCampus(OneCProfileResponse profile) {
         if (profile == null) {
             return null;
         }

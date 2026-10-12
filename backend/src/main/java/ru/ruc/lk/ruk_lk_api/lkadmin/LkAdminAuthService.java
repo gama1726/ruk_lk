@@ -136,6 +136,19 @@ public class LkAdminAuthService {
         );
     }
 
+    public static void requireCertificateCampus(HttpSession session, LkAbsenceReportCampus campus) {
+        requireSection(session, LkAdminSection.forCertificateCampus(campus));
+    }
+
+    public static void requireAnyCertificateReview(HttpSession session) {
+        requireAnySection(
+            session,
+            LkAdminSection.CERTIFICATE_REVIEW_KAZAN,
+            LkAdminSection.CERTIFICATE_REVIEW_KRASNODAR,
+            LkAdminSection.CERTIFICATE_REVIEW_HEAD
+        );
+    }
+
     public static void requireSuperAdmin(HttpSession session) {
         LkAdminSession admin = require(session);
         if (!admin.superAdmin()) {

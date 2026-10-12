@@ -10,6 +10,9 @@ export type LkAdminSection =
   | 'ABSENCE_REPORT_KAZAN'
   | 'ABSENCE_REPORT_KRASNODAR'
   | 'ABSENCE_REPORT_HEAD'
+  | 'CERTIFICATE_REVIEW_KAZAN'
+  | 'CERTIFICATE_REVIEW_KRASNODAR'
+  | 'CERTIFICATE_REVIEW_HEAD'
   | 'EVENTS'
   | 'API_LOAD'
   | 'CABINET_STATS'
@@ -126,6 +129,9 @@ export const LK_ADMIN_SECTION_LABELS: Record<LkAdminSection, string> = {
   ABSENCE_REPORT_KAZAN: 'Отчёт · Казань',
   ABSENCE_REPORT_KRASNODAR: 'Отчёт · Краснодар',
   ABSENCE_REPORT_HEAD: 'Отчёт · Голова',
+  CERTIFICATE_REVIEW_KAZAN: 'Справки · Казань',
+  CERTIFICATE_REVIEW_KRASNODAR: 'Справки · Краснодар',
+  CERTIFICATE_REVIEW_HEAD: 'Справки · Голова',
   EVENTS: 'Мероприятия',
   API_LOAD: 'Нагрузка API',
   CABINET_STATS: 'Пользователи ЛК',
@@ -259,6 +265,53 @@ export type AbsenceReportSettingsUpdate = {
   }>
 }
 
+export type CertificateRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+
+export type CertificateRequestSummary = {
+  id: string
+  studentId: string
+  studentFullName: string
+  type: string
+  typeLabel: string
+  status: CertificateRequestStatus
+  createdAt: string
+}
+
+export type CertificateSettings = {
+  campus: AbsenceReportCampus
+  notifyEmail: string | null
+}
+
+export type CertificateSettingsUpdate = {
+  notifyEmail: string | null
+}
+
+export function listCertificateRequests(
+  campus: AbsenceReportCampus,
+): Promise<CertificateRequestSummary[]> {
+  return apiGet<CertificateRequestSummary[]>(
+    `/api/admin/lk/certificates/${campus.toLowerCase()}`,
+  )
+}
+
+export function getCertificateSettings(
+  campus: AbsenceReportCampus,
+): Promise<CertificateSettings> {
+  return apiGet<CertificateSettings>(
+    `/api/admin/lk/certificates/${campus.toLowerCase()}/settings`,
+  )
+}
+
+export function updateCertificateSettings(
+  campus: AbsenceReportCampus,
+  body: CertificateSettingsUpdate,
+): Promise<CertificateSettings> {
+  return apiPut<CertificateSettings>(
+    `/api/admin/lk/certificates/${campus.toLowerCase()}/settings`,
+    body,
+  )
+}
+
 export function getAbsenceReportSettings(): Promise<AbsenceReportSettings> {
   return apiGet<AbsenceReportSettings>('/api/admin/lk/absence-report/settings')
 }
@@ -280,6 +333,9 @@ export function firstAllowedLkPath(me: LkAdminMe): string {
   if (hasLkSection(me, 'ABSENCE_REPORT_KRASNODAR')) return '/admin/lk/absence-report/krasnodar'
   if (hasLkSection(me, 'ABSENCE_REPORT_KAZAN')) return '/admin/lk/absence-report/kazan'
   if (hasLkSection(me, 'ABSENCE_REPORT_HEAD')) return '/admin/lk/absence-report/head'
+  if (hasLkSection(me, 'CERTIFICATE_REVIEW_KRASNODAR')) return '/admin/lk/certificates/krasnodar'
+  if (hasLkSection(me, 'CERTIFICATE_REVIEW_KAZAN')) return '/admin/lk/certificates/kazan'
+  if (hasLkSection(me, 'CERTIFICATE_REVIEW_HEAD')) return '/admin/lk/certificates/head'
   if (hasLkSection(me, 'EVENTS')) return '/admin/lk/events'
   if (hasLkSection(me, 'API_LOAD')) return '/admin/lk/load'
   if (hasLkSection(me, 'CABINET_STATS')) return '/admin/lk/users'

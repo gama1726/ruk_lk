@@ -63,6 +63,7 @@ import { AdminLkAttendancePage } from '@/pages/admin-lk-attendance-page'
 import { AdminLkAbsenceReportPage } from '@/pages/admin-lk-absence-report-page'
 import { AdminLkAdminsPage } from '@/pages/admin-lk-admins-page'
 import { AdminLkAbsenceReportSettingsPage } from '@/pages/admin-lk-absence-report-settings-page'
+import { AdminLkCertificatesPage } from '@/pages/admin-lk-certificates-page'
 import { EventsPage } from '@/pages/events'
 import { ParentEvents } from '@/pages/parent-events'
 
@@ -184,6 +185,14 @@ export const router = createBrowserRouter([
       {
         path: `${paths.adminLkAbsenceReport}/:campus`,
         element: <AdminLkAbsenceReportPage />,
+      },
+      {
+        path: paths.adminLkCertificates,
+        element: <Navigate to={paths.adminLkCertificatesKrasnodar} replace />,
+      },
+      {
+        path: `${paths.adminLkCertificates}/:campus`,
+        element: <AdminLkCertificatesPage />,
       },
       { path: paths.adminLkEvents, element: <AdminEventsPage /> },
       { path: paths.adminLkApiLoad, element: <AdminEventsLoadPage /> },
