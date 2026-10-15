@@ -1,5 +1,5 @@
 /**
- * @file Раздел «Пользователи ЛК» в админке мероприятий.
+ * @file Раздел «Статистика ЛК» в админке.
  */
 
 import { AdminEventsStats } from '@/pages/admin-events-stats'

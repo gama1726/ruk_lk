@@ -134,7 +134,7 @@ export const LK_ADMIN_SECTION_LABELS: Record<LkAdminSection, string> = {
   CERTIFICATE_REVIEW_HEAD: 'Справки · Голова',
   EVENTS: 'Мероприятия',
   API_LOAD: 'Нагрузка API',
-  CABINET_STATS: 'Пользователи ЛК',
+  CABINET_STATS: 'Статистика ЛК',
   ADMINS: 'Учётки админки',
 }
 

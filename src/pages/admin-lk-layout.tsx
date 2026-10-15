@@ -98,8 +98,8 @@ const allNavItems: NavItem[] = [
   },
   {
     to: paths.adminLkUsers,
-    label: 'Пользователи ЛК',
-    title: 'Пользователи ЛК',
+    label: 'Статистика ЛК',
+    title: 'Статистика ЛК',
     section: 'CABINET_STATS',
   },
   {
