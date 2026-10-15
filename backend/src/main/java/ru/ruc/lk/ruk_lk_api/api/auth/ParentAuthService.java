@@ -291,7 +291,7 @@ public class ParentAuthService {
         try {
             cabinetUserService.enrichParentCampus(parentSession.studentId(), parentSession.memberIndex());
         } catch (RuntimeException e) {
-            log.warn("Не удалось определить филиал родителя для статистики: {}", e.toString());
+            log.warn("Не удалось определить филиал родителя для статистики: {}", e.toString(), e);
         }
 
         return toMeResponse(parentSession);

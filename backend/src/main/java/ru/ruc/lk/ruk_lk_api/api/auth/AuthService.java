@@ -369,7 +369,7 @@ public class AuthService {
         try {
             cabinetUserService.enrichStudentCampus(student.studentId());
         } catch (RuntimeException e) {
-            log.warn("Не удалось определить филиал студента для статистики: {}", e.toString());
+            log.warn("Не удалось определить филиал студента для статистики: {}", e.toString(), e);
         }
 
         return toMeResponse(student);

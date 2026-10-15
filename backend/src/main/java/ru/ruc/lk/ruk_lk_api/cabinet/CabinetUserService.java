@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,11 +42,17 @@ public class CabinetUserService {
 
     private final CabinetUserRepository repository;
     private final OneCClient onecClient;
+    private final JdbcTemplate jdbc;
     private final ConcurrentHashMap<String, Long> touchThrottle = new ConcurrentHashMap<>();
 
-    public CabinetUserService(CabinetUserRepository repository, OneCClient onecClient) {
+    public CabinetUserService(
+        CabinetUserRepository repository,
+        OneCClient onecClient,
+        JdbcTemplate jdbc
+    ) {
         this.repository = repository;
         this.onecClient = onecClient;
+        this.jdbc = jdbc;
     }
 
     /**
@@ -60,15 +67,17 @@ public class CabinetUserService {
         String id = studentKey(student.studentId());
         Instant now = Instant.now();
         String name = blank(student.fullName()) ? student.studentId().trim() : student.fullName().trim();
+        String defaultCampus = UniversityBranchCatalog.MAIN.id();
         CabinetUser user = repository.findById(id).orElse(null);
         if (user == null) {
+            // Сразу main — не «Не определён»; enrich уточнит филиал из 1С.
             repository.save(new CabinetUser(
                 id,
                 CabinetUserRole.STUDENT,
                 student.studentId().trim(),
                 null,
                 name,
-                null,
+                defaultCampus,
                 now
             ));
             return;
@@ -76,6 +85,9 @@ public class CabinetUserService {
         user.setDisplayName(name);
         user.setLastLoginAt(now);
         user.setLastSeenAt(now);
+        if (blank(user.getCampus()) || !UniversityBranchCatalog.isKnownId(user.getCampus())) {
+            user.setCampus(defaultCampus);
+        }
         repository.save(user);
     }
 
@@ -89,6 +101,7 @@ public class CabinetUserService {
         String name = blank(parent.parentFullName())
             ? ("Родитель · " + parent.studentId().trim())
             : parent.parentFullName().trim();
+        String defaultCampus = UniversityBranchCatalog.MAIN.id();
         CabinetUser user = repository.findById(id).orElse(null);
         if (user == null) {
             repository.save(new CabinetUser(
@@ -97,7 +110,7 @@ public class CabinetUserService {
                 parent.studentId().trim(),
                 String.valueOf(parent.memberIndex()),
                 name,
-                null,
+                defaultCampus,
                 now
             ));
             return;
@@ -105,6 +118,9 @@ public class CabinetUserService {
         user.setDisplayName(name);
         user.setLastLoginAt(now);
         user.setLastSeenAt(now);
+        if (blank(user.getCampus()) || !UniversityBranchCatalog.isKnownId(user.getCampus())) {
+            user.setCampus(defaultCampus);
+        }
         repository.save(user);
     }
 
@@ -377,9 +393,23 @@ public class CabinetUserService {
         String parentKey,
         String displayName
     ) {
+        CabinetUser existing = repository.findById(id).orElse(null);
+        boolean needsCampus = existing == null
+            || blank(existing.getCampus())
+            || !UniversityBranchCatalog.isKnownId(existing.getCampus());
+
+        // Филиал дозаполняем даже при throttle lastSeen — иначе «Не определён» залипает.
+        if (needsCampus && existing != null) {
+            try {
+                applyCampus(id, studentId);
+            } catch (RuntimeException e) {
+                log.warn("Cabinet campus: touch enrich {} — {}", id, e.toString());
+            }
+        }
+
         long nowMs = System.currentTimeMillis();
         Long prev = touchThrottle.get(id);
-        if (prev != null && nowMs - prev < TOUCH_THROTTLE_MS) {
+        if (prev != null && nowMs - prev < TOUCH_THROTTLE_MS && existing != null) {
             return;
         }
         touchThrottle.put(id, nowMs);
@@ -387,34 +417,70 @@ public class CabinetUserService {
         Instant now = Instant.ofEpochMilli(nowMs);
         CabinetUser user = repository.findById(id).orElse(null);
         if (user == null) {
-            // Без 1С: присутствие не зависит от сети; филиал дозаполнит backfill/вход.
             repository.save(new CabinetUser(
                 id,
                 role,
                 studentId,
                 parentKey,
                 displayName,
-                null,
+                UniversityBranchCatalog.MAIN.id(),
                 now
             ));
+            try {
+                applyCampus(id, studentId);
+            } catch (RuntimeException e) {
+                log.warn("Cabinet campus: touch create enrich {} — {}", id, e.toString());
+            }
             return;
         }
         user.setDisplayName(displayName);
         user.setLastSeenAt(now);
+        if (blank(user.getCampus()) || !UniversityBranchCatalog.isKnownId(user.getCampus())) {
+            user.setCampus(UniversityBranchCatalog.MAIN.id());
+        }
         repository.save(user);
     }
 
     private void applyCampus(String userId, String studentId) {
         CabinetUser user = repository.findById(userId).orElse(null);
         if (user == null) {
+            log.warn("Cabinet campus: пользователь {} не найден для enrich", userId);
             return;
         }
         String campus = resolveCampusId(studentId);
-        if (campus == null || campus.equals(user.getCampus())) {
+        if (blank(campus)) {
+            campus = UniversityBranchCatalog.MAIN.id();
+        }
+        if (campus.equals(user.getCampus())) {
             return;
         }
-        user.setCampus(campus);
-        repository.save(user);
+        persistCampus(userId, campus);
+    }
+
+    private void persistCampus(String userId, String campus) {
+        try {
+            CabinetUser user = repository.findById(userId).orElse(null);
+            if (user == null) {
+                return;
+            }
+            user.setCampus(campus);
+            repository.saveAndFlush(user);
+            log.info("Cabinet campus: {} → {}", userId, campus);
+            return;
+        } catch (RuntimeException e) {
+            log.warn("Cabinet campus: JPA save {} → {} failed: {}", userId, campus, e.toString());
+        }
+        try {
+            int n = jdbc.update("UPDATE cabinet_user SET campus = ? WHERE id = ?", campus, userId);
+            if (n > 0) {
+                log.info("Cabinet campus: JDBC {} → {}", userId, campus);
+            } else {
+                log.warn("Cabinet campus: JDBC update 0 строк для {}", userId);
+            }
+        } catch (RuntimeException e) {
+            log.warn("Cabinet campus: JDBC save {} → {} failed: {}", userId, campus, e.toString(), e);
+            throw e;
+        }
     }
 
     private String resolveCampusId(String studentId) {
@@ -425,7 +491,7 @@ public class CabinetUserService {
             OneCProfileResponse profile = onecClient.fetchProfile(studentId.trim()).orElse(null);
             return UniversityBranchCatalog.resolveFromProfile(profile).id();
         } catch (RuntimeException e) {
-            log.debug("Не удалось определить филиал для {}: {}", studentId, e.toString());
+            log.warn("Не удалось определить филиал для {}: {}", studentId, e.toString());
             return UniversityBranchCatalog.MAIN.id();
         }
     }
