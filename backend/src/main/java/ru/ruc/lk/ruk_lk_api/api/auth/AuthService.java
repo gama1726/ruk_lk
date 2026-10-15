@@ -364,7 +364,12 @@ public class AuthService {
         try {
             cabinetUserService.recordStudentLogin(student);
         } catch (RuntimeException e) {
-            log.warn("Не удалось записать вход студента в статистику: {}", e.getMessage());
+            log.warn("Не удалось записать вход студента в статистику: {}", e.toString(), e);
+        }
+        try {
+            cabinetUserService.enrichStudentCampus(student.studentId());
+        } catch (RuntimeException e) {
+            log.warn("Не удалось определить филиал студента для статистики: {}", e.toString());
         }
 
         return toMeResponse(student);

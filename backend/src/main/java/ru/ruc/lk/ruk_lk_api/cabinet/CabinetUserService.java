@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import ru.ruc.lk.ruk_lk_api.api.auth.ParentSession;
@@ -47,6 +48,10 @@ public class CabinetUserService {
         this.onecClient = onecClient;
     }
 
+    /**
+     * Пишет факт входа без запроса в 1С: сеть/таймаут филиала не должны ломать статистику.
+     * Филиал дозаполняет {@link #enrichStudentCampus(String)} / {@link #enrichParentCampus(String, int)}.
+     */
     @Transactional
     public void recordStudentLogin(StudentSession student) {
         if (student == null || blank(student.studentId())) {
@@ -54,7 +59,6 @@ public class CabinetUserService {
         }
         String id = studentKey(student.studentId());
         Instant now = Instant.now();
-        String campus = resolveCampusId(student.studentId());
         String name = blank(student.fullName()) ? student.studentId().trim() : student.fullName().trim();
         CabinetUser user = repository.findById(id).orElse(null);
         if (user == null) {
@@ -64,7 +68,7 @@ public class CabinetUserService {
                 student.studentId().trim(),
                 null,
                 name,
-                campus,
+                null,
                 now
             ));
             return;
@@ -72,7 +76,6 @@ public class CabinetUserService {
         user.setDisplayName(name);
         user.setLastLoginAt(now);
         user.setLastSeenAt(now);
-        user.setCampus(campus);
         repository.save(user);
     }
 
@@ -83,7 +86,6 @@ public class CabinetUserService {
         }
         String id = parentKey(parent.studentId(), parent.memberIndex());
         Instant now = Instant.now();
-        String campus = resolveCampusId(parent.studentId());
         String name = blank(parent.parentFullName())
             ? ("Родитель · " + parent.studentId().trim())
             : parent.parentFullName().trim();
@@ -95,7 +97,7 @@ public class CabinetUserService {
                 parent.studentId().trim(),
                 String.valueOf(parent.memberIndex()),
                 name,
-                campus,
+                null,
                 now
             ));
             return;
@@ -103,8 +105,24 @@ public class CabinetUserService {
         user.setDisplayName(name);
         user.setLastLoginAt(now);
         user.setLastSeenAt(now);
-        user.setCampus(campus);
         repository.save(user);
+    }
+
+    /** Отдельная TX: сбой 1С не откатывает запись входа. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void enrichStudentCampus(String studentId) {
+        if (blank(studentId)) {
+            return;
+        }
+        applyCampus(studentKey(studentId), studentId.trim());
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void enrichParentCampus(String studentId, int memberIndex) {
+        if (blank(studentId)) {
+            return;
+        }
+        applyCampus(parentKey(studentId, memberIndex), studentId.trim());
     }
 
     @Transactional
@@ -292,9 +310,19 @@ public class CabinetUserService {
         if (missing.isEmpty()) {
             return 0;
         }
+        // Не долбим 1С всей базой за один старт — остальное дозаполнится на входе.
+        final int limit = 200;
         int updated = 0;
         Map<String, String> cache = new HashMap<>();
         for (CabinetUser user : missing) {
+            if (updated >= limit) {
+                log.info(
+                    "Cabinet campus backfill: обработано {} из {} без филиала, продолжение на следующих стартах/входах",
+                    updated,
+                    missing.size()
+                );
+                break;
+            }
             String campus = cache.computeIfAbsent(user.getStudentId(), this::resolveCampusId);
             user.setCampus(campus);
             repository.save(user);
@@ -359,22 +387,33 @@ public class CabinetUserService {
         Instant now = Instant.ofEpochMilli(nowMs);
         CabinetUser user = repository.findById(id).orElse(null);
         if (user == null) {
+            // Без 1С: присутствие не зависит от сети; филиал дозаполнит backfill/вход.
             repository.save(new CabinetUser(
                 id,
                 role,
                 studentId,
                 parentKey,
                 displayName,
-                resolveCampusId(studentId),
+                null,
                 now
             ));
             return;
         }
         user.setDisplayName(displayName);
         user.setLastSeenAt(now);
-        if (user.getCampus() == null || !UniversityBranchCatalog.isKnownId(user.getCampus())) {
-            user.setCampus(resolveCampusId(studentId));
+        repository.save(user);
+    }
+
+    private void applyCampus(String userId, String studentId) {
+        CabinetUser user = repository.findById(userId).orElse(null);
+        if (user == null) {
+            return;
         }
+        String campus = resolveCampusId(studentId);
+        if (campus == null || campus.equals(user.getCampus())) {
+            return;
+        }
+        user.setCampus(campus);
         repository.save(user);
     }
 

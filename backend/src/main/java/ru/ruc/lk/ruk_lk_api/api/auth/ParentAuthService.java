@@ -286,7 +286,12 @@ public class ParentAuthService {
         try {
             cabinetUserService.recordParentLogin(parentSession);
         } catch (RuntimeException e) {
-            log.warn("Не удалось записать вход родителя в статистику: {}", e.getMessage());
+            log.warn("Не удалось записать вход родителя в статистику: {}", e.toString(), e);
+        }
+        try {
+            cabinetUserService.enrichParentCampus(parentSession.studentId(), parentSession.memberIndex());
+        } catch (RuntimeException e) {
+            log.warn("Не удалось определить филиал родителя для статистики: {}", e.toString());
         }
 
         return toMeResponse(parentSession);
